@@ -1,0 +1,174 @@
+Qualcomm Kernel Rebase: qcom-next-7.0-rc6 → qcom-next-7.1-rc2
+==============================================================
+Date: 2026-06-09
+Operator: kuba.pawlak@canonical.com
+
+CONTEXT
+-------
+- Ubuntu kernel tree: ~/qualcomm/linux (branch: master-next)
+  Base: upstream Linux 7.0 + Ubuntu SAUCE patches + Qualcomm patches from
+  qcom-next-7.0-rc6-20260409 (previously cherry-picked, linear history).
+- Qualcomm tree: ~/qualcomm/qualcomm-linux
+  New tag: qcom-next-7.1-rc2-20260515 (based on upstream Linux 7.1-rc2)
+
+STEP 1 — IDENTIFYING COMMITS TO CHERRY-PICK
+--------------------------------------------
+Strategy: find qcom-specific commits in the new tag not already applied.
+
+1. New tag structure:
+   - Merge commit 9f3cbcbfaa5a ("Prepare qcom-next based on Linux 7.1-rc2")
+   - Parent 1 (upstream base): 7fd2df204f34 "Linux 7.1-rc2"
+   - Parent 2 (qcom-next tip): 1a5fa218ff9c
+
+2. Extracted all qcom-specific commits from new tag:
+     git log --no-merges 1a5fa218ff9c ^7fd2df204f34
+   → 759 commits
+
+3. Extracted subjects of non-UBUNTU commits already in ubuntu tree:
+     git log --no-merges HEAD ^028ef9c96e96 (Linux 7.0 base)
+   → 600 commits
+
+4. Cross-referenced by subject line:
+   - Already applied (from old tag): 381
+   - New (need cherry-picking):      378
+
+Output: ~/qualcomm/commits_to_cherrypick.txt
+Format: <SHA> <subject>, oldest-first order (SHAs from qualcomm-linux repo).
+
+STEP 2 — CHERRY-PICK EXECUTION
+--------------------------------
+Executed with a script (/tmp/do_cherrypick.sh) that:
+- Applies commits oldest-first with `git cherry-pick -x`
+- Auto-skips empty commits (already applied, resolved to no-op)
+- Auto-resolves simple conflicts by taking the incoming (theirs) side
+- Stops on complex conflicts for manual resolution
+
+Overall result: 378 commits to apply
+  - 6  skipped  (empty / already applied)
+  - 40 auto-resolved (single-file, take-theirs)
+  - 14 manually resolved
+  - 318 applied cleanly
+
+STEP 3 — MANUALLY RESOLVED CONFLICTS
+--------------------------------------
+
+1. drivers/regulator/qcom-rpmh-regulator.c
+   Commit: FROMGIT: regulator: rpmh-regulator: Add support for new resource name format
+   Reason: Large refactor (new enum regulator_hw_type, new RPMH_VREG macro).
+           Incoming deleted PMIC530 hw_data structs and vreg tables (pmcx0102,
+           pmh0101, pmh0104, pmh0110, pmr735d) that our tree added from old tag.
+           These still exist in new tag's final file (re-added by later commits
+           already in our tree).
+   Resolution: KEEP OURS (all 4 conflict regions).
+
+2. drivers/media/platform/qcom/venus/core.c
+   Commit: FROMLIST: media: qcom: venus: flip the venus/iris switch
+   Reason: Added IS_ENABLED(CONFIG_VIDEO_QCOM_IRIS) guards around sc7280 and
+           sm8250 entries. HEAD had sc8280xp-venus and sm8350-venus entries
+           (from old tag) absent from new tag's final file.
+   Resolution: TAKE THEIRS (drop sc8280xp/sm8350, add IRIS guards).
+
+3. Documentation/devicetree/bindings/media/qcom,x1e80100-camss.yaml
+   Commit: FROMLIST: dt-bindings: media: qcom,x1e80100-camss: Describe iommu entries
+   Reason: iommus property changed from maxItems to oneOf with descriptions;
+           example iommu list reorganized.
+   Resolution: TAKE THEIRS (both conflicts).
+
+4. arch/arm64/boot/dts/qcom/sm8750-mtp.dts
+   Commit: arm64: dts: qcom: sm8750-mtp: Enable display
+   Reason: Incoming added mdss_dp0/mdss_dp0_out nodes not yet in HEAD.
+   Resolution: TAKE THEIRS.
+
+5. Documentation/devicetree/bindings/arm/qcom.yaml
+   Commit: FROMLIST: dt-bindings: arm: qcom: Add monaco-ac-evk support
+   Reason: Empty HEAD section (insertion point mismatch).
+   Resolution: TAKE THEIRS (adds qcom,monaco-ac-evk entry).
+
+6. arch/arm64/boot/dts/qcom/monaco-evk.dts
+   Commit: FROMLIST: arm64: dts: qcom: monaco-evk: Extract common EVK hardware
+   Reason: Commit moves bulk of DTS into new monaco-evk-common.dtsi; HEAD had
+           a different aliases node (missing serial2 = &uart6).
+   Resolution: TAKE THEIRS.
+
+7. arch/arm64/boot/dts/qcom/Makefile  (monaco-ac-evk)
+   Commit: FROMLIST: arm64: dts: qcom: monaco: Add monaco-ac EVK board
+   Reason: Auto-resolver produced duplicate stale block (lemans-evk-ifp-
+           mezzanine-dtbs, milos-fairphone-fp6, monaco-evk entries repeated).
+   Resolution: TAKE THEIRS + manual removal of duplicate stale block.
+
+8. drivers/clk/qcom/Kconfig  (camcc-glymur)
+   Commit: FROMLIST: clk: qcom: camcc-glymur: Add camera clock controller driver
+   Reason: Empty HEAD section (insertion point mismatch for new Kconfig entry).
+   Resolution: TAKE THEIRS.
+
+9. include/linux/dma/qcom-gpi-dma.h
+   Commit: FROMLIST: dmaengine: qcom: gpi: Add lock/unlock TREs for multi-owner
+   Reason: Empty HEAD section (new doc comment line).
+   Resolution: TAKE THEIRS.
+
+10. drivers/gpu/drm/msm/dp/dp_ctrl.c
+    Commit: FROMLIST: drm/msm/dp: rework HPD handling
+    Reason: Incoming deleted msm_dp_ctrl_off_link(). Function still present in
+            new tag's final file (re-added by a later commit).
+    Resolution: KEEP OURS.
+
+11. drivers/hwtracing/coresight/coresight-tmc-core.c + coresight-tmc.h
+    Commit: FROMLIST: coresight: tmc: introduce tmc_sysfs_ops
+    Reason: Refactored read_prepare/unprepare to use drvdata->sysfs_ops directly
+            (replacing byte_cntr_sysfs_ops). Large tmc_add_coresight_dev rewrite.
+            tmc.h still needs extra fields (supported_cpus, devid, desc_name).
+    Resolution: TAKE THEIRS for core.c; KEEP OURS for tmc.h.
+
+12. drivers/hwtracing/coresight/coresight-cti-core.c + coresight-cti-sysfs.c
+    Commit: FROMLIST: coresight: cti: encode trigger register index in offsets
+    Reason: New cti_reg_addr() helper + CTI_REG_SET_NR() encoding replacing old
+            cti_offset(drvdata, INDEX_*, i) pattern. Old INDEX_* enums removed.
+    Resolution: TAKE THEIRS for all conflicts in both files.
+
+13. drivers/hwtracing/coresight/coresight-cti-core.c + coresight-cti.h + qcom-cti.h
+    Commit: FROMLIST: coresight: cti: add Qualcomm extended CTI identification
+    Reason: New is_qcom_cti flag + cti_qcom_reg_off() replacing old subtype enum
+            and offset index tables. qcom-cti.h had add/add conflict (our version
+            had defines only; incoming added include guards and cti_qcom_reg_off()).
+    Resolution: TAKE THEIRS for all three files.
+
+14. drivers/hwtracing/coresight/coresight-cti-sysfs.c
+    Commit: FROMLIST: coresight: cti: expose banked sysfs registers for QCOM CTI
+    Reason: Register list changed from INDEX_* to direct constants; new banked
+            registers (triginstatus1/2/3 etc.) and coresight_cti_regs_is_visible().
+    Resolution: TAKE THEIRS for both conflicts.
+
+15. Documentation/devicetree/bindings/crypto/qcom,inline-crypto-engine.yaml
+    Commit: dt-bindings: crypto: qcom,ice: Fix missing power-domain and iface clk
+    Reason: clock minItems added, clock-names changed to const items (core/iface).
+    Resolution: TAKE THEIRS.
+
+16. drivers/soc/qcom/ice.c
+    Commit: soc: qcom: ice: Allow explicit votes on 'iface' clock for ICE
+    Reason: Clock name changed from "iface_clk" → "iface", get_enabled → optional.
+    Resolution: TAKE THEIRS.
+
+17-20. arch/arm64/boot/dts/qcom/{kaanapali,lemans,monaco,sc7180,...}.dtsi
+    Commits: "Add power-domain and iface clk for ice node" (multiple SoCs)
+    Reason: Clock names "ice_core_clk"/"iface_clk" → "core"/"iface" across
+            kaanapali, lemans, monaco, sc7180, kodiak, sm8450, sm8550, sm8650,
+            sm8750 DTS files.
+    Resolution: TAKE THEIRS (auto-resolved by script for later occurrences).
+
+AUTO-SKIP NOTES
+---------------
+The following commits were auto-skipped (resolved to empty):
+- watchdog: Add driver for Gunyah Watchdog
+- FROMLIST: coresight: core: refactor ctcu_get_active_port and make it generic
+- FROMLIST: arm64: dts: qcom: talos-evk-som: Enable Adreno 612 GPU
+- FROMLIST: arm64: dts: qcom: qcs615-ride: Enable QSPI and NOR flash
+- FROMLIST: dt-bindings: display: bridge: lontium,lt9211: Add lt9211c support
+- arm64: dts: qcom: qcs615-ride: Enable QSPI and NOR flash (duplicate)
+These were already present from the old tag cherry-pick.
+
+FINAL STATE
+-----------
+Branch: master-next
+HEAD: 3fba7aa89244 "Add qcom-next log files for 20260514"
+New non-UBUNTU commits since last release (Ubuntu-qcom-7.0.0-1005.7): 369
+The tree is ready for Ubuntu packaging (UBUNTU: Start new release, etc.).
