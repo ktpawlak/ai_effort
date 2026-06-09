@@ -1,0 +1,2 @@
+the AI was told to ssh to the device and inspect dmesg. then try to figure out
+issues, and possibly fix them using kernel code provided.
