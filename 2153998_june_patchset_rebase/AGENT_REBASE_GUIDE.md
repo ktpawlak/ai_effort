@@ -371,7 +371,149 @@ These subsystems had conflicts during the qcom-next-7.0→7.1 rebase and may con
 
 ---
 
-## 8. History of Rebases
+## 8. C Source Build Errors After Rebase
+
+After all DTS errors are fixed, compiler errors from C source files appear. These follow distinct patterns:
+
+### 8.1 Double Cherry-Pick (file truncation)
+
+**Symptom:** File significantly shorter than qcom-linux version. Compiler reports symbols as undeclared that appear to be defined in the file.
+
+**Cause:** Both a FROMLIST commit and its matching FROMGIT commit (same change, different upstream status) were both cherry-picked. The FROMGIT commit tries to remove code that the FROMLIST already removed, resulting in net deletion of large sections.
+
+**Detection:**
+```bash
+wc -l ~/qualcomm/linux/path/to/file.c
+wc -l ~/qualcomm/qualcomm-linux/path/to/file.c
+# If ubuntu has ~50% or fewer lines → double cherry-pick likely
+
+# Check git log for FROMLIST + FROMGIT pair on same file
+git log --oneline -- path/to/file.c | grep -E "FROMLIST|FROMGIT"
+```
+
+**Fix:** If ubuntu has no ubuntu-specific content in the file, copy wholesale from qcom-linux:
+```bash
+cp ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/linux/path/to/file.c
+```
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/regulator/qcom-rpmh-regulator.c` — lost ~947 lines; fixed by copying from qcom-linux
+- `drivers/soc/qcom/smem.c` — missing `debugfs_dir` field + `smem_dram_parse()`; fixed by copying from qcom-linux
+
+### 8.2 Ubuntu-specific code referencing missing struct members/includes
+
+**Symptom:** Compiler error like `struct X has no member Y` or `implicit declaration of function Z` in a file that has ubuntu-specific additions.
+
+**Cause:** Ubuntu SAUCE commits added new functionality (e.g., mutex locking, pm_runtime) but missed adding the required struct field or include.
+
+**Fix:** Surgical insertion only — do NOT copy from qcom-linux as ubuntu-specific code would be lost.
+
+```bash
+# Identify ubuntu-specific lines (present in ubuntu but not qcom-linux)
+diff ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/linux/path/to/file.c | grep "^>"
+```
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/misc/fastrpc.c` — missing `struct mutex mutex` in `fastrpc_session_ctx`; added field + `mutex_init`
+- `drivers/soc/qcom/ice.c` — missing `#include <linux/pm_runtime.h>` despite pm_runtime calls
+
+### 8.3 Duplicate function definition (double cherry-pick creating two function bodies)
+
+**Symptom:** `redefinition of 'function_name'` compile error. Two identical or similar function bodies in the same file.
+
+**Cause:** A function was added by one cherry-pick, then updated/refactored by a second cherry-pick that didn't properly handle the first version already being present.
+
+**Detection:**
+```bash
+grep -n "function_name" ~/qualcomm/linux/path/to/file.c
+# Shows two line numbers for the same definition
+```
+
+**Fix:** Check qcom-linux to determine which version is correct (usually the second/newer), then remove the first/older one.
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/gpu/drm/msm/dp/dp_ctrl.c` — `msm_dp_ctrl_off_link` appeared twice (old version without MST support, then new version with MST). Removed the old one.
+
+### 8.4 `#ifdef` guard scope mismatch (ubuntu code outside a conditional block)
+
+**Symptom:** Compiler reports symbols as "undeclared" that ARE defined in the same file.
+
+**Cause:** A qcom-next cherry-pick wraps a block in `#if (!IS_ENABLED(CONFIG_FOO))`, but ubuntu-specific code that references those symbols is outside the block.
+
+**Detection:**
+```bash
+grep -n "#if\|#endif\|suspicious_symbol" ~/qualcomm/linux/path/to/file.c
+# Check if definition is inside a #if block that the usage is outside
+```
+
+**Fix:** Move the ubuntu-specific code inside the same `#if` block, before its `#endif`.
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/media/platform/qcom/venus/core.c` — `sc8280xp_freq_table` and `sc8280xp_res` (ubuntu SAUCE) were outside `#if (!IS_ENABLED(CONFIG_VIDEO_QCOM_IRIS))` but reference symbols (`sm8350_reg_preset`, `VPU_VERSION_IRIS2`) inside it. Moved them inside the `#if` block.
+
+### 8.5 Garbled hybrid file (two conflicting implementations merged)
+
+**Symptom:** File uses APIs from two different approaches simultaneously. References undefined types/functions. Wildly different from both ubuntu original and qcom-linux version.
+
+**Cause:** A qcom-next cherry-pick reimplemented a subsystem in a completely different way, but the cherry-pick landed on top of ubuntu-specific additions that used the old approach. The result is a nonsensical mix.
+
+**Fix:** Determine if there are ubuntu-specific callers that depend on the old API. If not, copy qcom-linux wholesale. If yes, manually rebase the ubuntu-specific additions onto the new API.
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/power/reset/reboot-mode.c` — ubuntu used `rb_class`/`reboot_dev`/`driver_name` approach; qcom-linux used `reboot_mode_sysfs_data`/`reboot_mode_class` approach. No external callers used ubuntu-specific fields. Replaced with qcom-linux version (which already includes `name` field support from the ubuntu WORKAROUND commit).
+
+### 8.6 Cherry-picked code using newer upstream API
+
+**Symptom:** Errors like `has no member named 'new_field'`, `implicit declaration of function 'new_helper'`, or `too few/many arguments` on functions that exist in upstream.
+
+**Cause:** A commit from qcom-next (based on a newer upstream kernel) uses APIs that were added/changed between the ubuntu kernel version and the new upstream. The ubuntu kernel has an older version of the API.
+
+**Diagnosis:**
+```bash
+# Check ubuntu's version of the API
+grep -n "function_name\|struct_name" ~/qualcomm/linux/include/relevant/header.h
+
+# Check qcom-linux version to understand the new API contract
+grep -n "function_name\|struct_name" ~/qualcomm/qualcomm-linux/include/relevant/header.h
+```
+
+**Fix:** Adapt the cherry-picked code to use the ubuntu (older) API pattern. Common adaptations:
+
+| New API (qcom-linux) | Old API (ubuntu 7.0) | Notes |
+|---------------------|----------------------|-------|
+| `drm_atomic_private_obj_init(dev, obj, funcs)` — 3 args | `drm_atomic_private_obj_init(dev, obj, state, funcs)` — 4 args; initial state required | Must allocate initial state separately |
+| `drm_private_state_funcs.atomic_create_state` | No such member; only `atomic_duplicate_state` | Remove `atomic_create_state` hook and `__drm_atomic_helper_private_obj_create_state` usage |
+| `__drm_atomic_helper_private_obj_create_state(obj, &state->base)` | Not available | Replace with manual init; `drm_atomic_private_obj_init` sets `state->obj = obj` itself |
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/gpu/drm/msm/dp/dp_mst_drm.c` — used new `atomic_create_state` hook and 3-arg `drm_atomic_private_obj_init`. Adapted to old 4-arg API with inline initial state allocation.
+
+### 8.7 Missing source files for new Kbuild targets
+
+**Symptom:** `No rule to make target 'drivers/foo/bar.o'`
+
+**Cause:** A Makefile gained `obj-$(CONFIG_FOO) += bar.o` but the corresponding `bar.c` source file was never copied because its commit was filtered out (graduated upstream or subject-matched against an older commit).
+
+**Fix:** Copy all required `.c` and `.h` files from qcom-linux:
+```bash
+# Find the source file
+ls ~/qualcomm/qualcomm-linux/drivers/foo/bar.c
+
+# Also check for required dt-bindings headers
+grep "^#include" ~/qualcomm/qualcomm-linux/drivers/foo/bar.c | grep "dt-bindings"
+
+# Copy source + headers
+cp ~/qualcomm/qualcomm-linux/drivers/foo/bar.c ~/qualcomm/linux/drivers/foo/bar.c
+cp ~/qualcomm/qualcomm-linux/include/dt-bindings/clock/qcom,bar.h \
+   ~/qualcomm/linux/include/dt-bindings/clock/qcom,bar.h
+```
+
+**Known occurrences (7.1-rc2 rebase):**
+- `drivers/clk/qcom/gcc-nord.c`, `negcc-nord.c`, `nwgcc-nord.c`, `segcc-nord.c`, `tcsrcc-nord.c` + 5 dt-binding headers — all missing for new Nord platform clock drivers.
+
+---
+
+## 9. History of Rebases
 
 | Date | Old tag | New tag | Upstream base | Commits applied |
 |------|---------|---------|---------------|-----------------|
@@ -380,20 +522,120 @@ These subsystems had conflicts during the qcom-next-7.0→7.1 rebase and may con
 
 ---
 
-## 9. After the Rebase
+## 10. After the Rebase
 
 Once all commits are applied:
 1. Run `git log --oneline -20` and verify HEAD looks sane.
 2. Do Ubuntu packaging: add `UBUNTU: Start new release` commit with version bump.
 3. Build-test: `fakeroot debian/rules clean && fakeroot debian/rules binary-headers` (or equivalent).
 4. **Check for graduated-upstream gaps** (see Section 5): look for DTC `Label or path not found` errors and `No rule to make target` errors pointing at DTS files. Fix by copying the relevant files from qcom-linux tip.
-5. Watch for compiler errors from conflict resolutions — particularly in subsystems with enum/macro renames (e.g. `INDEX_*` in coresight CTI).
+5. **Check for C source build errors** (see Section 8): after DTS errors are resolved, watch for compiler errors from double cherry-picks, missing struct members/includes, duplicate functions, `#ifdef` scope mismatches, garbled hybrid files, and API version mismatches.
+6. Watch for compiler errors from conflict resolutions — particularly in subsystems with enum/macro renames (e.g. `INDEX_*` in coresight CTI).
 6. Update `~/qualcomm/qualcomm_rebase.txt` with the new rebase summary.
 7. Update this file's history table (Section 8) and the "Known graduated-upstream files" table (Section 5) with any new entries.
 
 ---
 
-## 10. Quick Reference Commands
+## 11. CBD Remote Build System
+
+The kernel is built on a remote CBD (Canonical Build Device) machine. All build operations are driven by `git push` — there is no manual SSH invocation needed to start a build.
+
+### 11.1 Triggering a build
+
+From the ubuntu tree directory, push with the `native` option:
+
+```bash
+cd ~/qualcomm/linux
+git push cbd -o native
+```
+
+The push **blocks** (hangs) while the build is in progress, streaming status lines to stderr. Do not interrupt it — let it run to completion.
+
+### 11.2 Reading status lines
+
+While the push is running, the remote prints periodic status lines:
+
+```
+remote: 2026-06-09 18:21:09 3/7 worker busy, 0 builds queued, 0 workers starting
+remote:  kpawlak-resolute-<HEAD_SHA>-<4DIGITS>/arm64/BUILDING
+```
+
+**Build ID format:** `kpawlak-resolute-<SHORT_SHA>-<4DIGITS>/arm64`
+- `<SHORT_SHA>` is the short SHA of the HEAD commit that was pushed
+- `<4DIGITS>` is a random 4-digit job number assigned by CBD
+
+**Status values:**
+| Status | Meaning |
+|--------|---------|
+| `QUEUED` | Waiting for a free worker (can take 5–15 min if all 7 workers are busy) |
+| `BUILDING` | Actively compiling (~15–25 min for a full arm64 kernel build) |
+| `BUILD-OK` | Success — kernel built and packaged |
+| `BUILD-FAILED` | Failure — download the log (see below) |
+
+### 11.3 Downloading the build log on failure
+
+When the push completes with `BUILD-FAILED`, download the log using the Build ID:
+
+```bash
+# Format: ssh cbd log <BUILD_ID>
+# The BUILD_ID has no trailing slash
+ssh cbd log kpawlak-resolute-<SHORT_SHA>-<4DIGITS>/arm64 > log.txt
+```
+
+**Example:**
+```bash
+ssh cbd log kpawlak-resolute-18da63c8db55-3774/arm64 > log.txt
+```
+
+The log is saved to `log.txt` in the current directory. It is typically 20,000–25,000 lines long.
+
+### 11.4 Finding errors in the log
+
+The build log contains verbose make output. Extract compiler errors efficiently:
+
+```bash
+# Show all actual errors (exclude warnings and notes)
+grep -n "error:" log.txt | grep -iv "warning\|note:" | head -40
+
+# Show surrounding context for first error
+grep -n "error:" log.txt | grep -iv "warning\|note:" | head -1
+# Then: sed -n '<LINE-10>,<LINE+10>p' log.txt
+
+# Find the make rule that failed
+grep "make\[.*\]: \*\*\*" log.txt | head -10
+```
+
+Common error patterns to search for:
+```bash
+grep -n "error:\|undefined\|implicit\|undeclared\|redefinition\|no rule\|cannot find" log.txt \
+    | grep -iv "warning\|note:" | head -40
+```
+
+### 11.5 Iterating on failures
+
+Typical cycle:
+1. Fix the error(s) in the source tree
+2. Commit the fix: `git add <files> && git commit -m "Fix: <description>"`
+3. Re-push: `git push cbd -o native`
+4. Wait for result (~20–30 min total including queue time)
+5. If `BUILD-FAILED`: `ssh cbd log kpawlak-resolute-<NEW_SHA>-<4DIGITS>/arm64 > log.txt`
+6. Repeat
+
+**Tip:** Fix all visible errors before re-pushing. Each build takes 15–25 minutes, so batch fixes when possible. After resolving one category of error (e.g., all DTS errors), scan the full log carefully before pushing to catch additional errors in the same build.
+
+### 11.6 Checking build status without waiting for the push
+
+If you need to check status without holding an open push connection, you can query the CBD status page or use:
+
+```bash
+ssh cbd.kernel ls kpawlak-resolute-<SHORT_SHA>-<4DIGITS>
+```
+
+(The build ID is printed by the push output; note `cbd.kernel` vs `cbd` for the `ls` sub-command.)
+
+---
+
+## 12. Quick Reference Commands
 
 ```bash
 # Show tag parents
