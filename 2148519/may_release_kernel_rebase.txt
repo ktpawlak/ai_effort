@@ -1,0 +1,22 @@
+PROMPT: I need to create an updated kernel for qualcomm. I have my tree in '/home/kuba.pawlak@canonical.com/qualcomm/linux'. This is an Ubuntu kernel, which is based off upstream 7.0 with some Ubuntu specific patches. On top of that there are qualcomm specific patches that I took from a tree in this directory: '/home/kuba.pawlak@canonical.com/qualcomm/qualcomm-linux', tag qcom-next-7.0-rc6-20260409. The patches I needed to take were found out by seeking a common base between qualcomm tree and upstream tree, and moving these patches to my tree, resolving merges so that the history was liniear, this is important. I now need to do the same thing with patches from tag qcom-next-7.1-rc2-20260515. This tag is based off upstream 7.1-rc2, so I could generate a list of commits that are outstanding, but some of these commits were already included in my effort of rebasing the previous tag. Try to figure out which commits I need to take to update my kernel with patches from the new tag. Let's start with generating this list of commits, that I can later take and cherry pick.
+
+result:
+ Here's what I found and how I derived it:
+
+  Structure analysis:
+
+   - qualcomm-linux tag qcom-next-7.1-rc2-20260515 is a merge of upstream Linux 7.1-rc2 (7fd2df204f34) + qcom-next branch tip (1a5fa218ff9c)
+   - 759 qcom-specific commits exist in the new tag (not in upstream 7.1-rc2)
+   - 381 of those are already applied in your ubuntu linux tree (matched by commit subject)
+   - 378 are new and need to be cherry-picked
+
+  The list is saved to: ~/qualcomm/commits_to_cherrypick.txt
+
+  Each line is <SHA> <subject>, ordered oldest-first (ready for cherry-picking in sequence). The SHAs reference commits in qualcomm-linux.
+
+  A few things worth knowing before you start cherry-picking:
+
+   - The list includes commits with prefixes like FROMLIST:, FROMGIT:, PENDING:, WORKAROUND:, QCLINUX: — same pattern as before
+   - The matching was done by exact commit subject, so if any subjects were modified when you cherry-picked from the old tag, those might appear as duplicates — worth spot-checking a few
+   - The "Add qcom-next log files" commit is included at the end — you may want to skip that one
+
