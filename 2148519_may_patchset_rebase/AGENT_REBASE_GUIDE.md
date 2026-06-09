@@ -216,7 +216,123 @@ git diff HEAD -- arch/arm64/boot/dts/qcom/Makefile | grep "^+" | sort | uniq -d
 
 ---
 
-## 5. Sanity Checks
+## 5. The "Graduated Upstream" Gap — Critical Post-Rebase Check
+
+### What it is
+
+The cherry-pick methodology filters out commits that are already in `UPSTREAM_BASE` (e.g. Linux 7.1-rc2):
+
+```
+git log --no-merges QCOM_TIP ^UPSTREAM_BASE
+```
+
+This is correct — those commits are already in upstream. **But our ubuntu tree is based on the *previous* upstream (e.g. 7.0), not the new one (7.1-rc2).** So commits that graduated from qcom-next into upstream *between the two kernel versions* are:
+- ✅ correctly excluded from the cherry-pick list (they're in upstream 7.1-rc2)
+- ❌ **missing from our tree** (which is based on 7.0)
+
+These cause build failures *after* the cherry-pick is complete, because later qcom commits (already applied) may reference labels or code defined only by the graduated commits.
+
+### How to detect graduated-upstream gaps
+
+After building, look for DTC errors of the form:
+```
+Error: arch/arm64/boot/dts/qcom/foo.dtsi:N Label or path bar not found
+```
+or Makefile errors:
+```
+No rule to make target 'arch/arm64/boot/dts/qcom/foo.dtb'
+```
+
+These indicate a file or label is referenced but never defined — classic sign of a missing graduated commit.
+
+To proactively find which files are affected, diff the ubuntu tree against the qcom-linux tip for any file that a failing commit touches:
+
+```bash
+# Find commits between old and new qcom-next tips that touch a suspect file
+OLD_QCOM_TIP=<parent2 of old tag>
+git -C ~/qualcomm/qualcomm-linux log --oneline \
+    "$QCOM_TIP" ^"$OLD_QCOM_TIP" -- path/to/suspect/file
+
+# For each MISS commit, check if it's in upstream (graduated):
+git -C ~/qualcomm/qualcomm-linux log --format="%s" "$UPSTREAM_BASE" | \
+    grep -xF "<commit subject>"
+# count > 0 → graduated upstream → need to apply manually
+```
+
+### How to fix graduated-upstream gaps
+
+**Always diff first** to understand the scope and check for ubuntu-specific content:
+```bash
+diff ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi \
+     ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi
+```
+- Lines with `<` = ubuntu-only content. If these are just old versions of qcom content (no-label node names, old strings) → safe to copy wholesale.
+- Lines with `<` that are **ubuntu-specific additions** (content absent from qcom-linux entirely) → surgical insert required.
+
+**Option A — copy the file** (when all `<` lines are just old qcom content, no ubuntu additions):
+```bash
+cp ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi \
+   ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi
+```
+
+**Option B — surgical insert** (when ubuntu tree has content absent from qcom-linux):
+
+Add only the missing node/label at the correct position in the ubuntu file:
+```bash
+# Identify the missing block in qcom-linux
+grep -n "missing_label" ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi
+# Find a unique anchor nearby in ubuntu tree
+grep -n "nearby_node" ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi
+# Edit ubuntu file to insert the missing block before/after the anchor
+```
+**Example:** `monaco.dtsi` has ubuntu-specific camera pin states (`cam1_avdd_2v8_en_default`, `cam2_avdd_2v8_en_default`) absent from qcom-linux. Copying wholesale would lose them. Instead, only the missing `lpass_tlmm` pinctrl node and its `#include` were inserted surgically.
+
+**Option C — cherry-pick the graduated commits** (when changes are non-trivial or span multiple files):
+```bash
+# Pick in oldest-first order from qcom-linux
+git -C ~/qualcomm/linux cherry-pick -x <sha-from-qcom-linux>
+```
+Cherry-pick from the qcom-linux SHA, not the upstream SHA (the upstream SHA won't exist in our local clone).
+
+### Known graduated-upstream files (7.0→7.1 rebase)
+
+These files were copied wholesale from qcom-linux to fix build failures after the 7.1-rc2 rebase. The changes were label/string additions only — no functional difference:
+
+| File | What was missing | Commit(s) that graduated | Fix approach |
+|------|-----------------|--------------------------|--------------|
+|------|-----------------|--------------------------|
+| `arch/arm64/boot/dts/qcom/glymur.dtsi` | Thermal zone labels (`thermal_cpu_2_*`, `thermal_aoss_*`, `thermal_gpu_*`, `thermal_nsp*`, `thermal_camera_*`, `thermal_ddr_*`, `thermal_video_*`, `thermal_gpuss_*`), `cpu_map_cluster2:` label, CPU compatible strings (`qcom,oryon` → `qcom,oryon-2-1/2-2`), `mdss_dp3_phy` repositioned | `fee828abbd9d`, `5044a0b0307a`, others | Copy wholesale (no ubuntu-specific content) |
+| `arch/arm64/boot/dts/qcom/pmcx0102.dtsi` | `pmcx0102_d0_thermal:` label | `c1014a629d01` | Copy wholesale |
+| `arch/arm64/boot/dts/qcom/pmh0104-glymur.dtsi` | `pmh0104_i0_thermal:`, `pmh0104_j0_thermal:` labels | `c1014a629d01` | Copy wholesale |
+| `arch/arm64/boot/dts/qcom/monaco.dtsi` | `lpass_tlmm: pinctrl@3440000` node (defines `quad_mi2s_active`, `quad_mclk_active`, `lpi_i2s4_active`); `#include <dt-bindings/sound/qcom,q6dsp-lpass-ports.h>` | LPASS audio commit | **Surgical insert only** — ubuntu tree has `cam1_avdd_2v8_en_default` / `cam2_avdd_2v8_en_default` pin states absent from qcom-linux; copy wholesale would lose them |
+
+### The "missing DTS source file" pattern
+
+A related but distinct failure: the DTS `Makefile` gains an entry for `foo.dtb` (pulled in as context during a conflict resolution), but `foo.dts` was never added because its commit was filtered as "already applied" (e.g., a WORKAROUND commit added only the `.dtsi`, while the commit that adds the `.dts` was considered already-applied by subject match).
+
+**Symptom:**
+```
+No rule to make target 'arch/arm64/boot/dts/qcom/foo.dtb'
+```
+
+**Fix:** Copy the missing `.dts` (and any new `.dtsi` it includes) from qcom-linux:
+```bash
+# Find it
+find ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/ -name "foo.dts"
+# Check its includes
+grep "^#include" ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dts
+# Copy missing files
+cp ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dts \
+   ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dts
+```
+
+**Known occurrences (7.1-rc2 rebase):**
+- `mahua-crd.dts` — added by `c1014a629d01`, missed because `mahua.dtsi` was already present via WORKAROUND commit, making the parent commit appear "already applied" by subject. Fixed in commit `f904f3822ff3`.
+- `monaco-arduino-monza.dts` + `monaco-monza-som.dtsi` — Makefile entry pulled in during monaco-ac-evk conflict resolution; source files never added. Fixed in commit `8870436d2f36`.
+
+---
+
+## 6. Sanity Checks
 
 ### Before starting
 ```bash
@@ -239,7 +355,7 @@ git log --oneline --no-merges HEAD ^<UBUNTU_UPSTREAM_BASE> | grep -vc "^.\{8\} U
 
 ---
 
-## 6. Known Recurring Conflict Areas
+## 7. Known Recurring Conflict Areas
 
 These subsystems had conflicts during the qcom-next-7.0→7.1 rebase and may conflict again:
 
@@ -255,7 +371,7 @@ These subsystems had conflicts during the qcom-next-7.0→7.1 rebase and may con
 
 ---
 
-## 7. History of Rebases
+## 8. History of Rebases
 
 | Date | Old tag | New tag | Upstream base | Commits applied |
 |------|---------|---------|---------------|-----------------|
@@ -264,19 +380,20 @@ These subsystems had conflicts during the qcom-next-7.0→7.1 rebase and may con
 
 ---
 
-## 8. After the Rebase
+## 9. After the Rebase
 
 Once all commits are applied:
 1. Run `git log --oneline -20` and verify HEAD looks sane.
 2. Do Ubuntu packaging: add `UBUNTU: Start new release` commit with version bump.
 3. Build-test: `fakeroot debian/rules clean && fakeroot debian/rules binary-headers` (or equivalent).
-4. Watch for compiler errors from conflict resolutions — particularly in subsystems with enum/macro renames (e.g. `INDEX_*` in coresight CTI).
-5. Update `~/qualcomm/qualcomm_rebase.txt` with the new rebase summary.
-6. Update this file's history table (Section 7) with the new row.
+4. **Check for graduated-upstream gaps** (see Section 5): look for DTC `Label or path not found` errors and `No rule to make target` errors pointing at DTS files. Fix by copying the relevant files from qcom-linux tip.
+5. Watch for compiler errors from conflict resolutions — particularly in subsystems with enum/macro renames (e.g. `INDEX_*` in coresight CTI).
+6. Update `~/qualcomm/qualcomm_rebase.txt` with the new rebase summary.
+7. Update this file's history table (Section 8) and the "Known graduated-upstream files" table (Section 5) with any new entries.
 
 ---
 
-## 9. Quick Reference Commands
+## 10. Quick Reference Commands
 
 ```bash
 # Show tag parents
