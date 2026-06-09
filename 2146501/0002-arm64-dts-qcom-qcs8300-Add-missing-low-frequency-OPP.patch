@@ -1,0 +1,85 @@
+From 7ddf6276ab262333abd7bb88c2120f08715bad5a Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Wed, 20 May 2026 19:46:58 +0200
+Subject: [PATCH] arm64: dts: qcom: qcs8300: Add missing low-frequency OPP
+ entries
+
+The EPSS hardware frequency LUT contains low-frequency operating points
+that are absent from the DT OPP tables. When qcom-cpufreq-hw reads the
+LUT and calls dev_pm_opp_adjust_voltage() for these frequencies, it
+fails because no matching OPP exists, resulting in boot-time warnings:
+
+  cpu cpu0: Voltage update failed freq=902400
+  cpu cpu0: failed to update OPP for freq=902400
+  cpu cpu0: Voltage update failed freq=1017600
+  cpu cpu0: failed to update OPP for freq=1017600
+  cpu cpu2: Voltage update failed freq=940800
+  ...
+
+Add the missing entries for each cluster using the same minimum-tier
+opp-peak-kBps values as the current lowest OPP in each table, as those
+already represent the floor interconnect bandwidth requirements:
+
+  cpu0 (Cortex-A55 silver):  add  902.4 MHz and 1017.6 MHz
+  cpu2 (Cortex-A78 gold):    add  940.8 MHz and 1094.4 MHz
+  cpu4 (Cortex-A78 prime):   add  844.8 MHz
+
+Signed-off-by: Kuba Pawlak <kuba.pawlak@canonical.com>
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8300.dtsi | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8300.dtsi b/arch/arm64/boot/dts/qcom/qcs8300.dtsi
+index ff72d7d52d2d63144108cad82da8c7ffc94b847f..bb7298971d45c845f775483ffca47deb7aec836e 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8300.dtsi
++++ b/arch/arm64/boot/dts/qcom/qcs8300.dtsi
+@@ -398,6 +398,16 @@ cpu0_opp_table: opp-table-cpu0 {
+ 		compatible = "operating-points-v2";
+ 		opp-shared;
+ 
++		cpu0_opp_902mhz: opp-902400000 {
++			opp-hz = /bits/ 64 <902400000>;
++			opp-peak-kBps = <6220800 29491200>;
++		};
++
++		cpu0_opp_1017mhz: opp-1017600000 {
++			opp-hz = /bits/ 64 <1017600000>;
++			opp-peak-kBps = <6220800 29491200>;
++		};
++
+ 		cpu0_opp_1190mhz: opp-1190400000 {
+ 			opp-hz = /bits/ 64 <1190400000>;
+ 			opp-peak-kBps = <6220800 29491200>;
+@@ -468,6 +478,16 @@ cpu2_opp_table: opp-table-cpu2 {
+ 		compatible = "operating-points-v2";
+ 		opp-shared;
+ 
++		cpu2_opp_940mhz: opp-940800000 {
++			opp-hz = /bits/ 64 <940800000>;
++			opp-peak-kBps = <6220800 29491200>;
++		};
++
++		cpu2_opp_1094mhz: opp-1094400000 {
++			opp-hz = /bits/ 64 <1094400000>;
++			opp-peak-kBps = <6220800 29491200>;
++		};
++
+ 		cpu2_opp_1267mhz: opp-1267200000 {
+ 			opp-hz = /bits/ 64 <1267200000>;
+ 			opp-peak-kBps = <6220800 29491200>;
+@@ -548,6 +568,11 @@ cpu4_opp_table: opp-table-cpu4 {
+ 		compatible = "operating-points-v2";
+ 		opp-shared;
+ 
++		cpu4_opp_844mhz: opp-844800000 {
++			opp-hz = /bits/ 64 <844800000>;
++			opp-peak-kBps = <3072000 29491200>;
++		};
++
+ 		cpu4_opp_1113mhz: opp-1113600000 {
+ 			opp-hz = /bits/ 64 <1113600000>;
+ 			opp-peak-kBps = <3072000 29491200>;
+-- 
+2.43.0
+

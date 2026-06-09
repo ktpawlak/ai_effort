@@ -1,0 +1,26 @@
+From 68d314e8c74d7c2d8a8789ff0180fc62b965bb80 Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Wed, 20 May 2026 18:00:30 +0200
+Subject: [PATCH] Fix frequency issue in qcs8300.dtsi
+
+Signed-off-by: Kuba Pawlak <kuba.pawlak@canonical.com>
+---
+ arch/arm64/boot/dts/qcom/qcs8300.dtsi | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/qcs8300.dtsi b/arch/arm64/boot/dts/qcom/qcs8300.dtsi
+index 09302163e6900898536f80eaae5d34ac1eec9c52..ff72d7d52d2d63144108cad82da8c7ffc94b847f 100644
+--- a/arch/arm64/boot/dts/qcom/qcs8300.dtsi
++++ b/arch/arm64/boot/dts/qcom/qcs8300.dtsi
+@@ -569,7 +569,7 @@ cpu4_opp_1382mhz: opp-1382400000 {
+ 		};
+ 
+ 		cpu4_opp_1459mhz: opp-1459200000 {
+-			opp-hz = /bits/ 64 <14592000000>;
++			opp-hz = /bits/ 64 <1459200000>;
+ 			opp-peak-kBps = <5414400 39321600>;
+ 		};
+ 
+-- 
+2.43.0
+
