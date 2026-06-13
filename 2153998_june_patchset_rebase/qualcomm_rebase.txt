@@ -172,3 +172,179 @@ Branch: master-next
 HEAD: 3fba7aa89244 "Add qcom-next log files for 20260514"
 New non-UBUNTU commits since last release (Ubuntu-qcom-7.0.0-1005.7): 369
 The tree is ready for Ubuntu packaging (UBUNTU: Start new release, etc.).
+
+
+================================================================================
+POST-REBASE DRIVER FIXES (Ubuntu-7.0.0-26.26 base, June 2026)
+================================================================================
+
+After rebasing master-next onto Ubuntu-7.0.0-26.26 (from 7.0.0-15.15), several
+driver issues appeared that required fixes. The following commits were applied
+on top of the rebase to bring the camera/PHY stack to a working state.
+
+TARGET DEVICE: Qualcomm Hamoa IoT EVK (x1e80100 / Snapdragon X Elite)
+KERNEL BRANCH: master-next
+KERNEL VERSION: 7.0.0-1006-qcom
+
+--------------------------------------------------------------------------------
+FIX 1: fastrpc UAF / kernel panic (cherry-pick from FROMLIST)
+--------------------------------------------------------------------------------
+Commit: 22660206a219 (merged with upstream commit b407b81ba89e)
+File:   drivers/misc/fastrpc.c
+Patch:  0001-FROMLIST-misc-fastrpc-fix-UAF-and-kernel-panic-durin.patch
+Issue:  Use-after-free and kernel panic during device teardown.
+Status: APPLIED AND CONFIRMED WORKING.
+
+--------------------------------------------------------------------------------
+FIX 2: qcom-iris hwmode setup (PENDING patch)
+--------------------------------------------------------------------------------
+Commit: applied from 0002-PENDING-media-qcom-iris-move-hwmode-setup-into-power.patch
+File:   drivers/media/platform/qcom/iris/...
+Issue:  hwmode setup timing in power sequence.
+Status: APPLIED.
+
+--------------------------------------------------------------------------------
+FIX 3: camss csiphy PHY_TYPE_DPHY mode check (boot fail / camera init)
+--------------------------------------------------------------------------------
+Commit: f9cdf6da022d
+File:   drivers/media/platform/qcom/camss/camss-csiphy.c
+Issue:  msm_csiphy_subdev_init() returned -EOPNOTSUPP because it compared
+        args.args[0] (= 0, DPHY mode) against PHY_TYPE_DPHY (= 10). The
+        condition was always false → all CSI PHYs failed to initialise.
+Fix:    Removed the `if (combo_mode != PHY_TYPE_DPHY)` guard entirely.
+Status: CONFIRMED WORKING (csiphy1 mode 0 not supported error gone).
+
+--------------------------------------------------------------------------------
+FIX 4: qcom-mipi-csi2-phy x1e80100 wrong clock names
+--------------------------------------------------------------------------------
+Commit: 216b87293950
+File:   drivers/phy/qualcomm/phy-qcom-mipi-csi2-3ph-dphy.c
+Issue:  x1e_clks[] defined 4 clock names: "camnoc_axi", "cpas_ahb",
+        "csiphy", "csiphy_timer". The hamoa DTS (hamoa.dtsi, csiphy1 node)
+        only provides 2 clocks with names "core" and "timer".
+        devm_clk_bulk_get() failed with -ENOENT → PHY probe failed → camss
+        ISP (acb7000.isp) was stuck in deferred probe.
+Fix:    - Changed x1e_clks[] to {"core", "timer"} (2 entries)
+        - Updated opp_clk = x1e_clks[0], timer_clk = x1e_clks[1]
+        - Updated clk_freq[] to 2 entries (removed two leading zero entries)
+        - Removed now-unused `static const struct mipi_csi2phy_clk_freq zero`
+        Reference: qcom-next uses identical {"core","timer"} naming.
+Status: CONFIRMED WORKING.
+        - qcom-mipi-csi2-phy ace6000.phy: probe error -2 → GONE
+        - platform acb7000.isp: deferred probe → GONE (ISP probes OK)
+        - imx577 sensor probe still fails -5/EIO → hardware not connected
+
+REMAINING / KNOWN ISSUES
+-------------------------
+- imx412/imx577 (camera@1a, i2c 4-001a): probe fails with -5 (EIO)
+  "failed to find sensor". avdd supply uses dummy regulator (not in DTS,
+  matching qcom-next reference — not a bug). Real cause: camera module
+  not physically attached to the EVK. Expected behaviour.
+- msm_tpg0/1/2 entity type not initialized: minor, test pattern generator
+  entities not set up; does not affect normal camera data path.
+
+
+================================================================================
+CBD REMOTE BUILD — WORKFLOW REFERENCE
+================================================================================
+
+CBD is the Canonical remote kernel build system. Builds run on remote servers;
+artifacts are fetched back over SSH.
+
+PREREQUISITES
+-------------
+  - SSH access to cbd / cbd.kernel hosts configured in ~/.ssh/config
+  - The kernel tree must have the 'cbd' remote pointing at the build system
+
+PUSH & TRIGGER A BUILD
+-----------------------
+  cd ~/qualcomm/linux
+  git push cbd -o native
+
+  The push output prints the build job ID, e.g.:
+    remote: kpawlak-resolute-<SHORT_SHA>-<4DIGITS>
+
+  Full build ID format: kpawlak-resolute-<SHORT_SHA>-<4DIGITS>/arm64
+
+CHECK BUILD STATUS
+------------------
+  ssh cbd.kernel ls kpawlak-resolute-<SHORT_SHA>-<4DIGITS>
+
+  States:  QUEUED → BUILDING → BUILD-OK  (or BUILD-FAILED)
+  Typical duration: 20–35 min (warm cache); up to 3h (cold cache).
+
+  Poll loop:
+    while true; do
+      ssh cbd.kernel ls kpawlak-resolute-<ID> | grep arm64 | awk '{print $NF}'
+      sleep 60
+    done
+
+FETCH BUILD LOG (on failure)
+------------------------------
+  ssh cbd log kpawlak-resolute-<ID>/arm64 > log.txt
+
+DOWNLOAD ARTIFACTS (tarball)
+------------------------------
+  IMPORTANT: redirect stdout — the tarball is streamed to stdout.
+  ssh cbd tarball kpawlak-resolute-<ID>/arm64 > tarball.tgz
+
+  Typical size: ~190–200 MB.
+  Contents after unpacking: arm64/*.deb (image, modules, headers, buildinfo)
+
+
+================================================================================
+INSTALLING KERNEL ON DEVICE (Hamoa IoT EVK)
+================================================================================
+
+Device:   ubuntu@192.168.1.123   password: changeme12
+SSH note: use sshpass or add key; StrictHostKeyChecking=no for convenience
+
+STEP 1 — Copy tarball to device
+---------------------------------
+  sshpass -p 'changeme12' scp -o StrictHostKeyChecking=no \
+      tarball.tgz ubuntu@192.168.1.123:/tmp/
+
+STEP 2 — Unpack and install on device
+---------------------------------------
+  sshpass -p 'changeme12' ssh -o StrictHostKeyChecking=no ubuntu@192.168.1.123 '
+    cd /tmp
+    tar xzf tarball.tgz
+    sudo dpkg -i arm64/linux-image-*.deb arm64/linux-modules-*.deb
+  '
+
+  Note: headers (.deb) may fail with a missing linux-qcom-headers-* dependency.
+  This is non-critical — image and modules are sufficient to boot.
+
+  dpkg triggers flash-kernel automatically, which:
+    - Installs the DTB (e.g. hamoa-iot-evk-camera-imx577.dtb) to /boot/dtbs/
+    - Updates GRUB (new kernel listed first)
+
+STEP 3 — Reboot
+-----------------
+  sshpass -p 'changeme12' ssh -o StrictHostKeyChecking=no ubuntu@192.168.1.123 \
+      'sudo reboot' || true
+
+  Wait ~2–3 minutes for the board to come back up.
+
+STEP 4 — Verify kernel version
+--------------------------------
+  sshpass -p 'changeme12' ssh -o StrictHostKeyChecking=no ubuntu@192.168.1.123 \
+      'uname -r'
+
+STEP 5 — Check dmesg for issues
+---------------------------------
+  sshpass -p 'changeme12' ssh -o StrictHostKeyChecking=no ubuntu@192.168.1.123 \
+      'sudo dmesg | grep -i "error\|fail\|panic\|probe" | grep -v "Fixed dependency"'
+
+QUICK ONE-LINER (download + scp + install + reboot)
+-----------------------------------------------------
+  BUILD_ID="kpawlak-resolute-<SHORT_SHA>-<4DIGITS>"
+  ssh cbd tarball ${BUILD_ID}/arm64 > tarball.tgz && \
+  sshpass -p 'changeme12' scp -o StrictHostKeyChecking=no \
+      tarball.tgz ubuntu@192.168.1.123:/tmp/ && \
+  sshpass -p 'changeme12' ssh -o StrictHostKeyChecking=no ubuntu@192.168.1.123 '
+    cd /tmp && tar xzf tarball.tgz &&
+    sudo dpkg -i arm64/linux-image-*.deb arm64/linux-modules-*.deb &&
+    sudo reboot
+  ' || true
+  echo "Board rebooting — wait 2-3 minutes then SSH back in"
