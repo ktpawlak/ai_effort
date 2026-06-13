@@ -540,7 +540,7 @@ Once all commits are applied:
 
 The kernel is built on a remote CBD (Canonical Build Device) machine. All build operations are driven by `git push` — there is no manual SSH invocation needed to start a build.
 
-### 11.1 Triggering a build
+### 13.1 Triggering a build
 
 From the ubuntu tree directory, push with the `native` option:
 
@@ -551,7 +551,7 @@ git push cbd -o native
 
 The push **blocks** (hangs) while the build is in progress, streaming status lines to stderr. Do not interrupt it — let it run to completion.
 
-### 11.2 Reading status lines
+### 13.2 Reading status lines
 
 While the push is running, the remote prints periodic status lines:
 
@@ -572,7 +572,7 @@ remote:  kpawlak-resolute-<HEAD_SHA>-<4DIGITS>/arm64/BUILDING
 | `BUILD-OK` | Success — kernel built and packaged |
 | `BUILD-FAILED` | Failure — download the log (see below) |
 
-### 11.3 Downloading the build log on failure
+### 13.3 Downloading the build log on failure
 
 When the push completes with `BUILD-FAILED`, download the log using the Build ID:
 
@@ -589,7 +589,7 @@ ssh cbd log kpawlak-resolute-18da63c8db55-3774/arm64 > log.txt
 
 The log is saved to `log.txt` in the current directory. It is typically 20,000–25,000 lines long.
 
-### 11.4 Finding errors in the log
+### 13.4 Finding errors in the log
 
 The build log contains verbose make output. Extract compiler errors efficiently:
 
@@ -611,7 +611,7 @@ grep -n "error:\|undefined\|implicit\|undeclared\|redefinition\|no rule\|cannot 
     | grep -iv "warning\|note:" | head -40
 ```
 
-### 11.5 Iterating on failures
+### 13.5 Iterating on failures
 
 Typical cycle:
 1. Fix the error(s) in the source tree
@@ -623,7 +623,7 @@ Typical cycle:
 
 **Tip:** Fix all visible errors before re-pushing. Each build takes 15–25 minutes, so batch fixes when possible. After resolving one category of error (e.g., all DTS errors), scan the full log carefully before pushing to catch additional errors in the same build.
 
-### 11.6 Checking build status without waiting for the push
+### 13.6 Checking build status without waiting for the push
 
 If you need to check status without holding an open push connection, you can query the CBD status page or use:
 
@@ -632,6 +632,107 @@ ssh cbd.kernel ls kpawlak-resolute-<SHORT_SHA>-<4DIGITS>
 ```
 
 (The build ID is printed by the push output; note `cbd.kernel` vs `cbd` for the `ls` sub-command.)
+
+---
+
+## 14. Boot Failures After Cherry-Picking
+
+After a kernel builds successfully it must boot correctly. If the system fails to boot, compare the console log with a known-good kernel log. The following patterns have been encountered.
+
+### 14.1 Synchronous External Abort in spi_geni_init (TZ Firewall)
+
+**Symptom:**
+```
+Internal error: synchronous external abort: 0000000096000010 [#1] SMP
+pc : spi_geni_init+0x44/0x970 [spi_geni_qcom]
+```
+The crash is at `geni_se_read_proto(se)` which reads `se->base + GENI_FW_REVISION_RO`. ESR = `0x96000010` = Synchronous External Abort (hardware bus error, SLVERR/DECERR from TZ firewall — NOT a translation fault).
+
+**Root cause:** TrustZone (TZ) firmware enforces a hardware access-control firewall on individual QUPV3 Serial Engines (SEs). An SE that TZ has NOT been configured to initialize is protected by the firewall; any CPU read of its registers returns a hardware bus error.
+
+Key observations:
+- Other SEs **in the same wrapper** can be accessible (e.g. `uart21` works as boot console while `spi18` in the same `qupv3_2` crashes).
+- The crash is **independent of the `firmware-name` DT property** — it occurs in both TZ-managed and Linux-managed modes for the wrapper.
+- The crash is also independent of whether `AHB_M_CLK_CGC_ON` (wrapper offset 0x118) is set.
+
+**Diagnosing:**
+1. Identify the crashing SE from the `pc` / call trace — `spi_geni_init` or `qcom_geni_serial_port_setup` reading `GENI_FW_REVISION_RO`.
+2. Cross-reference the virtual `se->base` (register x1 or x24 in the crash) against known SE physical addresses in the platform DTSI (`hamoa.dtsi`, etc.).
+3. Confirm that another SE in the **same wrapper** works (e.g. the boot console `uart21` is in `qupv3_2` alongside `spi18`).
+4. Check if the SE commit is tagged `FROMLIST` (not yet merged upstream) — this often means it needs a companion TZ firmware update.
+
+**Fix:**
+- **Short term:** Disable the crashing SE in DT with a comment explaining the TZ limitation:
+  ```dts
+  &spi18 {
+      status = "disabled"; /* needs TZ firmware update for qupv3_2 SE2 access */
+  };
+  ```
+- **Long term:** TZ firmware on the target device must be updated to grant non-secure access to the new SE. Until then, the SE cannot be enabled.
+
+**What does NOT help:**
+- Adding `firmware-name` to the QUP wrapper — TZ doesn't read the Linux DT.
+- Setting `AHB_M_CLK_CGC_ON` in `geni_se_resources_on()` — useful for future use but does not bypass the TZ firewall.
+
+**`firmware-name` guidance for hamoa/x1e80100:**
+- Only `qupv3_0` and `qupv3_1` should have `firmware-name` (as per upstream commit `cb7db0f4010f`).
+- Do **not** add `firmware-name` to `qupv3_2` — TZ on current hamoa hardware supports Linux-managed firmware loading only for wrappers 0 and 1.
+- `qupv3fw.elf` (`qcom/x1e80100/qupv3fw.elf`) must be present in the device rootfs for SEs in qupv3_0/1 to load correctly. If absent, they return `-EPROBE_DEFER` (graceful, not a crash).
+
+**Applied fixes (commits in master-next):**
+- `9ec7460a8ab9` — cherry-picked `cb7db0f4010f`: firmware-name for qupv3_0 and qupv3_1 only
+- `e365f27b1863` — `AHB_M_CLK_CGC_ON` init + `pm_runtime_get_sync()` return value check (correct defensive coding even if not the crash root cause)
+- `3a9032f99908` — remove firmware-name from qupv3_2; disable spi18 until TZ updated
+
+### 14.2 dracut-initqueue Hanging (Consequence of SPI Crash)
+
+If `dracut-initqueue` hangs indefinitely and you see `platform XXXXXXX.pinctrl: deferred probe pending`, the root cause is usually the SPI crash above. Once the SPI panic is fixed, dracut should complete normally.
+
+### 14.3 Post-Boot dmesg Analysis (kernel 1006.9 / commit 3a9032f99908)
+
+After the spi18/TZ fix, the device boots fully. A full dmesg analysis was performed via SSH (`ubuntu@192.168.1.123`). Summary of all notable messages and their status:
+
+**Improvements vs. previous kernels:**
+- ✅ TPM chip now detected: `tpm_tis_spi spi0.0: 2.0 TPM (device-id 0x3, rev-id 1)` — Previously failed with `-110 (ETIMEDOUT)`. Fixed by adding `firmware-name` to `qupv3_1` (commit `9ec7460a8ab9`), enabling proper SE firmware loading for spi11. The subsequent `tpm tpm0: A TPM error (256)` is a benign self-test warning (TPM needs manual `TPM_CC_Startup`) — not a kernel driver bug.
+- ✅ Bluetooth hci1 (QCA UART on qupv3_1) now loads firmware: `QCA: patch rome 0x190200 build 0x8567` — Was failing in earlier kernels.
+- ✅ Iris video codec: no errors, `iris_non_pixel.0` and `iris_pixel.0` added to IOMMU groups cleanly (the `0002-PENDING-media-qcom-iris` patch applied cleanly).
+
+**Pre-existing issues (NOT introduced by our changes — verified by comparison with 1005/1006_new/7.0 boot logs):**
+
+| Issue | Evidence | Status |
+|---|---|---|
+| `dpu_encoder enc41 vblank timeout 0x80020041` | 38 occurrences in 1005_boot.txt | PRE-EXISTING |
+| `msm-dp-display ae*: error -EINVAL: invalid resource (null)` | Present in 1006_new_boot.txt | PRE-EXISTING |
+| `wcn7850 hci0: command 0xfc00 tx timeout` / `Reading QCA version failed (-110)` | Was hci1 in 1006_new_boot.txt — same error | PRE-EXISTING (BT firmware for wcn7850 not yet loaded) |
+| `qcom_smd_qrtr probe failed with error -12` | Present in 7.0_boot.txt | PRE-EXISTING |
+| `qcom,fastrpc probe failed with error -12` | Related to qrtr ENOMEM | PRE-EXISTING |
+| `qcom-apm CMD timeout for [1001021]` | Downstream of fastrpc failure | PRE-EXISTING |
+| `pmic-glink: Failed to create device link` | Multiple suppliers not ready | PRE-EXISTING |
+| `supply vdda/vddpe-3v3/vddio1p2 not found, using dummy regulator` | Optional PCIe/PHY regulators | PRE-EXISTING |
+| `debugfs: 'opp:...' already exists` | Duplicate OPP entries | PRE-EXISTING |
+| `imx412 probe failed with error -5` | No camera hardware present | PRE-EXISTING |
+| `qcom-camss: csiphy1 mode 0 not supported` | Camera subsystem | PRE-EXISTING |
+| AppArmor DENIED (fusermount3, who) | Normal userspace policy | BENIGN |
+
+**Conclusion:** No new regressions introduced by the spi18 TZ fix or the iris/fastrpc patches. The kernel is stable.
+
+### 14.4 qcom-camss csiphy1 mode 0 not supported (Fixed in f9cdf6da022d)
+
+**Symptom:**
+```
+qcom-camss acb7000.isp: csiphy1 mode 0 not supported
+qcom-camss acb7000.isp: probe with driver qcom-camss failed with error -95
+```
+
+**Root cause:** `msm_csiphy_subdev_init()` in `camss-csiphy.c` checked `combo_mode != PHY_TYPE_DPHY` (where `PHY_TYPE_DPHY = 10`). The DTS uses `PHY_QCOM_CSI2_MODE_DPHY = 0` (from `phy-qcom-mipi-csi2.h`) as the `#phy-cells` argument in the `phys` property. These constants are from different headers and serve different purposes — the check was invalid.
+
+The qcom-next tree (`qcom-next-7.1-rc2`) removed this `combo_mode` argument entirely from `msm_csiphy_subdev_init()`.
+
+**Fix:** Remove the `combo_mode` variable, the `PHY_TYPE_DPHY` check, the `csiphy->cfg.combo_mode = combo_mode` assignment, and the now-unused `#include <dt-bindings/phy/phy.h>` from `camss-csiphy.c`. The `cfg.combo_mode` field defaults to 0 (DPHY) via `hw_ops->init`.
+
+**Commit:** `f9cdf6da022d` — `media: qcom: camss: csiphy: Remove obsolete PHY_TYPE_DPHY mode check`
+
+**Effect:** `qcom-camss` probes successfully, camera subsystem is functional for the imx577 overlay.
 
 ---
 
