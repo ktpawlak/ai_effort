@@ -1,0 +1,47 @@
+#!/bin/bash
+# khid - host-side control for the USB HID keyboard gadget running on the Pi.
+#
+# Runs on THIS workstation; drives the gadget Pi over SSH. This is the "remote
+# from this machine" entry point for the suspend test harness.
+#
+# Usage:
+#   ./khid up                       # create + bind the keyboard gadget on the Pi
+#   ./khid down                     # remove the gadget
+#   ./khid status                   # show gadget/UDC state
+#   ./khid wake                     # tap Left-Shift (wake a suspended target)
+#   ./khid type "hello\n"           # type a string into the target
+#   ./khid key enter                # press a single named key
+#   ./khid combo ctrl-alt-delete    # press a key combo
+#   ./khid raw --key esc --repeat 3 # pass arbitrary args straight to sendkeys.py
+#
+# Config via env:
+#   PI_HOST   (default ubuntu@192.168.1.198)
+#   PI_DIR    (default /home/ubuntu/hid-keyboard)
+
+set -euo pipefail
+
+PI_HOST="${PI_HOST:-ubuntu@192.168.1.198}"
+PI_DIR="${PI_DIR:-/home/ubuntu/hid-keyboard}"
+SSH="ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 ${PI_HOST}"
+
+GADGET="${PI_DIR}/hid-keyboard-gadget.sh"
+SENDKEYS="sudo python3 ${PI_DIR}/sendkeys.py"
+
+usage() { sed -n '2,30p' "$0"; exit 1; }
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+    up)     $SSH "sudo ${GADGET} up" ;;
+    down)   $SSH "sudo ${GADGET} down" ;;
+    status) $SSH "sudo ${GADGET} status" ;;
+    wake)   $SSH "${SENDKEYS} --wake" ;;
+    type)   [ $# -ge 1 ] || { echo "type needs a string"; exit 1; }
+            $SSH "${SENDKEYS} --type \"$1\"" ;;
+    key)    [ $# -ge 1 ] || { echo "key needs a name"; exit 1; }
+            $SSH "${SENDKEYS} --key \"$1\"" ;;
+    combo)  [ $# -ge 1 ] || { echo "combo needs a spec"; exit 1; }
+            $SSH "${SENDKEYS} --combo \"$1\"" ;;
+    raw)    $SSH "${SENDKEYS} $*" ;;
+    ""|-h|--help) usage ;;
+    *) echo "unknown command: $cmd"; usage ;;
+esac

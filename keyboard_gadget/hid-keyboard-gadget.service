@@ -1,0 +1,18 @@
+[Unit]
+Description=QPA USB HID keyboard gadget
+Documentation=file:///home/ubuntu/hid-keyboard/README.md
+# configfs must be mounted before we can create the gadget.
+After=sys-kernel-config.mount systemd-modules-load.service
+Wants=sys-kernel-config.mount
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+# Wait (up to ~15s) for the dwc2 UDC to appear before creating the gadget,
+# so we don't race the controller probe at boot.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 30); do [ -n "$(ls /sys/class/udc 2>/dev/null)" ] && exit 0; sleep 0.5; done; echo "no UDC appeared" >&2; exit 1'
+ExecStart=/home/ubuntu/hid-keyboard/hid-keyboard-gadget.sh up
+ExecStop=/home/ubuntu/hid-keyboard/hid-keyboard-gadget.sh down
+
+[Install]
+WantedBy=multi-user.target
