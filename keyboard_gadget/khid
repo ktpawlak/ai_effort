@@ -13,6 +13,7 @@
 #   ./khid key enter                # press a single named key
 #   ./khid combo ctrl-alt-delete    # press a key combo
 #   ./khid raw --key esc --repeat 3 # pass arbitrary args straight to sendkeys.py
+#   ./khid provision [--reboot]     # provision a fresh/reflashed Pi (deploy + enable service)
 #
 # Config via env:
 #   PI_HOST   (default ubuntu@192.168.1.198)
@@ -42,6 +43,7 @@ case "$cmd" in
     combo)  [ $# -ge 1 ] || { echo "combo needs a spec"; exit 1; }
             $SSH "${SENDKEYS} --combo \"$1\"" ;;
     raw)    $SSH "${SENDKEYS} $*" ;;
+    provision) exec "$(dirname "$0")/provision-pi.sh" "$@" ;;
     ""|-h|--help) usage ;;
     *) echo "unknown command: $cmd"; usage ;;
 esac

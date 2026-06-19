@@ -24,6 +24,8 @@ controller (`dwc2`). The workstation drives it over the network (SSH).
 |------|---------|---------|
 | `hid-keyboard-gadget.sh` | Pi | create/remove the configfs HID keyboard gadget (`up`/`down`/`status`) |
 | `sendkeys.py`            | Pi | write HID reports to `/dev/hidg0` (type/key/combo/wake) |
+| `hid-keyboard-gadget.service` | Pi | systemd unit that auto-starts the gadget at boot |
+| `provision-pi.sh`        | workstation | provision a fresh/reflashed Pi (deploy + enable everything) |
 | `khid`                   | workstation | SSH wrapper that drives the Pi remotely |
 
 ## Physical connection (IMPORTANT)
@@ -45,6 +47,30 @@ The Pi's USB-C is now the data-to-DUT port, so the Pi needs power. Two options:
 
 The Pi stays reachable for SSH over its **network** interface (Ethernet/WiFi),
 independent of how it is powered.
+
+## Provisioning a fresh / reflashed Pi
+
+If the Pi is reflashed (or you set up a new one), provision it in one command from
+the workstation:
+
+```bash
+./khid provision            # deploy scripts, enable dwc2 overlay, install service
+./khid provision --reboot   # same, and reboot the Pi if the overlay was just added
+```
+
+`provision-pi.sh` is idempotent and:
+1. enables the `dwc2` OTG overlay in the Pi's `config.txt` (needs one reboot),
+2. configures `libcomposite` to load at boot,
+3. copies `hid-keyboard-gadget.sh` + `sendkeys.py` to `/home/ubuntu/hid-keyboard/`,
+4. installs + enables the `hid-keyboard-gadget` systemd service.
+
+On a brand-new flash the overlay is added, so a reboot is required for the UDC to
+appear — use `--reboot` or reboot manually. After reboot the gadget auto-starts;
+verify with `./khid status` (UDC state `configured` once cabled to the DUT).
+
+Requirements on a fresh Pi: SSH reachable as `ubuntu@<ip>` with passwordless
+`sudo` (Raspberry Pi OS / Ubuntu default). Override target with
+`PI_HOST=ubuntu@<ip> ./khid provision`.
 
 ## Usage
 

@@ -145,3 +145,17 @@ gadget succeeded — typed `ok\n` from the workstation, Hamoa received o, k, ENT
 So after a Pi reboot the keyboard now comes up automatically; no manual
 `khid up` needed. Manage with:
   sudo systemctl {status|restart|stop|start} hid-keyboard-gadget
+
+## Re-provisioning after a Pi reflash (DONE, 2026-06-18)
+`provision-pi.sh` (also `./khid provision [--reboot]`) rebuilds the whole setup on
+a fresh/reflashed Pi in one command from the workstation. Idempotent; it:
+1. enables the `dwc2` OTG overlay in the Pi's `config.txt` (one reboot needed),
+2. configures `libcomposite` to load at boot (`/etc/modules-load.d/hid-gadget.conf`),
+3. copies `hid-keyboard-gadget.sh` + `sendkeys.py` to `/home/ubuntu/hid-keyboard/`,
+4. installs + enables the `hid-keyboard-gadget` systemd service.
+On a brand-new flash the overlay is added so a reboot is required for the UDC to
+appear (`--reboot` does it); the gadget then auto-starts.
+Verified idempotently against the live Pi: redeployed, service enabled,
+`libcomposite` configured, gadget restarted, and a keystroke test still passed
+(sent `space` -> Hamoa received KEY 57). Requires SSH `ubuntu@<ip>` + passwordless
+sudo; override target with `PI_HOST=ubuntu@<ip> ./khid provision`.
