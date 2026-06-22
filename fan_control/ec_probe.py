@@ -17,7 +17,9 @@ Options:
     --len     Bytes to read per register (default: 8)
     --only    Comma-separated list of hex registers to probe (e.g. 0x30,0x42)
     --no-unbind  Skip driver unbind/rebind (if driver is already unbound)
-    --raw     Print only raw hex, no decoding
+    --raw     Suppress ALL output annotations — register + raw hex bytes only
+    --no-hints  Suppress generic heuristic hints (plausible RPM/°C) but keep
+                known-register descriptions
     --repeat  N  Re-read --only registers N times with 1s delay (live monitor)
 
 Examples:
@@ -115,7 +117,7 @@ def read_reg(bus, addr, reg, length):
 # Decoders for known registers
 # ---------------------------------------------------------------------------
 
-def decode(reg, data):
+def decode(reg, data, hints=True):
     """Return a human-readable interpretation string, or empty string."""
     if data is None:
         return "(read error)"
@@ -144,23 +146,22 @@ def decode(reg, data):
             name = SCI_EVENTS.get(ev, "unknown")
             lines.append(f"last event: 0x{ev:02x} ({name})")
 
-    else:
+    elif hints:
         # Generic heuristics — try to spot plausible temperatures (0-100) and
         # 16-bit values that could be RPM (100-8000).
-        hints = []
+        h = []
         for i, v in enumerate(data):
             if 0 < v <= 100:
-                hints.append(f"byte[{i}]=0x{v:02x}/{v} (plausible °C or %)")
+                h.append(f"byte[{i}]=0x{v:02x}/{v} (plausible °C or %)")
         if len(data) >= 2:
             for i in range(len(data) - 1):
                 le = struct.unpack_from("<H", bytes(data[i:i+2]))[0]
                 be = struct.unpack_from(">H", bytes(data[i:i+2]))[0]
                 if 100 <= le <= 8000:
-                    hints.append(f"bytes[{i}:{i+2}] LE={le} (plausible RPM?)")
+                    h.append(f"bytes[{i}:{i+2}] LE={le} (plausible RPM?)")
                 if le != be and 100 <= be <= 8000:
-                    hints.append(f"bytes[{i}:{i+2}] BE={be} (plausible RPM?)")
-        if hints:
-            lines.extend(hints)
+                    h.append(f"bytes[{i}:{i+2}] BE={be} (plausible RPM?)")
+        lines.extend(h)
 
     return "\n      ".join(lines) if lines else ""
 
@@ -205,9 +206,14 @@ def parse_args():
     p.add_argument("--no-unbind", action="store_true",
                    help="skip driver unbind/rebind")
     p.add_argument("--raw",       action="store_true",
-                   help="print only raw hex, no decoding")
+                   help="suppress ALL decoding: no known-register descriptions, "
+                        "no heuristic hints (plausible RPM/°C). "
+                        "Output: register address + raw hex bytes only.")
+    p.add_argument("--no-hints",  action="store_true",
+                   help="suppress only the heuristic 'plausible RPM/°C' hints; "
+                        "still shows known-register descriptions.")
     p.add_argument("--repeat",    type=int, default=1,
-                   help="repeat --only probes N times (live monitor mode)")
+                   help="repeat --only probes N times with 1s delay (live monitor mode)")
     return p.parse_args()
 
 
@@ -262,9 +268,14 @@ def main():
                         continue
 
                 label, _, desc = KNOWN.get(reg, ("", args.len, ""))
-                interp = "" if args.raw else decode(reg, data)
-                print_result(reg, data, label, desc if not args.raw else "",
-                             interp)
+                if args.raw:
+                    interp = ""
+                    desc   = ""
+                elif args.no_hints:
+                    interp = decode(reg, data, hints=False)
+                else:
+                    interp = decode(reg, data, hints=True)
+                print_result(reg, data, label, desc, interp)
 
             if iteration < args.repeat - 1:
                 time.sleep(1)
