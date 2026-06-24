@@ -348,3 +348,87 @@ QUICK ONE-LINER (download + scp + install + reboot)
     sudo reboot
   ' || true
   echo "Board rebooting — wait 2-3 minutes then SSH back in"
+
+
+================================================================================
+SESSION WORK — JUNE 2026 (post-rebase runtime fixes continuation)
+================================================================================
+
+CURRENT KERNEL TREE STATE (HEAD: 3e335463bca0, 2026-06-23)
+------------------------------------------------------------
+Branch: master-next
+Recent commits above Ubuntu-qcom-7.0.0-1006.8:
+
+  3e335463bca0  release a test build change
+  8e4c801f73b9  Revert "arm64: dts: qcom: hamoa: Disable spi18..."
+                  (spi18 was mistakenly re-enabled then reverted again)
+  ae03a688eb92  platform/arm64: qcom-hamoa-ec: Add hwmon interface for fan PWM
+  6df7255c7f33  wifi: ath12k: use lockdep_assert_in_rcu_read_lock()
+  73c776f009aa  PCI: dwc: Proceed with system suspend even if endpoint doesn't
+                  respond with PME_TO_Ack message  (suspend entry fix)
+  8c3450985b6b  WORKAROUND: arm64: dts: qcom: Add qref supply for PCIe PHYs
+  ec004b2463ae  UBUNTU: Ubuntu-qcom-7.0.0-1006.8  (release tag)
+
+FIX: wifi: ath12k: spurious WARN_ON on PREEMPT_RT (6df7255c7f33)
+------------------------------------------------------------------
+Symptom: on the RT kernel (7.0.0-1006-qcom-rt), dmesg flooded with:
+  WARNING: drivers/net/wireless/ath/ath12k/mac.c:788
+  at ath12k_mac_get_arvif+0x..., CPU#6: irq/273-ce2/...
+  every ~6 seconds (firmware stats processing interval).
+
+Root cause: WARN_ON(!rcu_read_lock_any_held()) — on PREEMPT_RT,
+rcu_read_lock() does NOT disable preemption (by design), so
+rcu_read_lock_any_held() fell back to !preemptible() = false even when
+the lock was correctly held. False positive.
+
+Fix: upstream commit 4498664e2d58 by Yu-Hsiang Tseng:
+  "wifi: ath12k: use lockdep_assert_in_rcu_read_lock() for RCU assertions"
+  Replaces WARN_ON(!rcu_read_lock_any_held()) with lockdep_assert_in_rcu_read_lock()
+  which compiles out entirely without CONFIG_PROVE_RCU. Both mac.c and p2p.c.
+Applied as 6df7255c7f33 (cherry-picked from qcom-next).
+
+FIX: WiFi not scanning — regulatory domain (board config)
+----------------------------------------------------------
+Symptom: after fresh flash, 'nmcli device wifi list' returns empty.
+Root cause: regulatory domain = 'country 00' (world roaming), all 2.4GHz
+  bands flagged PASSIVE-SCAN → kernel refuses to transmit probe requests.
+
+Fix (persistent, on the Hamoa board):
+  echo "options cfg80211 ieee80211_regdom=PL" | sudo tee /etc/modprobe.d/cfg80211.conf
+  (change PL to your country code)
+  Reboot or: sudo modprobe -r cfg80211 && sudo modprobe cfg80211
+
+FEATURE: EC hwmon interface for fan PWM (ae03a688eb92)
+-------------------------------------------------------
+File: drivers/platform/arm64/qcom-hamoa-ec.c
+Added standard hwmon device 'qcom_ec' exposing:
+  /sys/class/hwmon/hwmon0/pwm1  — fan 0 PWM (0-255), read/write
+  /sys/class/hwmon/hwmon0/pwm2  — fan 1 PWM (0-255), read/write (unpopulated
+                                   on Hamoa IoT EVK — only one physical fan)
+
+EC protocol has NO rpm read command (confirmed by exhaustive register probing
+and review of upstream series V3-V9). Read returns cached last-written value.
+
+fancontrol (/etc/fancontrol) installed on board:
+  Sensor: cpuss0_top_thermal (hwmon18), curve ≤45°C→25%, 75°C→100%
+  Drives pwm1 only (pwm2 has no physical fan connector on this board).
+  Config saved in: ~/qualcomm/ai_effort/fan_control/fancontrol.conf
+  sudo systemctl {start|stop|status} fancontrol
+
+CBD DEPLOYMENT — automated script (2026-06-23)
+-----------------------------------------------
+~/qualcomm/qpa/cbd-deploy.sh
+  Push → wait for build → download → SCP → dpkg install → reboot
+
+Usage (from ~/qualcomm/linux):
+  ~/qualcomm/qpa/cbd-deploy.sh                          # qcom flavour
+  ~/qualcomm/qpa/cbd-deploy.sh --flavour qcom-rt        # RT flavour
+  ~/qualcomm/qpa/cbd-deploy.sh --flavour all --install qcom-rt
+  ~/qualcomm/qpa/cbd-deploy.sh --build-id <ID> --no-reboot  # re-use build
+Also documented in ~/qualcomm/qpa/SKILLS.md.
+
+See also:
+  ~/qualcomm/ai_effort/fan_control/         fan control + EC probe investigation
+  ~/qualcomm/ai_effort/keyboard_gadget/     USB HID keyboard test harness (Pi 4)
+  ~/qualcomm/ai_effort/2153998_june_patchset_rebase/suspend_resume_investigation.md
+  ~/qualcomm/ai_effort/2153998_june_patchset_rebase/cxpc_dsp_crash_explained.md

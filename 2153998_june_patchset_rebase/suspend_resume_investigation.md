@@ -7,6 +7,67 @@ Tree: ~/qualcomm/linux
 
 ---
 
+## 0. Suspend diagnostics — how to capture logs
+
+The board resets on suspend failure so log capture requires care. Arm all of
+these BEFORE triggering suspend:
+
+```bash
+sudo bash -c "
+  # Keep serial console alive during suspend.
+  # Without this the console is suspended before devices, so any per-device
+  # error that causes a reset is never printed on the serial port.
+  echo N > /sys/module/printk/parameters/console_suspend
+
+  # Print timing for every device's suspend/resume callback
+  # (shows 'calling <device> @ ...' and 'returned N after Kus').
+  echo 1 > /sys/power/pm_print_times
+
+  # Extra PM debug messages (optional, very verbose)
+  echo 1 > /sys/power/pm_debug_messages 2>/dev/null
+
+  # Use s2idle (CPU-only idle) rather than deep/S3
+  echo s2idle > /sys/power/mem_sleep
+
+  # Clear dmesg so the suspend log is clean
+  dmesg --clear
+"
+```
+
+Then trigger suspend (detached so the SSH session drop doesn't abort it):
+```bash
+setsid bash -c "sleep 2; systemctl suspend" &
+```
+
+After the board comes back (or is power-cycled after a reset), read the log:
+```bash
+# From the previous boot (if the board rebooted)
+sudo journalctl -b -1 -k | grep -iE "PM:|calling|returned|failed|error|WARN" | tail -60
+
+# From current boot dmesg (if it resumed)
+sudo dmesg | grep -iE "PM:|calling|returned|failed|error"
+```
+
+### Dry-run test: `pm_test=devices`
+
+Freezes/suspends all devices then **auto-resumes after ~5 seconds without any
+real power-down**. Useful to find which device crashes without permanently
+resetting the board.
+
+```bash
+echo devices | sudo tee /sys/power/pm_test
+echo freeze  | sudo tee /sys/power/state    # triggers; auto-resumes in ~5s
+# Check dmesg afterwards for the failing device
+sudo dmesg | grep -iE "failed|error|calling" | tail -20
+# Disable pm_test when done
+echo none | sudo tee /sys/power/pm_test
+```
+
+Note: on this board even `pm_test=devices` resets (device-suspend callback
+causes the reset), so the serial log is essential.
+
+---
+
 ## 1. Original symptom
 
 `systemctl suspend` instantly reboots the board. Reported by user.
