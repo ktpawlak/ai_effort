@@ -44,12 +44,100 @@ A qcom-next tag in `~/qualcomm/qualcomm-linux` is a merge commit with two parent
 - `parent 1` = upstream kernel base (e.g. "Linux 7.1-rc2")
 - `parent 2` = qcom-next tip (all Qualcomm-specific patches)
 
-Extract new commits by diffing qcom-tip against upstream base, then cross-referencing commit subjects already applied in the Ubuntu tree. See `2153998_june_patchset_rebase/AGENT_REBASE_GUIDE.md` for the full procedure.
+See `2153998_june_patchset_rebase/AGENT_REBASE_GUIDE.md` for the complete procedure including automation scripts.
 
-**Common conflict patterns:**
-- Qualcomm patches touching the same DTS nodes or driver files as Ubuntu SAUCE patches.
-- `rej` files indicate failed hunks — resolve by reading context, then `git add` + `git cherry-pick --continue`.
-- After a rebase, always verify `qcs8300.dtsi` (or `monaco.dtsi` in 7.0+) has no remaining `QCS8300_MMCX`/`QCS8300_MXC` constants (see `2139069_wrong_power_domain_id/analysis.md`).
+### Identifying commits to cherry-pick
+
+```bash
+# Extract all qcom-specific commits from the new tag (in qualcomm-linux)
+git -C ~/qualcomm/qualcomm-linux log --no-merges --format="%H %s" \
+    "$QCOM_TIP" ^"$UPSTREAM_BASE" > /tmp/qcom_all_commits.txt
+
+# Get subjects already applied in the ubuntu tree
+UBUNTU_UPSTREAM_BASE=$(git -C ~/qualcomm/linux log --oneline --no-merges | \
+    grep "^.\{8\} Linux [0-9]" | head -1 | awk '{print $1}')
+git -C ~/qualcomm/linux log --no-merges --format="%s" \
+    HEAD ^"$UBUNTU_UPSTREAM_BASE" | grep -v "^UBUNTU:" > /tmp/ubuntu_applied_subjects.txt
+```
+
+Cross-reference with the Python script in `AGENT_REBASE_GUIDE.md §2.4` to produce `commits_to_cherrypick.txt` in oldest-first order.
+
+### Cherry-pick execution
+
+Use the automation script from `AGENT_REBASE_GUIDE.md §3` — it iterates a SHA file, auto-resolves simple conflicts by taking THEIRS, and halts for manual review otherwise. **Do not use `set -e`** in the loop — it breaks conflict detection.
+
+After manually resolving a conflict:
+```bash
+git add <resolved-files>
+git cherry-pick --continue --no-edit
+# Remove the completed SHA from /tmp/shas_to_pick.txt, then re-run the script
+```
+
+### Conflict resolution strategy
+
+For every conflict, check the **new tag's final state** of the file:
+```bash
+git -C ~/qualcomm/qualcomm-linux show "$QCOM_TIP":<path/to/file> | head -80
+```
+
+| Pattern | Resolution |
+|---------|------------|
+| Incoming removes code still present in qcom-tip's final file | KEEP OURS |
+| Incoming removes code absent from final file | TAKE THEIRS |
+| Empty insertion-point mismatch (new code at a spot HEAD doesn't have) | TAKE THEIRS |
+| Clock/binding renames across DTS files | TAKE THEIRS |
+| Commit deletes function still present in final file | KEEP OURS |
+| Auto-resolver produces duplicate blocks | TAKE THEIRS + manual dedup |
+
+After auto-resolving `Makefile`, verify no duplicate entries:
+```bash
+git diff HEAD -- arch/arm64/boot/dts/qcom/Makefile | grep "^+" | sort | uniq -d
+```
+
+### Graduated upstream gap (critical post-rebase check)
+
+Commits that graduated from qcom-next into upstream *between* the two kernel versions are correctly excluded from the cherry-pick list (they're in the new upstream base), but **missing from our tree** (which is still on the old upstream). This causes DTC or build errors after all cherry-picks complete.
+
+**Symptoms:**
+```
+Error: arch/arm64/boot/dts/qcom/foo.dtsi:N Label or path bar not found
+No rule to make target 'arch/arm64/boot/dts/qcom/foo.dtb'
+```
+
+**Always diff first** before choosing a fix:
+```bash
+diff ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi \
+     ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi
+# Lines with '<' = ubuntu-only content — must be preserved if ubuntu-specific
+```
+
+| Fix approach | When to use |
+|-------------|-------------|
+| Copy wholesale from qcom-linux | All `<` lines are just old qcom content (no ubuntu additions) |
+| Surgical insert of missing node/label | Ubuntu tree has additions absent from qcom-linux entirely |
+| Cherry-pick graduated commit from qcom-linux | Changes are non-trivial or span multiple files |
+
+### Known recurring conflict areas
+
+| Subsystem | Files | Typical cause |
+|-----------|-------|---------------|
+| Coresight CTI | `drivers/hwtracing/coresight/coresight-cti-*.c`, `qcom-cti.h` | Register encoding refactors |
+| Coresight TMC | `coresight-tmc-core.c`, `coresight-tmc.h` | sysfs ops refactoring |
+| ICE / crypto clocks | `drivers/soc/qcom/ice.c`, many DTS files | Clock name renames |
+| Display (DP) | `drivers/gpu/drm/msm/dp/dp_ctrl.c` | HPD handling refactors |
+| RPMH regulator | `drivers/regulator/qcom-rpmh-regulator.c` | PMIC model additions |
+| DTS Makefile | `arch/arm64/boot/dts/qcom/Makefile` | New board additions |
+
+### C source build errors after rebase
+
+| Pattern | Diagnosis | Fix |
+|---------|-----------|-----|
+| File ~50% shorter than qcom-linux version | Double cherry-pick: FROMLIST + FROMGIT pair both applied | Copy wholesale from qcom-linux (if no ubuntu-specific content) |
+| `struct X has no member Y` in ubuntu-specific code | SAUCE commit missed adding the struct field | Surgical insert of missing field + initialiser |
+| `redefinition of 'function_name'` | Two cherry-picks left duplicate function bodies | Remove older body; verify correct form against qcom-linux |
+| Symbols undeclared that ARE in same file | `#ifdef` guard scope mismatch — ubuntu code fell outside conditional block | Check qcom-linux for correct guard boundaries |
+
+After a rebase, always verify `qcs8300.dtsi` (or `monaco.dtsi` in kernel 7.0+) has no remaining `QCS8300_MMCX`/`QCS8300_MXC` constants — see `2139069_wrong_power_domain_id/analysis.md`.
 
 ## CBD remote kernel build (Hamoa / Resolute)
 
