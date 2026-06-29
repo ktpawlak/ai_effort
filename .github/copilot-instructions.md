@@ -173,7 +173,38 @@ sudo ~/qualcomm/carmel-tools/alpaca.py edl  # signal EDL mode
 
 **Critical EDL sequence:** `alpaca.py off` must precede `alpaca.py edl` — without the power-off, USB flashing port `05c6:9008` won't enumerate. Confirm with `lsusb | grep 05c6:9008`.
 
-## Flashing
+## Hamoa fan control
+
+Driver: `qcom-hamoa-ec` (I2C device `1-0076`). Two fans exposed as Linux thermal cooling devices and (from kernel `7.0.0-1006.10ubuntu2`) as hwmon `pwm` nodes. Both interfaces write to the same EC hardware.
+
+| Fan | Thermal sysfs path | hwmon path |
+|-----|-------------------|------------|
+| 0 | `/sys/class/thermal/cooling_device3/cur_state` | `/sys/class/hwmon/hwmon0/pwm1` |
+| 1 | `/sys/class/thermal/cooling_device4/cur_state` | `/sys/class/hwmon/hwmon0/pwm2` |
+
+Range 0–255. To convert a percentage: `speed = pct * 255 / 100`. `cooling_device5..7` are PCIe link speed and GPU devfreq — not fans.
+
+```bash
+# Find the hwmon path (name = "qcom_ec")
+grep -rl "^qcom_ec$" /sys/class/hwmon/hwmon*/name | sed "s|/name||"
+
+# Read current speed
+cat /sys/class/thermal/cooling_device3/cur_state
+
+# Set both fans to 50% (128/255) via hwmon
+echo 128 | sudo tee /sys/class/hwmon/hwmon0/pwm1
+echo 128 | sudo tee /sys/class/hwmon/hwmon0/pwm2
+
+# Or via thermal cooling device (always available, any kernel)
+echo 128 | sudo tee /sys/class/thermal/cooling_device3/cur_state
+echo 128 | sudo tee /sys/class/thermal/cooling_device4/cur_state
+```
+
+**No RPM readback:** the EC has no I2C read command for current fan speed (confirmed by exhaustive register probing). `pwmN` reads return the **last-written value**, not a live hardware measurement. `fan*_input` entries are absent. The thermal governor overrides `cur_state` on the next thermal event — manual writes are transient.
+
+See `fan_control/fan_control.md` for full discovery notes.
+
+
 
 All flash scripts run from the **repo root** (`qpa/`), not `ai_effort/`. See `qpa/.github/copilot-instructions.md` for full flashing details.
 
