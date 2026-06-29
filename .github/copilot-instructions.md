@@ -216,7 +216,53 @@ cd ~/qualcomm/qpa
 
 `qdl: firehose operation timed out` at the end of each phase is **expected** (board reset).
 
-## Bug/patch directories (`2XXXXXXX_*/`)
+## USB HID keyboard gadget
+
+Scripts live in `keyboard_gadget/`. A Raspberry Pi 4 acts as a USB keyboard to drive a DUT (e.g. wake it from suspend, send boot menu keystrokes). The x86 workstation has host-only USB and physically cannot act as a USB device.
+
+```
+[ workstation ]  --SSH(net)-->  [ Raspberry Pi 4 ]  --USB-C cable-->  [ Hamoa DUT ]
+ ./khid wake                     /dev/hidg0 keyboard                   sees a keyboard
+```
+
+**Physical connection:** Pi 4 **USB-C port** (the power/OTG port — the only one with a UDC) → any Hamoa USB-A host port. Pi stays SSH-reachable over its network interface regardless of how it's powered. Default Pi target: `ubuntu@192.168.1.198`.
+
+### Provisioning a fresh Pi
+
+```bash
+cd keyboard_gadget
+./khid provision            # idempotent: enables dwc2 overlay, installs systemd service
+./khid provision --reboot   # same, then reboots Pi (required after first provision for UDC to appear)
+```
+
+Override target: `PI_HOST=ubuntu@<ip> ./khid provision`.
+
+After provisioning and reboot, the gadget auto-starts at Pi boot. Verify with `./khid status` — UDC state should be `configured` once cabled to a powered DUT.
+
+### Usage (run from `keyboard_gadget/` on the workstation)
+
+```bash
+./khid up                       # bring gadget up manually
+./khid status                   # check gadget; 'configured' = DUT has enumerated it
+./khid wake                     # tap Left-Shift (wakes suspended DUT, injects no character)
+./khid type "root\n"            # type a string (\n=Enter, \t=Tab)
+./khid key enter                # single named key (enter, esc, space, f2, up, down, …)
+./khid combo ctrl-alt-delete
+./khid raw --key esc --repeat 3 --delay 0.2   # pass arbitrary args to sendkeys.py
+./khid down                     # remove gadget
+```
+
+**Verifying enumeration on the DUT:**
+```bash
+dmesg | tail   # "input: QPA Test Harness Virtual Keyboard"
+lsusb          # 1d6b:0104
+```
+
+Error *"Cannot send after transport endpoint shutdown" (errno 108)*: gadget is up but no host enumerated it — check cable, port, and that the DUT is powered.
+
+**Suspend wake:** `./khid wake` works because the gadget advertises Remote Wakeup (`bmAttributes=0xa0`). Left-Shift is used because it generates USB activity without typing a character. Remote wakeup only works if the DUT armed the device for wakeup before suspend.
+
+
 
 Each directory corresponds to a Launchpad bug. Typical contents:
 - `analysis.md` — bug description, root cause, patch discussion, rebase action items
