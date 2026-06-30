@@ -26,6 +26,7 @@ Default SSH password after flashing: `changeme12` (changed from `ubuntu` by flas
 |------|-------------|
 | `~/qualcomm/linux` | Ubuntu kernel tree — target for cherry-picks. Branch: `master-next`. |
 | `~/qualcomm/qualcomm-linux` | Qualcomm upstream tree — source of Qualcomm patches (qcom-next tags). |
+| `~/qualcomm/noble` | Noble (24.04) kernel source for Monza2 (kernel `6.8.0-1078-qcom`). |
 | `~/qualcomm/images/` | Ubuntu images, organised by `<os-version>/<release-tag>/` (e.g. `24.04/x11/`). |
 | `~/qualcomm/carmel-tools/alpaca.py` | Board power/mode control (requires `sudo`). |
 
@@ -172,6 +173,27 @@ sudo ~/qualcomm/carmel-tools/alpaca.py edl  # signal EDL mode
 ```
 
 **Critical EDL sequence:** `alpaca.py off` must precede `alpaca.py edl` — without the power-off, USB flashing port `05c6:9008` won't enumerate. Confirm with `lsusb | grep 05c6:9008`.
+
+**Serial consoles** (FTDI adapters appear as `/dev/ttyUSB*`; check `ls -l /dev/serial/by-id/`):
+- **Monza2** — Arduino *Bughopper* (FT-X), single port, watch with `minicom -oD /dev/ttyUSB0` (115200 8N1; kernel `console=ttyMSM0`). `alpaca.py` drives power via the **same** Bughopper's CBUS GPIOs (`Sulla_monza` class), so it shares the FTDI with minicom — release the minicom session before scripting a power cycle.
+- **Hamoa** — 4232 quad-FTDI, occupies `ttyUSB0..3`.
+
+## Initramfs (slim / minimal)
+
+Full investigations + reusable scripts/GRUB entries live in `hamoa_slim_initramfs/` and `monza2_slim_initramfs/` (each has a README). Key takeaways:
+
+- **Generator differs by release.** Noble (24.04) uses **initramfs-tools** (`MODULES=` in `/etc/initramfs-tools/initramfs.conf`; shell-script `/init`; inspect with `lsinitramfs`, unpack with `unmkinitramfs`). Resolute (26.04) uses **dracut** (systemd `/init`; `lsinitrd`; `update-initramfs` is a dracut wrapper).
+- **Shrinking that works.** On initramfs-tools, native **`MODULES=dep`** just works (Monza2: 70 MB/1893 → 27 MB/77 modules, boots clean) because it only changes *which* `.ko` are copied — the `/init` skeleton is byte-identical. On dracut (Hamoa) the native minimal **breaks boot** (it re-authors the init/udev sequence → a firmware/Gunyah watchdog resets the board ~11 s before `switch_root`). There the only safe shrink is **trim-stock**: unpack the stock cpio, delete inert `.ko`, repack with `cpio`/`zstd` *without* re-running dracut. trim-stock is generator-agnostic and works on both boards.
+- **Inert modules don't matter:** unused `.ko` never run; boot problems come from the *generator's build config*, not module count.
+- **Monza2 root-mount is builtin** (`EXT4_FS`/`MMC_BLOCK`/`MMC_SDHCI_MSM`/`BLK_DEV_DM` = y), so almost no modules are needed to reach rootfs. Hamoa's SCMI/SMMU/`memlat` pathology is **absent** on QCS8300.
+- `monza2_slim_initramfs/modules.list` is the hand-built 77-module `MODULES=dep` set (use with `MODULES=list`); `modules.minimal.list` is the ~13-module true minimum.
+
+**Test harness (both boards):** build the slim image as a *separate* `/boot/initrd.img-*.<suffix>`, add a `/etc/grub.d/4X_*` entry (clone the primary menuentry, repoint `initrd`, add a unique `initrd_variant=` cmdline marker), leave the default on stock so a failed test can't brick the board. One-shot it with `sudo grub-reboot <id> && sudo reboot`; confirm via `grep initrd_variant /proc/cmdline` and `dmesg | grep 'Freeing initrd memory'`.
+
+**Gotchas:**
+- **Monza2 GRUB needs no `devicetree` line** (firmware/ABL supplies the DTB). **Hamoa** custom entries **DO** need `devicetree /boot/dtb-$(uname -r)` or the console hangs silently.
+- Never pipe `update-grub` through `head`/early-closing greps — SIGPIPE kills `grub-mkconfig` before its atomic write and the entry silently won't appear.
+- `lsinitramfs`/`unmkinitramfs` on the 70 MB image are slow (~90 s). `grub-probe` "Discarding improperly nested partition (...gpt68...)" warnings are harmless.
 
 ## Hamoa fan control
 
