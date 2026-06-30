@@ -1,0 +1,105 @@
+# Monza2 (QCS8300) initramfs module list — the MODULES=dep closure (77 modules).
+#
+# This is the hand-equivalent of `MODULES=dep` on kernel 6.8.0-1078-qcom. To use it as an
+# explicit hand-built list: copy the bare names (no comments needed) into
+# /etc/initramfs-tools/modules, set MODULES=list in /etc/initramfs-tools/initramfs.conf,
+# then run `sudo update-initramfs -u` (or build a separate image with mkinitramfs).
+#
+# NOTE: on Monza2 the entire root-mount path is BUILTIN (CONFIG_EXT4_FS=y, MMC_BLOCK=y,
+# MMC_SDHCI_MSM=y, BLK_DEV_DM=y), so most of the entries below are generic Ubuntu
+# boilerplate for non-eMMC root layouts (LVM/RAID/crypt/iSCSI) and are never exercised
+# here. The only genuinely board-specific, load-from-initramfs entries are the Qualcomm
+# platform + PHY groups. See modules.minimal.list for the trimmed hand list.
+
+# --- Qualcomm SoC platform (remoteproc firmware load, glink/smem IPC, llcc, pinctrl, rtc) ---
+llcc-qcom
+mdt_loader
+ocmem
+qcom_common
+qcom_glink_smem
+qcom_pil_info
+qcom_q6v5
+qcom_q6v5_pas
+qcom_rproc_minidump
+qcom_sysmon
+uio
+uio_pdrv_genirq
+pinctrl-lpass-lpi
+pinctrl-qcs8300-lpass-lpi
+rtc-pm8xxx
+
+# --- Clock controllers (camera/display/gpu/video; pulled in as deps, not root-critical) ---
+camcc-sa8775p
+dispcc0-sa8775p
+gpucc-sa8775p
+videocc-sa8775p
+
+# --- PHY ---
+phy-qcom-edp
+phy-qcom-sgmii-eth
+
+# --- DRM / msm display + gpu (dep of the above; not needed to mount root) ---
+msm
+msm_display
+drm_display_helper
+drm_dp_aux_bus
+drm_exec
+gpu-sched
+cec
+rc-core
+
+# --- Device-mapper / RAID / bcache (for LVM/RAID/crypt roots; unused on plain ext4) ---
+dm-bio-prison
+dm-bufio
+dm-cache
+dm-cache-smq
+dm-crypt
+dm-log
+dm-mirror
+dm-persistent-data
+dm-raid
+dm-region-hash
+dm-snapshot
+dm-thin-pool
+raid0
+raid1
+raid10
+raid456
+raid6_pq
+bcache
+
+# --- iSCSI / Chelsio / RDMA-iSER (for iSCSI boot; unused on eMMC) ---
+iscsi_boot_sysfs
+iscsi_ibft
+iscsi_tcp
+libiscsi
+libiscsi_tcp
+scsi_transport_iscsi
+cxgb3
+cxgb3i
+cxgb4
+cxgb4i
+libcxgb
+libcxgbi
+mdio
+ib_cm
+ib_core
+ib_iser
+iw_cm
+rdma_cm
+
+# --- Crypto / async (dm-crypt + RAID xor helpers) ---
+af_alg
+algif_skcipher
+async_memcpy
+async_pq
+async_raid6_recov
+async_tx
+async_xor
+xor
+xor-neon
+
+# --- Misc / fs / net ---
+overlay
+libcrc32c
+tls

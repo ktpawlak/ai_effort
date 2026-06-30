@@ -107,6 +107,16 @@ systemctl --failed                                   # -> 0 loaded units failed
   required** (`MODULES=dep` already works and is smaller), but it is **boot-verified here**
   too (92 modules / 31 MB) and is kept for parity and for boards whose native minimal
   misbehaves.
+* `modules.list` — the explicit hand list of all **77** modules in the `MODULES=dep`
+  closure, grouped by subsystem with comments. Verified to be an exact match for the
+  `MODULES=dep` set. Drop the bare names into `/etc/initramfs-tools/modules` and set
+  `MODULES=list` to reproduce the slim image as a hand-maintained list.
+* `modules.minimal.list` — the aggressive ~13-module hand minimum (Qualcomm platform + PHY
+  only). Sufficient because root-mount is builtin; everything else in `modules.list` is
+  generic LVM/RAID/crypt/iSCSI boilerplate this board never uses. Validate with a one-shot
+  GRUB test entry before trusting it.
+* `modules.full.txt` — the same 77 modules as full in-kernel paths (`kernel/.../foo.ko`),
+  for reference.
 
 ## Gotchas (Monza2-specific)
 

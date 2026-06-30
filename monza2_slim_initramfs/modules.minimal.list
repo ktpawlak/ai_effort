@@ -1,0 +1,28 @@
+# Monza2 (QCS8300) — true-minimum hand list for an eMMC root on kernel 6.8.0-1078-qcom.
+#
+# Because the root-mount path is fully BUILTIN (ext4/mmc_block/sdhci_msm/dm = y), the
+# initramfs needs almost nothing to reach the rootfs. These are the only board-specific
+# modules worth loading early; everything else in the full MODULES=dep set (see
+# modules.list) is generic boilerplate for LVM/RAID/crypt/iSCSI roots that this board does
+# not use. Use with MODULES=list in /etc/initramfs-tools/initramfs.conf.
+#
+# Caveat: this is the aggressive hand-minimum. MODULES=dep (modules.list) is the supported,
+# safer choice and is already small (27 MB). Validate any hand list with a one-shot GRUB
+# test entry (see 42_slimtest) before making it the default.
+
+# Qualcomm SoC platform (remoteproc firmware load + IPC + llcc + pinctrl + rtc)
+llcc-qcom
+mdt_loader
+qcom_common
+qcom_glink_smem
+qcom_pil_info
+qcom_q6v5
+qcom_q6v5_pas
+qcom_sysmon
+pinctrl-lpass-lpi
+pinctrl-qcs8300-lpass-lpi
+rtc-pm8xxx
+
+# PHY
+phy-qcom-edp
+phy-qcom-sgmii-eth
