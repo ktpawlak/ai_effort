@@ -1,14 +1,45 @@
 # Hamoa slim initramfs experiment (X1E80100 / kernel 7.0.0-1006-qcom)
 
 Goal: shrink the Ubuntu initramfs on the Hamoa board from the default
-`MODULES=most` image (~82 MB, ~2500 modules) to a minimal UFS-root image
-(~25 MB, 26 modules), and fix the boot regressions that a slim image exposes.
+`MODULES=most` image (~82 MB, ~2500 modules), and fix the boot regressions that
+a slim image exposes.
 
 Board: Hamoa IoT EVK, `ubuntu@192.168.1.123` (pw `changeme12`),
 serial console `/dev/ttyUSB0` @ 115200 (kernel `console=ttyMSM0`),
 root `/dev/sda2` ext4, root UUID `8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1`.
 
 ---
+
+## ★ ANSWER / BREAKTHROUGH (read this first)
+
+**A trimmed initramfs DOES work on this board — but you must NOT rebuild it with
+dracut.** Take the *working* stock initramfs and just **delete the inert `.ko`
+files**, then repack with `cpio`/`zstd` (see `trim-stock-initramfs.sh`). This
+preserves stock's exact `init`/udev/scripts/config/metadata, so it boots
+identically — only smaller.
+
+Verified on the board:
+
+| image | how built | size | initramfs modules | boots? |
+|-------|-----------|------|-------------------|--------|
+| stock | dracut `MODULES=most` | 82 MB | 2489 | ✅ |
+| **trimstock** | **stock minus inert `.ko`, repacked (no dracut)** | **57 MB** | **112** | **✅ UFS@10.4s, switch_root, login, SSH up** |
+| "runtime" / "slim" | dracut `hostonly_mode=strict` + `drivers=` | 25–43 MB | 26–229 | ❌ firmware reset ~11 s |
+
+**Conclusion: it was never about the module count or the inert files** (the user
+was right). Every failure of the dracut-rebuilt images came from the dracut
+**build configuration** (`hostonly_mode=strict`, `omit_dracutmodules`,
+`force_drivers` — which change the early-boot/udev sequence enough that the
+board's firmware watchdog resets it at ~11 s). The stock build logic is
+validated and boots; deleting inert `.ko` files from it does not change that.
+
+→ The right tool is **`trim-stock-initramfs.sh`** (delete-from-stock), **not** a
+dracut `--conf` rebuild. Everything below is the long investigation that led
+here; the `slim`/`runtime` dracut approaches are kept only as a record of what
+*doesn't* work and why.
+
+---
+
 
 ## TL;DR results
 

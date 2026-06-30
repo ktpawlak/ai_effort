@@ -1,0 +1,25 @@
+#!/bin/sh
+# /etc/grub.d/43_runtimetest — non-default GRUB entry to TEST the "runtime-set"
+# initramfs (the ~177 modules that are loaded on the running system).
+#
+# Install (sits next to 42_slimtest in the menu):
+#   sudo cp 43_runtimetest /etc/grub.d/43_runtimetest
+#   sudo chmod +x /etc/grub.d/43_runtimetest
+#   sudo update-grub
+#
+# Pick "Ubuntu RUNTIME-SET initramfs TEST (177 modules)" from the GRUB menu.
+#
+# Like 42_slimtest: the `devicetree` line is REQUIRED, and the linux/initrd/
+# devicetree lines must match the stock 'Ubuntu' entry except for the .runtime
+# initrd. Build the image first with hamoa-runtime-dracut.conf.sh, e.g.:
+#   sudo dracut --force --conf /tmp/hamoa-runtime.conf \
+#        /boot/initrd.img-$(uname -r).runtime $(uname -r)
+#
+# Adjust KVER, root UUID, and cmdline to match your stock entry.
+exec tail -n +3 $0
+menuentry "Ubuntu RUNTIME-SET initramfs TEST (177 modules)" --id runtimetest {
+	search --no-floppy --fs-uuid --set=root 8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1
+	linux	/boot/vmlinuz-7.0.0-1006-qcom root=UUID=8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1 ro console=ttyMSM0,115200n8 pcie_pme=nomsi earlycon multipath=off crashkernel=2G-4G:320M,4G-32G:512M,32G-64G:1024M,64G-128G:2048M,128G-:4096M
+	initrd	/boot/initrd.img-7.0.0-1006-qcom.runtime
+	devicetree	/boot/dtb-7.0.0-1006-qcom
+}
