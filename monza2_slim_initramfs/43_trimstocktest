@@ -1,0 +1,15 @@
+#!/bin/sh
+exec tail -n +3 $0
+# Monza2 trim-stock test entry (generator-agnostic: stock minus inert .ko, repacked).
+# Marker initrd_variant=trimstock confirms which image booted.
+menuentry 'Ubuntu (TRIMSTOCK initramfs test)' --class ubuntu --class gnu-linux --class gnu --class os --id 'trimstocktest' {
+	recordfail
+	load_video
+	gfxmode $linux_gfx_mode
+	insmod gzio
+	insmod part_gpt
+	insmod ext2
+	search --no-floppy --fs-uuid --set=root e5defb48-4df4-40fc-8f97-7d635b46fcb8
+	linux	/boot/vmlinuz-6.8.0-1078-qcom root=UUID=e5defb48-4df4-40fc-8f97-7d635b46fcb8 ro console=ttyMSM0,115200n8 pcie_pme=nomsi earlycon video=LVDS-1:d initrd_variant=trimstock
+	initrd	/boot/initrd.img-6.8.0-1078-qcom.trimstock
+}

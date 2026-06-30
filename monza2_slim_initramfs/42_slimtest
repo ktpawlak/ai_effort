@@ -1,0 +1,20 @@
+#!/bin/sh
+exec tail -n +3 $0
+# Monza2 slim-initramfs test entry (initramfs-tools MODULES=dep).
+# Clone of the primary 'Ubuntu' entry, repointed at the .slim initrd, with a unique
+# cmdline marker (initrd_variant=slim) so /proc/cmdline confirms which image booted.
+# No 'devicetree' line: on this board (QCS8300) the firmware/ABL supplies the DTB.
+# Install as /etc/grub.d/42_slimtest (chmod 755), run 'sudo update-grub', then test with
+#   sudo grub-reboot slimtest && sudo reboot
+# The default entry (0) stays on the stock initrd, so a failed test reverts on next boot.
+menuentry 'Ubuntu (SLIM initramfs test)' --class ubuntu --class gnu-linux --class gnu --class os --id 'slimtest' {
+	recordfail
+	load_video
+	gfxmode $linux_gfx_mode
+	insmod gzio
+	insmod part_gpt
+	insmod ext2
+	search --no-floppy --fs-uuid --set=root e5defb48-4df4-40fc-8f97-7d635b46fcb8
+	linux	/boot/vmlinuz-6.8.0-1078-qcom root=UUID=e5defb48-4df4-40fc-8f97-7d635b46fcb8 ro console=ttyMSM0,115200n8 pcie_pme=nomsi earlycon video=LVDS-1:d initrd_variant=slim
+	initrd	/boot/initrd.img-6.8.0-1078-qcom.slim
+}
