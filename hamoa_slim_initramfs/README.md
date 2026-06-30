@@ -329,47 +329,127 @@ Likely suspects (next experiments):
 3. The TBU's GDSC provider may still be a module absent from slim (a master whose
    power domain comes from a clock/power controller not in the 26-module set).
 
-### force_drivers experiment — CONFIRMED the cause, but exposed a tension
+### force_drivers / watchdog / PCIe experiments — CORRECTED understanding
 
-Tested suspect #1: rebuilt the slim image **without** `force_drivers`.
+⚠️ An intermediate conclusion here was **wrong** and is corrected below. The
+SMMU deadlock is **not** caused by the forced-early UFS load.
 
-| slim image | SMMU deadlock | UFS enumerates? | result |
+What actually happens (verified across several boots):
+
+| slim cmdline | SMMU deadlock | UFS loads? | why |
 |---|---|---|---|
-| with `force_drivers=ufs_qcom` (rd.driver.pre) | **yes** (9×) | yes (early) | fails on deadlock |
-| **without** `force_drivers` | **0 — gone!** | **no** | fails: no root device |
-| without force + `rd.driver.post=ufs_qcom` | 0 | **no** | fails: no root device |
+| `force_drivers=ufs_qcom` | 9× @ ~12.3 s | yes (early) | deadlock, then watchdog reset |
+| no `force_drivers` | **appeared 0** | no | **misleading** — the SBSA watchdog reset the board at ~11.7 s *before* the ~12.3 s deadlock could occur |
+| no force + `initcall_blacklist=sbsa_gwdt_init` (watchdog off) | **9× again** | **no** | deadlock returns once the early reset is removed |
+| no force + watchdog off + `pci=off` | 9× | no | deadlock persists |
 
-So:
-- ✅ The forced-**early** UFS load (`rd.driver.pre`) is what races the apps_smmu
-  TBU power-up → the deadlock. Removing it eliminates the deadlock entirely.
-- ❌ But UFS then **does not autoload at all** — neither udev coldplug (despite 8
-  matching `of:...ufshc` entries in the slim `modules.alias`) nor `rd.driver.post`
-  loads `ufs_qcom`. Only `rd.driver.pre` (force_drivers) ever loads it.
+Corrected findings:
 
-**The core tension:** UFS must load to mount root, but loading it *early* (the only
-way it currently loads in the slim image) races its SMMU TBU power-up. Loading it
-*late* would avoid the race, but no late-loading mechanism tried so far actually
-loads it in the strict slim initramfs.
+1. **The SMMU TBU deadlock (`15000000.iommu … power_status 0xff`) is independent
+   of UFS / `force_drivers`.** It occurs at ~12.3 s even when `ufs_qcom` never
+   loads. Removing `force_drivers` only *appeared* to fix it because the **SBSA
+   watchdog resets the board at ~11.7 s** (the sparse slim boot never mounts root
+   / `switch_root`s in time, so nothing pets the 10 s `sbsa-gwdt`), *before* the
+   deadlock timestamp. So my earlier "force_drivers causes the deadlock" claim is
+   **retracted.**
+2. **The deadlocking master is likely PCIe** (`1bd0000.pcie`): the deadlock fires
+   immediately after that controller's OPP/probe lines at ~11–12 s. But `pci=off`
+   did **not** clear it (the qcom platform PCIe controller still probes), so this
+   is not yet pinned/fixed.
+3. **UFS does not autoload in the slim image** by any late mechanism tried (udev
+   coldplug — despite the 8 matching `ufshc` `modules.alias` entries and the
+   `80-drivers.rules` `kmod load` rule both being present — nor `rd.driver.post`).
+   Only `force_drivers`/`rd.driver.pre` ever loads it. In the no-force boots the
+   board also reset (watchdog) before coldplug had a chance, so this is partly
+   confounded by the watchdog.
 
-### Two remaining paths to a working slim image
+### Net state — multiple independent blockers
 
-1. **Make UFS autoload late.** Find why coldplug/`rd.driver.post` don't load
-   `ufs_qcom` in `hostonly_mode=strict`. Candidates: use `add_drivers=` (makes it
-   available for coldplug) instead of `drivers=`; or include the generic
-   modalias-autoload udev rule; or a custom udev rule for `1d84000.ufshc`. If UFS
-   loads at the normal (late) coldplug time, its TBU should be powered → no
-   deadlock → root mounts.
-2. **Fix the TBU power-up so early load is safe.** Identify what the forced-early
-   UFS DMA needs (likely the interconnect/NoC path or the UFS TBU's power domain
-   not yet enabled at `rd.driver.pre` time) and ensure it is up first — e.g.
-   force-load the relevant interconnect/power driver *before* `ufs_qcom`, or add
-   the missing provider to the slim set.
+The slim initramfs on this board has turned out to have **several** independent,
+SoC-specific problems, not one:
 
-### Other levers (mitigations, not full fixes)
+| # | Blocker | Status |
+|---|---------|--------|
+| 1 | GRUB entry missing `devicetree` (silent hang) | ✅ fixed (harness) |
+| 2 | builtin memlat devfreq wedges SCMI when idle | ✅ fixed (`MEMLAT_DEVFREQ=m`, `73e27f14398b`) |
+| 3 | apps_smmu TBU `power_status 0xff` deadlock @ ~12 s (PCIe-ish master) | ❌ open |
+| 4 | UFS does not coldplug-autoload in strict slim image | ❌ open |
+| 5 | SBSA watchdog resets @ ~12 s when root isn't mounted yet | ❌ open (masks #3/#4) |
 
-- `cpufreq.default_governor=performance` on the slim cmdline cut the *SCMI*
-  failures ~7× before the memlat fix (now moot — SCMI is healthy).
-- Add `nowatchdog` to *see past* the reset while debugging the SMMU fault.
+Two of five are fixed. The remaining three are entangled (the watchdog masks the
+SMMU fault; the SMMU fault and the UFS-load gap both block reaching `switch_root`).
+
+### Honest assessment
+
+A working slim initramfs on this X1E80100 board is **not achieved**. The
+remaining faults are deep SoC power/clock/SMMU/PCIe interactions that only appear
+because the slim boot leaves the system unusually idle/sparse during the
+root-mount window — the same class of problem as the (now-fixed) memlat/SCMI bug.
+Each further step costs a reflash-risky boot cycle. Recommendation: unless the
+size saving is critical, **keep the stock `MODULES=most` image** (which is
+reliable). If pursued, the next concrete steps are: (a) pin the master behind the
+`15000000` TBU via `CONFIG_ARM_SMMU_QCOM_DEBUG` SID logging + `initcall_debug`,
+(b) ensure that master's TBU power domain / interconnect path is up early, and
+(c) get `ufs_qcom` to coldplug-load (try `add_drivers=` instead of `drivers=`).
+
+### Levers tried (none a full fix)
+
+- `cpuidle.off=1` — no effect on the SCMI issue (idle ruled out).
+- `cpufreq.default_governor=performance` — cut SCMI failures ~7× (pre-memlat-fix).
+- `initcall_blacklist=sbsa_gwdt_init` — stops the ~11.7 s reset but exposes the
+  persistent ~12.3 s SMMU deadlock underneath.
+- `pci=off` — did not stop the qcom PCIe controller probe / the deadlock.
+
+### Runtime-set (~177 modules) test — the decisive experiment
+
+Built the slim image from the **exact `lsmod` runtime set** (177 modules, 41 MB)
+on the memlat-fixed kernel — i.e. "make the initramfs ≈ the booted system".
+
+| | minimal (26) | **runtime (177)** | stock (~2500) |
+|---|---|---|---|
+| SMMU TBU deadlock | 9× | **0** ✅ | 0 |
+| SCMI `mon freq` failures | 0 (memlat=m) | **0** ✅ | 0 |
+| boots to userspace | no | **no** | yes |
+
+The runtime set **does** eliminate the SMMU deadlock and SCMI faults — proving
+those come from the minimal set stripping the power/PHY/interconnect provider
+modules that the builtin early-probing masters need. So "minimal can't work,
+more modules is the right direction" is **confirmed**.
+
+**But the runtime set still does not boot** — it hits a *different, deeper*
+failure: a **full hardware/Gunyah-hypervisor reset at ~10.6 s** during the mass
+module coldplug in `dracut-initqueue`, going all the way back through UEFI. There
+is **no kernel-visible cause** (no panic/oops/SMMU/watchdog message — the reset
+is below the guest, at the Gunyah/firmware level). Watchdog levers
+(`initcall_blacklist=sbsa_gwdt_init`, `sbsa_gwdt.timeout=60`) do **not** change
+it, so it is not the SBSA watchdog. Tested 3× — always a clean full reset at
+~10.6 s.
+
+### Final conclusion
+
+**Neither the minimal (26) nor the runtime (177) set produces a working boot.**
+Each trim of the initramfs surfaces a new SoC/hypervisor-level fault that the
+validated stock `MODULES=most` image does not hit:
+
+- minimal → SMMU TBU deadlock (missing power providers) [+ the now-fixed
+  memlat/SCMI and devicetree issues],
+- runtime → a Gunyah/firmware-level reset during mass coldplug (opaque, no guest
+  log).
+
+On this **Gunyah-virtualized X1E80100** board a trimmed initramfs is **not
+practical** without vendor/firmware-level debugging access. **Recommendation:
+keep the stock `MODULES=most` image.** The one durable, upstream-worthy result
+from this whole effort is the **`CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ=m`** change — a
+genuine latent bug (builtin memlat starves SCMI in any low-activity boot) worth
+keeping regardless of the slim-initramfs goal.
+
+### Levers tried (full list, none a complete fix)
+
+- `cpuidle.off=1` — no effect (idle ruled out).
+- `cpufreq.default_governor=performance` — cut SCMI failures ~7× (pre-memlat-fix).
+- `initcall_blacklist=sbsa_gwdt_init` / `sbsa_gwdt.timeout=60` — do not change the
+  runtime-set ~10.6 s reset (not the SBSA watchdog).
+- `pci=off` — did not stop the qcom PCIe controller probe / the deadlock.
 
 > Lesson learned: when hand-writing a GRUB entry on these boards, copy the
 > stock `Ubuntu` menuentry's `linux` + `initrd` + `devicetree` lines verbatim
