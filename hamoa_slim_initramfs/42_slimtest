@@ -14,10 +14,19 @@
 # If the slim boot hangs, Ubuntu's `initrdfail` logic auto-falls-back to the
 # stock entry on the next power-cycle — no reflash required.
 #
-# Adjust KVER and the root UUID below for your board.
+# CRITICAL: the `devicetree` line is REQUIRED. On this Qualcomm board the kernel
+# gets its console (console=ttyMSM0 / earlycon) from the DTB's chosen/stdout-path.
+# A menuentry WITHOUT `devicetree` boots with no/stale DTB -> zero console output
+# -> silent early hang BEFORE the initramfs is even reached. (This bit us: an
+# earlier version of this file omitted the line and produced a fake "slim doesn't
+# boot" result.) Keep linux/initrd/devicetree identical to the stock 'Ubuntu'
+# entry in /boot/grub/grub.cfg except for the .slim initrd.
+#
+# Adjust KVER, root UUID, and the cmdline below to match your stock entry.
 exec tail -n +3 $0
 menuentry "Ubuntu SLIM initramfs TEST" --id slimtest {
 	search --no-floppy --fs-uuid --set=root 8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1
-	linux	/boot/vmlinuz-7.0.0-1006-qcom root=UUID=8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1 ro console=ttyMSM0,115200n8 pcie_pme=nomsi earlycon multipath=off
+	linux	/boot/vmlinuz-7.0.0-1006-qcom root=UUID=8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1 ro console=ttyMSM0,115200n8 pcie_pme=nomsi earlycon multipath=off crashkernel=2G-4G:320M,4G-32G:512M,32G-64G:1024M,64G-128G:2048M,128G-:4096M
 	initrd	/boot/initrd.img-7.0.0-1006-qcom.slim
+	devicetree	/boot/dtb-7.0.0-1006-qcom
 }

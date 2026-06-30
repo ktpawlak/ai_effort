@@ -18,15 +18,23 @@ root `/dev/sda2` ext4, root UUID `8e7d0df9-1dcf-4c7d-9c3b-e98b8bdf76c1`.
 | Slim initramfs built | 25 MB / 26 modules |
 | Built-in clock controllers (camcc/dispcc/gpucc/videocc) | **applied + verified** (commit `8efb801`, kernel `1006.9`) |
 | SMMU TLB-sync deadlock (modular-clk failure mode) | **root-caused** |
-| Slim initramfs booting to userspace | **NOT confirmed** — still fails (see below) |
-| Safe test harness (one-shot GRUB + `initrdfail` fallback) | **works — no reflash needed** |
+| "Silent post-Gunyah hang" of the slim entry | **root-caused = test-harness bug** (custom GRUB entry was missing the `devicetree` line; fixed) |
+| Slim image boots the kernel | **YES** (confirmed `Booting Linux … 1006.9` after the devicetree fix) |
+| Slim booting to userspace | **NO — but now blocked by a *separate* SMMU TBU deadlock** (see below). The SCMI issue is fixed. |
+| `CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ=m` fix | **APPLIED + VERIFIED** (commit `73e27f14398b`, CBD build `8994`). Eliminated the SCMI timeout storm on slim: **192 → 0** `mon current frequency` failures. |
+| Remaining slim blocker | `arm-smmu 15000000.iommu: TLB sync timed out … TBU power_status 0xff` at ~12 s (dracut-initqueue) — now with **no SCMI precursor**, so a distinct TBU-power issue, not SCMI. |
+| Safe test harness | one-shot GRUB + `initrdfail` is fragile (grubenv corruption); **menu-select is reliable** (15 s timeout set) |
 
-The headline: the **kernel config change is sound and merged locally**, but the
-slim initramfs has **not** been observed booting to userspace on this board.
-Two distinct slim failure modes were seen (details below). The default 82 MB
-image remains the reliable production image.
+The headline: the **kernel config change is sound and merged locally.** The
+earlier "slim initramfs doesn't boot / silently hangs" result was **invalid** —
+it was caused by a bug in the *test harness*, not the slim image: the
+hand-written `42_slimtest` GRUB entry omitted the `devicetree` line, so the
+kernel booted with no DTB, couldn't bring up the console, and hung before the
+initramfs was ever unpacked. With that fixed, the slim image has **not yet had a
+fair test**; the corrected one-shot entry is armed for a manual boot.
 
 ---
+
 
 ## 1. Why the default image is huge
 
@@ -165,6 +173,13 @@ sudo update-grub
 sudo grub-reboot slimtest && sudo reboot
 ```
 
+> **The `42_slimtest` entry MUST include the `devicetree` line** (see that file).
+> On this board the kernel resolves `console=ttyMSM0`/`earlycon` through the
+> DTB's `chosen/stdout-path`. A menuentry without `devicetree` boots with no DTB,
+> produces **zero console output**, and hangs in early arch setup *before the
+> initramfs is unpacked*. An earlier version of this entry omitted the line and
+> produced a bogus "slim hangs silently" result — see §6.
+
 Why this is safe:
 - The default entry still uses the **stock** 82 MB initrd.
 - Ubuntu GRUB's `initrdfail` logic (grub.cfg lines ~20-25): if the slim boot
@@ -178,49 +193,187 @@ Why this is safe:
 ### Telling slim vs stock boots apart (important when reading serial)
 
 Capturing serial during these tests is timing-sensitive; use these markers in
-the kernel log to know WHICH initrd actually booted:
+the kernel log to know WHICH initrd actually booted. (The `42_slimtest` entry
+now matches the stock cmdline including `crashkernel`, so use the initrd-size
+and `copymods` markers.)
 
 | Marker | Stock | Slim |
 |---|---|---|
 | `Freeing initrd memory:` | `83760K` | `~25600K` |
-| `crashkernel=` in cmdline | present | absent (42_slimtest omits it) |
 | `copymods is deprecated` warning | present | absent |
 
 Several "it reached initqueue / userspace" observations during this work turned
 out to be **stock fallback boots** (initrdfail), identified by the 83760K /
-crashkernel / copymods markers. Always confirm the initrd before trusting a
-"success".
+copymods markers. Always confirm the initrd before trusting a "success".
 
 ---
 
 ## 6. Results / open issue
 
 - **Built-in clock controllers**: applied and verified. Sound change; keep it.
-- **Slim initramfs**: still does **not** boot to userspace. Two failure modes:
-  - **Modular-clk kernel (1006.8):** SMMU TLB-sync deadlock spam (captured).
-  - **Built-in-clk kernel (1006.9):** the slim kernel produces **zero console
-    output after the Gunyah hypervisor handoff** (`Exit EBS … Gunyah based
-    bootup`) across multiple long continuous serial captures — a reproducible
-    early silent hang, before `earlycon`. Same kernel + cmdline boot fine with
-    the stock initrd, so it is initrd-specific. Not yet root-caused; suspect an
-    initrd placement / hypervisor guest-memory interaction rather than a missing
-    module (module set, `modules.alias`, `modules.dep`, and `force_drivers` are
-    all correct).
+  Fixes the SMMU TLB-sync deadlock — a confirmed-slim boot now gets well past it.
+- **"Silent post-Gunyah hang" — RESOLVED, was a test-harness bug.** The earlier
+  conclusion that the slim image "hangs silently after the Gunyah handoff" was
+  **wrong**. Cause: the hand-written `42_slimtest` GRUB entry omitted the
+  `devicetree /boot/dtb-<KVER>` line that the stock entry has. Without a DTB the
+  kernel cannot map its console (`console=ttyMSM0`/`earlycon` come from the DTB
+  `chosen/stdout-path`), so it produced zero output and faulted in early arch
+  setup — *upstream of, and unrelated to, the initramfs*. Tell-tale: the
+  initramfs is unpacked late (`populate_rootfs`); a genuinely bad initramfs
+  would still print the kernel banner + `Unpacking initramfs` + a panic. Total
+  silence ⇒ the failure is before console init ⇒ not an initramfs problem.
+- **Slim DOES boot the kernel now** (confirmed: `Booting Linux … 7.0.0-1006.9`
+  after selecting the fixed slimtest entry). The remaining blocker is an **SCMI
+  transport timeout**, not a missing module:
 
-### Suggested next debugging steps (not yet done)
+  ```
+  arm-scmi arm-scmi.0.auto: timed out in resp(caller: do_xfer+0x15c/0x900)
+  failed to get mon current frequency        # repeats every ~40ms from ~10.7s
+  ... then the board resets at ~11s
+  ```
 
-1. Capture the slim kernel boot with a **single uninterrupted** serial log that
-   spans EBS→kernel (the GRUB 30 s countdown + UEFI keep pushing the handoff to
-   the end of fixed-length captures; reduce the `42_slimtest` GRUB timeout or
-   capture ≥400 s in one shot).
-2. Add `rd.debug rd.shell` (and remove `earlycon` vs add `keep_bootcon`) to the
-   `42_slimtest` cmdline to get an emergency shell / more early output.
-3. Compare the slim vs stock initrd load address / size assumptions under
-   Gunyah; try building the slim image **without** `compress=zstd` (e.g.
-   `compress=gzip`) to rule out a decompressor issue in the guest.
-4. Bisect the slim `drivers=` list (the `force_drivers` early modprobe of
-   `ufs_qcom` happens very early — temporarily drop `force_drivers` and rely on
-   coldplug to see if the hang moves).
+  SCMI handshakes fine early (`Firmware version 0x20000` ~6 s, same as stock),
+  then a consumer's periodic query starts timing out at ~10.7 s and the board
+  resets at ~11 s.
+
+### Root cause (CONFIRMED by experiment)
+
+The failing message comes from **`drivers/devfreq/scmi-qcom-memlat-devfreq.c:295`**
+(`scmi_qcom_devfreq_get_cur_freq` → `pr_err("failed to get mon current
+frequency")`). This is the Qualcomm **SCMI memlat (memory-latency) devfreq**
+driver (`CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ=y`, **builtin**). It manages
+DDR/LLCC/DDR_QOS bus frequencies by talking to the **CPUCP** over the Qualcomm
+**SCMI vendor protocol** (`QCOM_SCMI_GENERIC_EXT`), and its devfreq monitor polls
+`MEMLAT_GET_CUR_FREQ` every ~40 ms.
+
+Full failure chain on a slim boot:
+
+1. SCMI handshakes fine at ~6 s (builtin, identical to stock).
+2. At ~10 s, `dracut-initqueue` starts and the system goes **quiet** (only 26
+   modules; CPUs drop to idle / low frequency).
+3. The CPUCP stops servicing SCMI promptly → the memlat devfreq poll
+   (`MEMLAT_GET_CUR_FREQ`) **times out** (`do_xfer` 30 ms) → "failed to get mon
+   current frequency", repeating.
+4. The wedged SCMI transport means **CPUCP-managed power** for the apps_smmu
+   **TBUs** never comes up → `arm-smmu 15000000.iommu: TLB sync timed out … TBU
+   power_status 0xff` (the SMMU "deadlock" is a **downstream symptom of SCMI**,
+   not a clock-controller problem).
+5. Boot stalls → SBSA watchdog (`sbsa-gwdt … 10s timeout`) or the failure
+   cascade resets the board → `initrdfail` falls back to the stock entry.
+
+Everything in this chain is **builtin and identical** in stock and slim. The
+only variable is **how busy the CPUs are during the root-mount window**:
+
+| Test (slim cmdline) | `mon current frequency` failures | Result |
+|---|---|---|
+| baseline | ~190+ | fails |
+| `cpuidle.off=1` | ~190+ (no change) | fails — **idle ruled out** |
+| `cpufreq.default_governor=performance` | **26** (big drop) | still fails |
+
+→ **CPUCP SCMI responsiveness scales with AP frequency/activity.** The default
+`MODULES=most` initramfs masks the bug because it keeps the CPUs pegged loading
+~2500 modules; the slim image leaves them idle, so the CPUCP starves the SCMI
+channel. This is fundamentally a **CPUCP-firmware/platform timing behaviour**
+exposed by the unusually-idle slim boot — not a missing module.
+
+### The memlat=module fix — APPLIED, fixed SCMI (commit `73e27f14398b`)
+
+Built the memlat devfreq driver as a **module** instead of builtin:
+
+```
+# debian.qcom/config/annotations
+CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ   policy<{'arm64': 'm'}>
+```
+
+It is not in the slim `drivers=` list, so it **does not probe during the slim
+initramfs** — no early memlat SCMI polling. Built on CBD (`8994`), deployed, and
+tested with a confirmed-slim boot (`Freeing initrd memory: 25400K`):
+
+| Metric | builtin memlat | **memlat=module** |
+|---|---|---|
+| `mon current frequency` failures | ~190+ | **0** |
+| SCMI `do_xfer` timeouts | many | **0** |
+
+✅ **The SCMI timeout storm is gone.** This confirms the root-cause analysis: the
+builtin memlat devfreq polling the CPUCP during the idle initramfs was what
+wedged SCMI.
+
+### Remaining blocker — a separate SMMU TBU-power deadlock
+
+With SCMI now healthy, the confirmed-slim boot **still fails**, but on a
+*different* fault that was previously masked:
+
+```
+[   12.28] arm-smmu 15000000.iommu: TLB sync timed out -- SMMU may be deadlocked
+[   12.29] arm-smmu 15000000.iommu: TBU: power_status 0xff sync_inv_ack 0x1bf ...
+```
+
+- Appears at ~12 s, right after `dracut-initqueue` starts, repeating ~1 Hz, then
+  the board resets and `initrdfail` falls back to stock.
+- **No SCMI timeout precedes it now**, so it is *not* the SCMI cascade — it is a
+  genuine apps_smmu **TBU left unpowered** (`power_status 0xff`) when a master
+  does DMA during the root-mount window.
+- This is the same signature as the very first boot-loop. The earlier conclusion
+  that the built-in clock-controllers (`8efb801`) "fixed" it was drawn from
+  **stock fallback** boots; on a real slim boot the deadlock is still present.
+
+Likely suspects (next experiments):
+1. **`force_drivers=ufs_qcom`** loads UFS abnormally early (before the normal
+   power/probe ordering). Rebuild the slim image **without** `force_drivers`
+   (rely on the `modules.alias` ufshc coldplug entries, which are present) and
+   re-test — if the deadlock moves/clears, the forced-early UFS DMA was racing
+   its TBU power-up.
+2. Identify the exact master/SID behind the unpowered TBU (the SMMU print does
+   not name it; enable `CONFIG_ARM_SMMU_QCOM_DEBUG` SID logging / `initcall_debug`
+   and correlate the probe immediately before 12.28 s).
+3. The TBU's GDSC provider may still be a module absent from slim (a master whose
+   power domain comes from a clock/power controller not in the 26-module set).
+
+### force_drivers experiment — CONFIRMED the cause, but exposed a tension
+
+Tested suspect #1: rebuilt the slim image **without** `force_drivers`.
+
+| slim image | SMMU deadlock | UFS enumerates? | result |
+|---|---|---|---|
+| with `force_drivers=ufs_qcom` (rd.driver.pre) | **yes** (9×) | yes (early) | fails on deadlock |
+| **without** `force_drivers` | **0 — gone!** | **no** | fails: no root device |
+| without force + `rd.driver.post=ufs_qcom` | 0 | **no** | fails: no root device |
+
+So:
+- ✅ The forced-**early** UFS load (`rd.driver.pre`) is what races the apps_smmu
+  TBU power-up → the deadlock. Removing it eliminates the deadlock entirely.
+- ❌ But UFS then **does not autoload at all** — neither udev coldplug (despite 8
+  matching `of:...ufshc` entries in the slim `modules.alias`) nor `rd.driver.post`
+  loads `ufs_qcom`. Only `rd.driver.pre` (force_drivers) ever loads it.
+
+**The core tension:** UFS must load to mount root, but loading it *early* (the only
+way it currently loads in the slim image) races its SMMU TBU power-up. Loading it
+*late* would avoid the race, but no late-loading mechanism tried so far actually
+loads it in the strict slim initramfs.
+
+### Two remaining paths to a working slim image
+
+1. **Make UFS autoload late.** Find why coldplug/`rd.driver.post` don't load
+   `ufs_qcom` in `hostonly_mode=strict`. Candidates: use `add_drivers=` (makes it
+   available for coldplug) instead of `drivers=`; or include the generic
+   modalias-autoload udev rule; or a custom udev rule for `1d84000.ufshc`. If UFS
+   loads at the normal (late) coldplug time, its TBU should be powered → no
+   deadlock → root mounts.
+2. **Fix the TBU power-up so early load is safe.** Identify what the forced-early
+   UFS DMA needs (likely the interconnect/NoC path or the UFS TBU's power domain
+   not yet enabled at `rd.driver.pre` time) and ensure it is up first — e.g.
+   force-load the relevant interconnect/power driver *before* `ufs_qcom`, or add
+   the missing provider to the slim set.
+
+### Other levers (mitigations, not full fixes)
+
+- `cpufreq.default_governor=performance` on the slim cmdline cut the *SCMI*
+  failures ~7× before the memlat fix (now moot — SCMI is healthy).
+- Add `nowatchdog` to *see past* the reset while debugging the SMMU fault.
+
+> Lesson learned: when hand-writing a GRUB entry on these boards, copy the
+> stock `Ubuntu` menuentry's `linux` + `initrd` + `devicetree` lines verbatim
+> and change only the initrd path.
 
 ---
 
