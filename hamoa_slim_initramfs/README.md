@@ -428,20 +428,54 @@ it, so it is not the SBSA watchdog. Tested 3× — always a clean full reset at
 ### Final conclusion
 
 **Neither the minimal (26) nor the runtime (177) set produces a working boot.**
-Each trim of the initramfs surfaces a new SoC/hypervisor-level fault that the
-validated stock `MODULES=most` image does not hit:
 
-- minimal → SMMU TBU deadlock (missing power providers) [+ the now-fixed
-  memlat/SCMI and devicetree issues],
-- runtime → a Gunyah/firmware-level reset during mass coldplug (opaque, no guest
-  log).
+#### Build-config bisect (ruled out the config hypotheses)
 
-On this **Gunyah-virtualized X1E80100** board a trimmed initramfs is **not
-practical** without vendor/firmware-level debugging access. **Recommendation:
-keep the stock `MODULES=most` image.** The one durable, upstream-worthy result
-from this whole effort is the **`CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ=m`** change — a
-genuine latent bug (builtin memlat starves SCMI in any low-activity boot) worth
-keeping regardless of the slim-initramfs goal.
+To test whether the failure was the *build configuration* (as opposed to the
+module set), the runtime-content image was rebuilt flipping one option at a time:
+
+| change | result |
+|--------|--------|
+| drop `hostonly_mode=strict` (229-mod image) | still resets ~10.6 s |
+| drop the graphics/multimedia modules (msm/drm/gpu/camera/video/audio) | still resets ~10.6 s |
+| drop `force_drivers` (UFS via coldplug like stock) | still resets ~10.6 s |
+
+So it is **not** strict mode, **not** a graphics driver faulting at coldplug,
+and **not** `force_drivers`. 
+
+#### The reset is a clean firmware/Gunyah watchdog — confirmed via pstore
+
+`efi_pstore` is registered, and after a trimmed-boot reset
+`/sys/fs/pstore/` is **empty** → the ~10.6–12 s reset is **not** a kernel
+panic/oops (those persist to pstore) — it is a **clean hardware/firmware reset**
+(Gunyah/TZ watchdog). It is **not** the SBSA watchdog (`initcall_blacklist`,
+`sbsa_gwdt.timeout=60` don't change it).
+
+#### The actual mechanism (this is the answer)
+
+It is **not** the inert `.ko` files, and **not** the module count. Every trimmed
+image — minimal *or* runtime, strict *or* not, force *or* coldplug — reaches
+`dracut-initqueue` (~10 s) and is **reset at ~11 s before it `switch_root`s**.
+The **stock** image `switch_root`s at **~9 s** and survives. There is a hard
+**firmware/Gunyah watchdog deadline (~11 s)**: the OS must mount root and pivot
+before it, or the board is reset. Only the validated stock `MODULES=most`
+initramfs reliably beats that deadline; any custom dracut-built (trimmed)
+initramfs reaches root-mount slightly later and misses it.
+
+**Why** a custom build is slightly slower to `switch_root` than stock is
+**unobservable** with the available tools: the serial console output is batched
+and truncated by the abrupt reset, pstore stays empty for clean (non-panic)
+resets, and the watchdog kills any `rd.break` emergency shell. Pinning it down
+needs **vendor/firmware-level access** — Gunyah guest logs and the firmware
+watchdog configuration.
+
+On this **Gunyah-virtualized X1E80100** board a trimmed initramfs is therefore
+**not practical** without that access. **Recommendation: keep the stock
+`MODULES=most` image.** The one durable, upstream-worthy result from this whole
+effort is the **`CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ=m`** change — a genuine latent
+bug (builtin memlat starves SCMI in any low-activity boot) worth keeping
+regardless of the slim-initramfs goal.
+
 
 ### Levers tried (full list, none a complete fix)
 
