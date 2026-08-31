@@ -1,0 +1,1004 @@
+c99e264f29022f53dcb9f012a0d1dd80ea61fa06 Add qcom-next log files for 20260604
+98236fed0fc02e5496c567ee154ba699336ea681 FROMLIST: arm64: dts: qcom: monaco: Add GEM_NOC interconnect for adreno SMMU
+277da5daa2951397d4addf7a04b640696367d68c FROMLIST: arm64: dts: qcom: talos: Add GEM_NOC interconnect for adreno SMMU
+467002d35fe56d1d6063c1bb065f16ebf9d9a9d4 FROMLIST: arm64: dts: qcom: lemans: Add GEM_NOC interconnect for adreno SMMU
+abb8a3a200a280c06eead183a3a34d544b209d34 FROMLIST: arm64: dts: qcom: kodiak: Add GEM_NOC interconnect for adreno SMMU
+2831e573df248b887fed74f001867f3eaa65223c FROMLIST: iommu/arm-smmu: Add interconnect bandwidth voting support
+6df15543b873ccaedfcb4734c86eb43cba7d9e31 FROMLIST: dt-bindings: iommu: arm,smmu: Document interconnects property
+2339d281d5ddc1cb6d4ed38e9a61514ffb68346a FROMLIST: fastrpc: Reduce log level for DSP info and reserved memory messages
+2fe231e888f2aa66b2a897e9d8195660a602f627 Revert "firmware: qcom: scm: Allow QSEECOM on Glymur CRD"
+46bbcdd823a1063b91fb3c7637f0ef77fbe320ea FROMLIST: arm64: dts: qcom: lemans: add AEST error nodes
+8b52a77ad91f9289239ff6f190d17ccf46d5a4f4 FROMLIST: arm64: dts: qcom: lemans-evk: Add SDHCI support for eMMC via overlay
+a9adf3c2277fc0debbc559c146cef697b6a1f33f FROMLIST: arm64: dts: qcom: lemans-evk: Move SD card support to overlay
+0199b6378e8ad89ca9ec5b5beafd8e0d7f0aa11c FROMLIST: arm64: dts: qcom: lemans: Enable audio over DISPLAY-PORT
+7dc6291bed227da62b51405235cfaa3a7cffea20 FROMLIST: arm64: dts: qcom: lemans-ride: Enable mdss1 display Port
+c720f679bcf1a57db43c3a6afe95268aa300f0a3 FROMLIST: arm64: dts: qcom: lemans: add mdss1 display device nodes
+c8d6541f4bb159f9efe22e7f6ac373fe2aa0f41f FROMLIST: arm64: dts: qcom: lemans-evk: Enable the tertiary USB controller
+3706d2330e69b9db8cc21522836e0a14b56a5c79 FROMLIST: arm64: dts: qcom: lemans-evk: Enable secondary USB controller in host mode
+381efd79926c1f42c1ea78aca47ead55b68b150e FROMLIST: arm64: dts: qcom: lemans-evk: Rename hd3ss3220_ instance for primary port controller
+8d98daa493253b6f03fb5eed06fb88e33b6afd86 PENDING: arm64: dts: qcom: lemans-ride: Drop video firmware from common
+eb918afae5021ecaafb0c4c32e9c6247d6d247c7 PENDING: arm64: dts: qcom: lemans: switch iris iommus to iommu-map
+1f6593a26c2934df28d95455f5f33cc6ac15e015 FROMLIST: arm64: dts: qcom: lemans-evk: Enable wakeup for primary USB controller
+4528c3cc0406530701931d4f172164a7095d5133 PENDING: arm64: dts: qcom: Add EL2 support for Iris for lemans
+b04a3747c0c7ab44d8fbafde97830ba5d3befb76 WORKAROUND: arm64: dts: qcom: lemans-evk: Remove WCN6855 PMU node to bypass pwrseq flow
+cf11139768c3cbce5fdaec316592d1887929e66a FROMLIST: arm64: dts: qcom: Enable cdsp qmi tmd devices for lemans
+489714cc55d93cfee1e3550f5d957a15163a070f FROMLIST: arm64: dts: qcom: lemans-ride-common: add additional SerDes PHY regulators
+6d4b7b36c6c6338ee34695e41d139a22b44e6262 FROMLIST: arm64: dts: qcom: lemans-evk: add additional SerDes PHY regulator
+0cfc85068b8a2d2c9126140289fadbb6538e263e FROMLIST: dt-bindings: phy: describe additional regulator for Qualcomm SGMII PHY
+b08a2c1805c270458abb3dba1c32dd0fc327716e FROMLIST: arm64: dts: qcom: lemans-evk: Enable Bluetooth support
+018f75a253a007fe3fa781b8517214e1b2fad7f8 FROMLIST: arm64: dts: qcom: lemans: Add eDP ref clock for eDP PHYs
+45e34666e9537325c0fab403ee97f8b013fbe3f1 FROMLIST: arm64: dts: qcom: lemans: Add PSCI SYSTEM_RESET2 types
+a82b9ac9459aeb8c8443bef40c75801a8df2d2d8 QCLINUX: arm64: dts: qcom: Add Glymur crd camx overlay dts
+f8edc7185f94c85f434fe136c8b8b60c13ad63a7 pinctrl: qcom: shikra: align with upstream post-submission review
+ace7bbf80379046bc822dd68414d74cc8a2eb0ff dt-bindings: firmware: qcom,scm: complete shikra clock constraints
+ae662f25eae1ebbe1ea0aea74bdd803b1ae67c6f QCLINUX: arm64: dts: qcom: lemans: Add SAIL Mailbox device tree overlay
+8545f27cda64933da54d72d144bafaf59e2ab685 QCLINUX: dt-bindings: mailbox: qcom-ipcc: Add SAIL client IDs
+33c690578e3be39e262edde2cf5de11248040cfa arm64: dts: qcom: shikra: remove spurious crypto interconnect path from remoteprocs
+a86ab965ea5ca09cc68d166bd0b941d03814ecb5 arm64: dts: qcom: shikra: fix sdhc_1 interconnect tags and power domain
+905504a7e7b44364a7ef824a623d9c598c5f871d arm64: dts: qcom: shikra: fix qfprom base address and child offsets
+c9c7c8bc008ded7456e555c1e94a0a5c0f26a1a2 arm64: dts: qcom: shikra: fix LLCC interrupt number
+e5898e92cc25c9b890422b9cfe5e2ff039730017 arm64: dts: qcom: shikra: drop unused labels from OPP table entries
+801dfaf7d8957784dd47a327a93f551b5fc56c9b arm64: dts: qcom: shikra: fix memory node base address
+7a3de337a6748569c2c1b9a7d5057d157b91ae12 arm64: dts: qcom: shikra: add SCM clock and reset-cells to firmware node
+d0e416db53dd5e81e391b5b5a624283740b86639 arm64: dts: qcom: shikra: add cache sizes and fix cpu3 power coefficient
+bf449f3bcc8154d4a9e42c29031362f953f56c76 arm64: dts: qcom: shikra: switch to interrupt-cells 4 to add PPI partitions
+b13b14e497f09970cdb10e5ffde09278458786d6 arm64: dts: qcom: shikra: Split PMU nodes for heterogeneous CPUs
+6a34168ee0709f9806be1a07788b8c52fce6d229 FROMLIST: scsi: ufs: ufs-qcom: Enable SKIP DEVICE RESET Quirk
+1f2a619664b709bf62d59c4660c673014babce5a FROMLIST: scsi: ufs: core: Add UFSHCD_QUIRK_SKIP_DEVICE_RESET quirk
+d8f6f41d809852c58cf61768b73f378b19cc83a9 QCLINUX: arm64: dts: qcom: Change Purwa camera firmware path
+3a0e3a57a352718db3e2a3874d2560fcc43b4de6 PENDING: arm64: dts: qcom: hamoa: Enable CDSP cooling in staging dtso
+a832eb6ab586eacf06f26da7a8298e320174b276 FROMLIST: clk: qcom: Add a driver for PDM GP_MN fractional clock divider
+b40e7dbd6b5ce988ec22e3428060a77adeb7c5cb FROMLIST: dt-bindings: clock: qcom: Add bindings for PDM GP_MN clock divider
+02b6b2a2375321bbf98042a06371fa5369d55e4c PENDING: arm64: dts: qcom: kaanapali: add Coresight ETR and routing in staging dtso
+0fa62a7f1fc9497b61161a6aef4d1897995e5f84 FROMLIST: arm64: dts: qcom: kaanapali: add reboot-mode support
+dc0c616d6302d39cd49eb3c3df0ba7e517ecfca3 FROMLIST: arm64: dts: qcom: kaanapali-mtp: Add SoCCP node
+e51c63c4d717fb80bce93d4aada0629754cbb6bf FROMLIST: arm64: dts: qcom: kaanapali-qrd: Add SoCCP node
+3f9dfdaf6bb96bafb076847406e041ca1efd00cf FROMLIST: arm64: dts: qcom: kaanapali: Add SoCCP for Kaanapali SoC
+342d00adeac330759d054455cbeb5a5d29496d1b FROMLIST: spi: qcom-geni: Fix cs_change handling on the last transfer
+fc647a8ed68a7d50d7cddc7111014addd57c064f QCLINUX: arm64: dts: qcom: Fix GPIO free and acquire logic Prevent GPIOs managed by pinctrl from being requested and freed via the GPIO framework. Restrict GPIO request/free operations to non-pinctrl GPIOs by adding appropriate conditions.
+b7de1d752e129c1883a76fa496545847834881b4 QCLINUX: arm64: dts: qcom: Enable combo mode for CSI1 port In order to enable combo mode on CSI1 mode, resources needs to be in shared mode. This change adds required resources under res-mgr node.
+e929e6d4fe8556b3d25732242a7e516947983723 FROMLIST: usb: dwc3: qcom: Modify interrupt handling for eUSB2 Phy targets
+2557ced2fdda1e9364140ee861bf5807a331def3 FROMLIST: pci: quirks: Advertise D3cold capability for UPD720201
+90df8a960d0300b35f8a7b9bbdc38c4280e32a9a PENDING: arm64: dts: qcom: shikra: add reboot-mode support
+d7f29faab25794e50a846cbae1bc4bd450c80c14 FROMLIST: arm64: dts: qcom: sm8750: add reboot-mode support
+07adbc9a90e022f1ca39001e1e8202b270f0ff34 FROMLIST: serial: qcom_geni: Fix RX DMA stall when SE_DMA_RX_LEN_IN is zero
+94eb471718d95c27e31f0c7edf5a206aa704fa12 arm64: dts: qcom: shikra: migrate WiFi power control to pwrseq
+02b47c255b4029dd2da14e3351f46ccf40ce4194 FROMLIST: mmc: sdhci-msm: Set ice clk rate
+b689623e42cf0f06374ef6e35f1a543ddd816252 FROMLIST: ufs: ufs-qcom: Fix sequential read variance
+060e2bdc459841761f4726860847447ad70519e9 WORKAROUND: power: sequencing: qcom-wcn: skip BT devices without bt-enable GPIO
+c4f07b31a7fecd9971bdfe09842de83e45b1f609 soc: qcom: llcc: Add configuration data for Shikra SoC
+9896f69f0a1205466ce2703a95a21f53b55968b8 arm64: dts: qcom: shikra: Add lt9611uxd node to IQS EVK board
+e5fd4c5dab8aba0b182e60f15edcaf0b9bcd278d Revert "arm64: dts: qcom: shikra-iqs-evk: Add DSI panel support"
+4639d6f4464970b5147fdedb8a117e25246201c5 Revert "arm64: dts: qcom: shikra-iqs-evk: Add pinctrl for DLC0697 DSI panel"
+c8f71c6be43ccb516c7f1840b0b874c9b0e4fe3d QCLINUX: arm64: configs: enable USB configfs UVC and UAC2 functions
+ce608bd50df182f40501ca742697cbb5caed22d6 arm64: dts: qcom: shikra: Add GPU cooling
+ce4b9e888e6098412e046f770901c10eae838303 arm64: defconfig: Enable LT9611C bridge driver
+1876296dd06771b2a157f65982aaf08c584d6771 drm/bridge: Enable LT9611UXD in LT9611C driver
+c78dc5acc49eadb967b44accbfa8b37aead3ee61 drm/bridge: Add Lontium LT9611C(EX/UXD) MIPI DSI to HDMI driver
+a1e5396e06e971b04509da73634d77848c41865e arm64: dts: qcom: shikra: Fix wcn3988-pmu node on EVK boards
+f85e592b0c3f5e61ae47eab025b1c93da45ebd05 arm64: dts: qcom: shikra: Add gpio-reserved-ranges to tlmm
+1e015b8fba8f3260b6f8328ec74ae06cf5b47530 arm64: dts: qcom: shikra: Add wcn3988-pmu node to EVK boards
+f542adb59d7428ee3f278ca80aca382904a30fbb FROMLIST: wifi: ath12k: fix NULL deref in change_sta_links for unready link
+d086d2fa366aaaa98d273d381637252650c7b12a FROMLIST: wifi: ath12k: fix inconsistent arvif state in vdev_create error paths
+f29363bbe07822e03a7b24180b02cea32379f936 FROMLIST: wifi: ath11k: raise max vdevs to 4 on hardware with P2P and dual-station support
+859dbe78464cc6445f9c80bc667238f891943037 FROMLIST: media: iris: optimize COMV buffer allocation for VPU3x and VPU4x
+3a4ae830e1d3c92a3ca1bd0c4699f6ed25b773e7 FROMLIST: media: iris: Add Gen2 firmware autodetect and fallback
+e884383c836b0c7a9b1fcf5ee20bfa773a123270 FROMLIST: media: iris: Initialize HFI ops after firmware load in core init
+910a341e00a511b75aaefc9755c8f13c632fbfc3 FROMLIST: media: iris: Add platform data for glymur
+3c17633bebbc9fcc4e9a5797b1f0063d42021382 FROMLIST: media: iris: Add support to select core for dual core platforms
+7cb2b96222536a1ff4cc9a854e4b5761a862b7a1 FROMLIST: media: iris: Add power sequence for Glymur
+14634499ada5afc1508c080d260e7aa0d72eebe9 FROMLIST: media: iris: Use power domain type to look up pd_devs index
+ceaddb8f248cd0dc03eba94787cdecf106779a28 FROMLIST: media: iris: Rename clock and power domain macros to use vcodec prefix
+cf1765245187fcc1d1227d42652084443129bded FROMLIST: media: iris: Fix VM count passed to firmware
+4c48183c20b678b7688d3110ae7525aaa943596e FROMLIST: media: iris: Add platform data for X1P42100
+1d8d18cda5ccac87181f0e2cec2017b7c86fb0a4 FROMLIST: media: iris: Add hardware power on/off ops for X1P42100
+e3e01b5362b5b0a3abe4e5a071ef932cb979e454 PENDING: media: iris: add helper to select context bank device
+8949079a590bcf0527675f007eeaa12e798a0c3e PENDING: media: iris: add context bank devices using iommu-map
+bb1b379ad50a4f3a1197e4ef4f9fc2b50bf6eb88 PENDING: media: iris: enable sm8550 context banks via init_cb_devs
+8e88fcf24c99ff3f0e39ccd7b031dea9dd595f3d FROMLIST: media: iris: add FPS calculation and VPP FW overhead in frequency formula
+145cb70ec9bdae8b03e826b17bb7675d2cdafc28 PENDING: media: iris: update MDT PAS load call for new API
+d3a21e75618898b8968d34b013da3c7ed0164897 FROMLIST: media: iris: Enable Secure PAS support with IOMMU managed by Linux
+8dbe61366a02e406930a2a41e72907cb541e56c6 FROMLIST: media: iris: Add platform data for kaanapali
+d93f64b9caa6af56620d8b030a6d33b4b814ccac FROMGIT: media: qcom: iris: extract firmware description data
+8425f4c9924073717b48adc7f93cc5b57c224088 FROMGIT: media: qcom: iris: use new firmware name for SM8250
+5f21ce799f4c3e98109b85dc024bb69f938d077a FROMGIT: media: qcom: iris: split platform data from firmware data
+5b44ad08fc61d89d50a8b15c0f65f77970d7bd81 FROMGIT: media: qcom: iris: split firmware_data from raw platform data
+ee904ba27b3888a93366a898e88518e82ae3451f FROMGIT: media: qcom: iris: drop hw_response_timeout_val from platform data
+c095fcdeb695cf639e4d9d8b625b815e8a43b267 FROMGIT: media: qcom: iris: move get_instance to iris_hfi_sys_ops
+cd4e5d9712ac067c62eab264dee2876fd6db807d FROMGIT: media: qcom: iris: merge hfi_response_ops and hfi_command_ops
+82e4f934dadf3b413fc0fdf2d245f04f77093f96 FROMGIT: media: qcom: iris: split HFI session ops from core ops
+c0a100ae13e15d615fbedb0308e71ea267b5517e FROMGIT: media: qcom: iris: don't use function indirection in gen2-specific code
+4869025571b9200f0583bacb161ad6696970b073 FROMGIT: media: qcom: iris: use common set_preset_registers function
+97698845dd532ab6c14dd435144959545d4cfef7 FROMGIT: media: qcom: iris: drop pas_id from the iris_platform_data struct
+044ed63ad08f75c3e422dbc4da10affcca7dd713 FROMGIT: media: qcom: venus: flip the venus/iris switch
+e2f0779da85f445426adacd2e57d08be38ff4e4a FROMGIT: media: iris: drop remnants of UBWC configuration
+29b8299ab08312ac080082610c4d7a6c2808ef18 FROMGIT: media: iris: don't specify max_channels in the source code
+7b540a07f1d0cbfc62c359cceb597f1fe122514c FROMGIT: media: iris: don't specify bank_spreading in the source code
+c14b4f92b31a769404e4245941b313d0a6de4f1f FROMGIT: media: iris: don't specify ubwc_swizzle in the source code
+42c7164efbfcf00a630fe4e61de73f5952ab0dc8 FROMGIT: media: iris: don't specify highest_bank_bit in the source code
+82ededb5f93a617ad0773560f39526dc8f2c46dd FROMGIT: media: iris: don't specify min_acc_length in the source code
+d22d52faca4d25705413d1761ca9b0fa8c9a6507 FROMGIT: media: iris: retrieve UBWC platform configuration
+b525af135fe540899c6373929b4c163ac9cf9ff4 Revert "FROMLIST: media: iris: Add platform data for kaanapali"
+627c6e193bef230548bd212e0f27f869c002ab36 Revert "FROMLIST: media: iris: Enable Secure PAS support with IOMMU managed by Linux"
+c76add22a18ad8866dfc38d61bb8fbcffc57059d Revert "PENDING: media: iris: update MDT PAS load call for new API"
+572f9d98870c168b59a75961e5a60efece21e0b8 Revert "FROMLIST: media: qcom: venus: flip the venus/iris switch"
+3f12bb5c64616a500502e3b68b3fd900e0ffdfc6 Revert "FROMLIST: media: iris: add FPS calculation and VPP FW overhead in frequency formula"
+deb4c98fc8f78da8020e392b1d201ac744b9b55a Revert "PENDING: media: iris: enable sm8550 context banks via init_cb_devs"
+ab7d407f06b414620d17e3ef01bb3fb660ad0506 Revert "PENDING: media: iris: add context bank devices using iommu-map"
+0c0f1b1738f336a6cb3bf5f1ee261372e9ab1346 Revert "PENDING: media: iris: add helper to select context bank device"
+41458ecbabf5372b9e4688db94ab8e74ab785944 Revert "FROMLIST: media: qcom: iris: drop pas_id from the iris_platform_data struct"
+ec7aac0eff74e8797d22f68661fc2454f6f82a7d Revert "FROMLIST: media: qcom: iris: use common set_preset_registers function"
+5d1340a71382656ed3499d10d8fdcc9e7383eaaa Revert "FROMLIST: media: qcom: iris: don't use function indirection in gen2-specific code"
+f9f88d8793d6f982e3d9a5ec1302f359aa6dc162 Revert "FROMLIST: media: qcom: iris: split HFI session ops from core ops"
+985cc2f2c167fcf115ef768b5a0865db71d3676f Revert "FROMLIST: media: qcom: iris: merge hfi_response_ops and hfi_command_ops"
+0a5cf3619a0f1ed239e93c720d1c7b702536016d Revert "FROMLIST: media: qcom: iris: move get_instance to iris_hfi_sys_ops"
+4366088b3f14ce6389e20256da357ac64bc35df9 Revert "FROMLIST: media: qcom: iris: drop hw_response_timeout_val from platform data"
+a2ab16b6faa9d51bd1a9cede07f8ae0fd511ac03 Revert "FROMLIST: media: qcom: iris: split firmware_data from raw platform data"
+1b49a28327d3b4ef87e9dc0ba159c8e4267b689e Revert "FROMLIST: media: qcom: iris: split platform data from firmware data"
+d04a6c04534012d160bded975b58ba70cd1b64ee Revert "FROMLIST: media: qcom: iris: use new firmware name for SM8250"
+0ba9eb0dbf87a26ec5de3d1860a5d65853d69447 Revert "FROMLIST: media: qcom: iris: extract firmware description data"
+58cfd196bf19e528b041d7c67bbade6120e0d189 Revert "FROMLIST: media: iris: Add hardware power on/off ops for X1P42100"
+a3a27e08973a6c4f9a5206f418c5aa4aeb342cd4 Revert "FROMLIST: media: iris: Add platform data for X1P42100"
+e005c55eee6574b1536207e02bb6e2e053467d8d Revert "FROMLIST: media: iris: Fix VM count passed to firmware"
+edfbdaedc237f2a1add4465acde2efb872a97440 Revert "FROMLIST: media: iris: Rename clock and power domain macros to use vcodec prefix"
+88027f1da11f8b9c80b422ececcc477550072091 Revert "FROMLIST: media: iris: Use power domain type to look up pd_devs index"
+087010ae497e6e397d4ea57fb0f35afa2e276a8e Revert "FROMLIST: media: iris: Add power sequence for Glymur"
+c2da1286089965d75e05889313875b91c9b15857 Revert "FROMLIST: media: iris: Add support to select core for dual core platforms"
+7d8af5b9604ea9f4bac9d05c5ade5d4a28abebc6 Revert "FROMLIST: media: iris: Add platform data for glymur"
+7aa3e6667b315fae478317d505b75023a51360b6 arm64: dts: qcom: shikra-iqs-evk: Add pinctrl for DLC0697 DSI panel
+165f40a00de938b8edd0176323ad9ecd26c16460 PENDING: arm64: dts: qcom: glymur-crd: Add FocalTech FT3D81 touchscreen support
+195c20d3e5ac3676a4e11ec40e68dd6afcc17eb1 FROMLIST: arm64: dts: qcom: qcs615-ride: fix sdhc_2 vqmmc-supply for UHS-I mode
+08534d4c26bc19daa9612067f8e847e4c4296a6f WORKAROUND: phy: qcom: qmp-pcie: add x1e80100 qref supplies
+c9d49711be0d361d06805514e2e5a7f3152866cf WORKAROUND: arm64: dts: qcom: Add qref supply for PCIe PHYs
+64fbefde7acc60f01e9caa4eb689bae60390f66d WORKAROUND: arm64: dts: qcom: qcs8300-ride: Add vdda-qref and vdda-refgen supplies for PCIe PHYs
+02d02c13992d3406125e694216e411203dd2f5bb WORKAROUND: phy: qcom: qmp-pcie: Add vdda-refgen and vdda-qref supplies for Monaco
+acd6cd0e23c6805184faa5b9a2134ff82021806a FROMLIST: PCI/pwrctrl: Do not try to power on/off devices that don't need pwrctrl
+872330a93c804b1c2afede355d49f64a29e91f2d arm64: dts: qcom: shikra-iqs-evk: Add DSI panel support
+a9bb2c28f8c98d1012d0f05d0ae61199eb95e84e FROMLIST: clk: qcom: Add EVA clock controller driver for Glymur SoC
+dc215296393bb0634224eb345853a926abd0bcf2 FROMLIST: dt-bindings: clock: qcom: Add EVA clock and reset controller for Glymur SoC
+18eab67ef55f11476bf0fc218fa86b02e0d4d831 FROMLIST: clk: qcom: gcc-glymur: Move EVA clocks to critical clock list
+984aa89de0ab9645f8e95840cc3b1ce55526c853 UPSTREAM: phy: qcom: m31-eusb2: Make USB repeater optional
+8d6e4e962e7e504e94b8b1a42240ad191d9867bd QCLINUX: arm64: dts: qcom: add Purwa CAMX EL2 overlay
+fd53d0e0a90e65cbc71d202b8cf6efaf893789ed FROMLIST: arm64: dts: qcom: purwa-iot-evk: Update TSENS thermal zone
+965645d7f2020b4a265f79d081682ce456e077fc FROMLIST: arm64: dts: qcom: monaco: add AEST error nodes
+6aff3e676829cbb71b8e6a0c9df504a45ff63955 FROMLIST: ras: aest: Add DT frontend for ARM AEST RAS error sources
+2f3c8da0cfff461ff2f9cb38fad5db33286b2590 FROMLIST: dt-bindings: arm: ras: Introduce bindings for ARM AEST
+8c588f197bbc45769b100c1ce9bc739b379774c8 FROMLIST: ras: aest: Add panic_on_ue module parameter
+66ff7ded0f7e818f5b39d4f2b680ec41d2f3c658 FROMLIST: ras: aest: Skip unimplemented records in debugfs
+8e82ad6656396ea34341195d9cc0760864eb9884 FROMLIST: ras: aest: Fix CE/UE error counts not incrementing in debugfs
+3a8e45a9473d4fe10deb0aed6dcddd5459364d93 FROMLIST: ras: aest: Fix shared processor node handling and error log messages
+b5a45a89ed06f88be6554ab937a93a5ccea2a2ec FROMLIST: trace, ras: add ARM RAS extension trace event
+f8822df5d85db1ae913455e3fba25b4e28402672 FROMLIST: ras: AEST: support vendor node CMN700
+7eafc168926815372d64f3db10a650b6c80f3d9c FROMLIST: ras: AEST: Add framework to process AEST vendor node
+4ab219a0f0530d127346d405dadd81243ea677a7 FROMLIST: ras: AEST: Introduce AEST inject interface to test AEST driver
+cfc3c506c40440be6ba9ce856c7b921c13ff6ab4 FROMLIST: ras: AEST: Allow configuring CE threshold via debugfs
+4b546221d48c26f969eb3b0a800188a9437144a0 FROMLIST: ras: AEST: Add error count tracking and debugfs interface
+166ac6de5503aa748a50da36151cdf2a6b9c84f5 FROMLIST: ras: AEST: Introduce AEST driver sysfs interface
+70005f68542182afc4fd2e863b30b0f6a23cfcf9 FROMLIST: ras: AEST: Add cpuhp callback
+73c5b35a2d45dceccfe6adcebe06076288f33296 FROMLIST: ras: AEST: Enable and register IRQs
+8dcb893bc634dce1c38a0401c0159867de5aac24 FROMLIST: ras: AEST: Support CE threshold of error record
+4425653637bbf9c36ece49d1bc2e10f3fff18646 FROMLIST: ras: AEST: Support RAS Common Fault Injection Model Extension
+53f61f152922baf7cab5f563c80bd2cba7fa88a5 FROMLIST: ras: AEST: Probe RAS system architecture version
+0a2c44115f9a2e9f86f3f5684ad71e1b4206872c FROMLIST: ras: AEST: Unify the read/write interface for system and MMIO register
+7da73d25db320395408f576490f3dc1018124eda FROMLIST: ras: AEST: support different group format
+7530c56275309565d43b56a1db6fb6df4326fab8 FROMLIST: ras: AEST: Add probe/remove for AEST driver
+c1d94cc19c0c63d78ffc8dd0cdfd35f12790ccde FROMLIST: ACPI/AEST: Parse the AEST table
+a34947dc1449769d07054e56f386687fef5540b0 net: wwan: qcom_bam_dmux: Add trace events
+4fc7567e7a80c93a5cbf72ba3b9d5e02525ecd22 soc: qcom: smsm: Add trace events
+91c68036633225518db862ad3d717edb0f18f6ad cpufreq: qcom-cpufreq-hw: Update qcom,shikra-epss compatible
+1307dc19fc1eb6ad76e4b37e1ada0d3c0a6b392e dt-bindings: cpufreq: qcom-hw: Update Shikra CPUFREQ bindings
+95d1d482a0fa8eda19bd7ca4e89263dc3eedebc7 dt-bindings: display/msm/gpu: Add support for A704 shikra GPU
+0084527ac646fd6ed0dbd287e07b6f631f7b7e14 drm/msm/adreno: Add support for A704 GPU
+072917fece4c997a5b03f49e7c1a985ef7ba0250 arm64: defconfig: Enable Qualcomm BAM-DMUX WWAN driver
+410819e845aef56a5894820480621e075062660d dmaengine: qcom: bam_dma: Defer IRQ trigger type to device tree
+d2a3f3aea2006f4275c395debf869dc3c22d97df soc: qcom: smsm: Increase default num_hosts to 5 for Shikra
+45fa97cf9097a8a17e7ada36e3d6b0ef61abc856 media: qcom: camss: add support for QCM2390 camss
+9a18e4119f1c7f8e12723f292c6b023928decb61 dt-bindings: i2c: qcom-cci: Document Shikra compatible
+a6dc261317abadd483d61bdcf24ef4ef221c50a8 dt-bindings: media: qcom: Add Shikra CAMSS compatible
+c49483c931fd34c2df0185bb10284136c568243e interconnect: qcom: Add EPSS L3 scaling support for Shikra SoC
+6312a7ddcabd6a3cd9e541caf934128d26411126 dt-bindings: interconnect: qcom,shikra-epss-l3: Add EPSS L3 DT binding
+41ec05ed9ad5f9927ae37def75852be087e5307d dt-bindings: interconnect: qcom-bwmon: Add Shikra cpu-bwmon compatible
+9af492ba7d2ff267a42dc40f1c05384f5d22edab dt-bindings: regulator: qcom,usb-vbus-regulator: fix allOf schema
+0e4614022cee12a51102cfa75bfb94f8b007d759 soc: qcom: pd-mapper: Fix shikra compatible strings to use -som suffix
+11aecf0c33243285b49f2763c802f93b327c8bb7 soc: qcom: ice: Allow explicit votes on 'iface' clock for ICE
+040349a983d7b583d9fb64225215541c54196937 dt-bindings: crypto: qcom,ice: Fix missing power-domain and iface clk
+ee75fc00a51034c29d486fe5c3b11f85ded751c7 soc: qcom: pd-mapper: Add shikra PD support for CQM/CQS/IQS
+9199a9822ede124115e9161f6ffb227534b265cb soc: qcom: rpmpd: Reuse sm6125 power domains for shikra
+69178895bed538d722366692f8a4d5b6cdc40327 clk: qcom: Add Audio Core clock controller support on Qualcomm Shikra SoC
+e9a447d1963eaaa9e9c4f79fd0cf092d1eb8f37e dt-bindings: clock: qcom: Add Qualcomm Shikra Audio Core Clock Controller
+d50c17ecd4f43acf04e58f48d0a6b101da77a9b5 clk: qcom: gcc-shikra: Mark GCC LPASS clocks as critical
+c156bd1fb5290dca75491534e18b59e6af44667c dt-bindings: clock: qcom: Add GCC LPASS clocks support for Shikra
+60f8617425f987fba5ef7c9e250d2dad16e4a271 clk: qcom: common: Skip NULL clock hw entries during registration
+b4453e43b8483d4db25a48f051306cda238a1959 clk: qcom: common: Register reset controller only when resets are present
+27e68f5e018f03c58d6f078e041402bbcded7441 dt-bindings: crypto: qcom,inline-crypto-engine: Document Shikra ICE
+ae135e78e720d433901be668a4848ab6c97d7fa5 dt-bindings: bam-dma: Increase maxItems to seven for iommus
+229f15f7bc8377a1c6675f8691a88ca4cecf4a7c FROMLIST: dt-bindings: crypto: qcom-qce: Document the Shikra crypto engine
+c49a117e27d2ef929ca36cff97c7088de3a40b90 FROMLIST: dt-bindings: crypto: qcom,prng: Document Shikra TRNG
+646201a503eaa9eacca97a4370c008c4f7d98706 regulator: qcom_usb_vbus: add support for qcom,pm4125-vbus-reg
+a2130ade3dade3c7bf5910ac71f856593975d80c dt-bindings: regulator: qcom,usb-vbus-regulator: add qcom,pm4125-vbus-reg
+b5f6166c9f5130f2905c123dc07f98183a0fb4df misc: fastrpc: fix NULL dereference on coherent sessions in fastrpc_map_attach()
+e9ddc744fc85baf92cb8c728be6297bedc361767 arm64: defconfig: Enable WSA885X-I2C and PM4125 Shikra EVK boards
+f54bc717bc1c6bde5543e345b6dc0ba0b9b43544 ASoC: codecs: add Qualcomm WSA885X I2C codec driver
+06fb9841e860306266277b64c74f486d23a0a6af ASoC: dt-bindings: Add schema for qcom,wsa885x-i2c
+4e8db1fb559fcb2d49956dad5581b89568fe1f46 soc: qcom: ubwc: Add Shikra UBWC config
+e1764ce1b61fae68a855eb44c9ad6bd76e5ac5c4 arm64: defconfig: Enable DLC0697 DSI panel driver
+c4b2e45aca1d470bedb7fc8c00956c9288302e37 drm/panel: Add driver for DLC0697 FHD video-mode DSI panel
+e3d0807a04dc908b6e6cee9038021cb532da5396 drm/msm/mdss: Add Shikra support
+3b2cd830b8fddf1d059c4b9aa79bf097ebab444f dt-bindings: display: panel: Add DLC0697 DSI panel binding
+cf3611bf8cbca87b308e077366284f1f34323f16 dt-bindings: display: msm: qcm2290: Add Shikra MDSS
+52e960aa3888a399a4e708645fb491dece4bbcd3 iommu/arm-smmu: Add ACTLR settings for missing MDSS devices for new Shikra platform
+1e5b4929b0eb89ec1f1988418131f4eeb594917f dt-bindings: media: qcom,qcm2290-venus: document shikra Iris compatible
+14dee146d10be09fb035be337c1449ebed754b7f misc: fastrpc: Introduce cache maintenance operations
+ae936c82680f43af7798831a6ad26c4f882a666a dt-bindings: mailbox: qcom: Modify Shikra APCS compatible
+b3a134270cde2b5cbf926d03e3704d0908ad5ddb dt-bindings: clock: qcom: shikra-gcc: Add power-domains property
+038b40408dbd01187b14676105806593feed2207 clk: qcom: gpucc-shikra: Drop unused DT_BI_TCXO_AO index
+c153153c43577b3d089ad7129af24d911adf9802 clk: qcom: gcc-shikra: Update GCC driver for Shikra
+13ddae465a13528045e3a1d644948a55edfc9dc4 dt-bindings: clock: qcom: Add GCC_QUSB2PHY_SEC_BCR support for Shikra
+a20a487a6c3aecf7f0fed72960e9db0a7a69c064 dt-bindings: remoteproc: qcom: Add Shikra PAS binding
+e40d08464d0f6d76b06e74f6e49fb32e039f1742 remoteproc: qcom: pas: Add Shikra remoteproc support
+e917bcec76d95c6db980650539504c8d25a3c397 FROMLIST: pinctrl: qcom: Unconditionally mark gpio as wakeup enable
+7426e15c2a93c1326e741bb7902670d0a9c04445 FROMLIST: soc: qcom: smem: Switch partitions to xarray
+ff7bbcb4006a16a9733d398514498b421746892a dt-bindings: cache: qcom,llcc: Document Qualcomm Shikra LLCC
+67b20195bcca1ccfe23bffae3516e7508d814970 interconnect: qcom: shikra: program QoS mode for ICC masters
+65d843034e416c2f4996d93afec598e6f63bb3e3 pinctrl: qcom: Add GPIO-MPM map for shikra
+577d29a0b4477eeaec427f139a8e275deaac2b36 arm64: defconfig: Enable DISPCC and GPUCC on Shikra EVK boards
+e1d00af8eee2b1fbefdc9da577f7a7eea01ea92a clk: qcom: Add support for GPU Clock Controller on Shikra
+ff7e1a8d3cd6fb3617066cf0939d71ea069dc097 clk: qcom: Add support for Display Clock Controller on Shikra
+6023c1fd7f3fb26f6afab5e6176d5b4756dec844 dt-bindings: clock: qcom: Add Shikra GPU clock controller
+d03ad9be5f0f09f87354755832997caab8861852 dt-bindings: clock: qcom: Add Shikra Display clock controller
+bd7496417334bd4fd7bb933ff64136fbde9e9de9 dt-bindings: thermal: qcom-tsens: Document the Shikra Temperature Sensor
+c37a05cc908091fdaa7d4bb54bd7e6d835d30d9e arm64: defconfig: Enable Pinctrl on Shikra EVK boards
+73aa2ff00af597f573d8bdf01bae56a7f7d107d9 cpufreq: qcom-cpufreq-hw: Add RIMPS based cpufreq support for Shikra SoC
+f083f3c239dde678a689d1a566dbe774cd153a4f dt-bindings: cpufreq: qcom-hw: Document Shikra CPUFREQ Hardware
+510a9a5b2bab5b2b3c4ffec0da794af874caca45 dt-bindings: mmc: sdhci-msm: Add compatible for shikra
+27cb79f3d1af4a847d01eab768ee9f44d2ed1e89 dt-bindings: mfd: qcom,tcsr: Add compatible for Shikra
+4378a70d873f76f293e41589825fff3a91bedacd arm64: defconfig: Enable interconnect driver for Shikra
+37609a2d29dde546d8f7e3430561ecda79e5682c interconnect: qcom: add Shikra interconnect provider driver
+fb3c74fa04ace3fb0bdeb5d009c33997ec2c0679 dt-bindings: interconnect: document the RPM Network-On-Chip interconnect in Shikra SoC
+224a06754ba2dd438012a7b536ea623c87a5771f phy: qcom: qmp-usbc: Add qmp configuration for Shikra
+42641ca7b729d680bc03941d69eef97d398dd857 phy: qcom-qusb2: Add support for Shikra
+42dddb669db10763a3d96cf8facbe7e4dbd5c4a5 dt-bindings: usb: qcom,snps-dwc3: Add Shikra compatible
+0d6c9f2ff8a4575056ea806b0b3a65a287593518 dt-bindings: phy: qcom,qusb2: Add bindings for Shikra
+20f11091035b437347c721d7c0c4255ba5e284df dt-bindings: phy: qcom,msm8998-qmp-usb3-phy: Add support for Shikra
+41545a0fe17a3001c58ba545167a35737334a538 dt-bindings: dma: qcom,gpi: Document GPI DMA engine for Shikra SoC
+1b718bdb949c2bf431261e0e694687224d3aca1c dt-bindings: watchdog: qcom-wdt: Document Shikra watchdog
+a7b198e622d2994d430442a92d7b3b3934f5f4d0 arm64: defconfig: Enable GCC on Shikra EVK boards
+5d2ab02bf4fb80ffc0ae6e323107d3c9e340644c clk: qcom: Add support for Global clock controller on Shikra
+26e8f1206811df09a2c53330a4406a12449f0a4c clk: qcom: smd-rpm: Add clocks for Shikra
+c57e27e086ec0d485ddd16337ca517d8e8264053 dt-bindings: clock: qcom: Add GCC clocks for Shikra
+f5974472790ffc0a943b34a2c749928913fef9d0 dt-bindings: clock: qcom,rpmcc: Add Shikra compatible
+d2b143a6b6f5a883be5d55d89d8a2654fc2fa32c dt-bindings: soc: qcom: qcom,smd-rpm: Add compatible for Shikra
+a87b28591c40d8928a5d79162c236b19dc3325ad dt-bindings: mailbox: qcom: Add the Shikra APCS compatible
+943524fcc9d570b186cf8add9413788b19cc4ac4 dt-bindings: remoteproc: qcom: Add Shikra RPM processor compatible
+9dc57b04adfc95a16eca396491ec99d80b7684d5 dt-bindings: nvmem: qfprom: Add Shikra compatible
+a2eddbd2d221d68951c66fa491d420a451cb1ab7 mailbox: qcom-apcs-ipc-mailbox: Add compatible string
+07d95d0a29de21b559f8a2d921240aba28f57e29 dt-bindings: arm-smmu: Add adreno-smmu compatible for Shikra SoC
+a896b44eba50e0c021315c06a67894aa3af4b8f1 soc: qcom: rpmpd: Add Shikra RPM compatiable
+fa6203151286d02bd7546954fe1ec9ea932b8c17 regulator: qcom_smd: Add PM8150 regulators
+ad78349b1e98a2a87c899a1632abeb509d4ee3dd dt-bindings: regulator: qcom,smd-rpm-regulator: Document PM8150 IC
+c1f7ceed4dab6909546e0aa1307cace57918cdf2 soc: qcom: rpmpd: Add Shikra RPM support
+82875ba74a7180f43c6ebccc73827c0d8d4ccdc3 dt-bindings: power: qcom,rpmpd: document the Shikra RPM Power Domains
+f9106d16747b413cc4520d8ec65be5744c1dc6e4 pinctrl: qcom: Add Shikra pinctrl driver
+c370b6e4a91a0ebfc044a942a8e6201a1a03cd00 dt-bindings: pinctrl: Document the Shikra Top Level Mode Multiplexer
+35aa11dbbdb39fb03b1a5b3da8e731bdbb2214a3 dt-bindings: sram: qcom,imem: Add the Shikra compatible
+a75053a53cfeaf60b68adda3de382d7c2dde0290 dt-bindings: arm: qcom: Document Shikra and its evk boards
+a70cbe2c21651473b5134cfb3b91e4266dc96816 dt-bindings: firmware: qcom,scm: Document SCM on Shikra SoC
+04e9ef0e636c2eccd14f1ea9d5fc6514c02a0a42 dt-bindings: arm-smmu: Add compatible for Shikra SoC
+81e897179a5c08d1eb57e596056bc7e6ac20bee0 soc: qcom: socinfo: Add SoC ID for Shikra IoT variants
+aee61ef1514001c2d9a042771d205c72f0705ea7 dt-bindings: arm: qcom,ids: Add SoC ID for Shikra IoT variants
+49c407d9328a5949997246857d1860afd8dee1f4 ARM: dts: msm: Add support for shikra GPU
+6f833a519a5d943447cc937c3f637d9751ebec2c QCLINUX: arm64: configs: Enable SmartPQI support
+368b163b64fa5087e96efa18d2ff5966162fa269 QCLINUX: arm64: configs: Add Linux software RAID support
+031b7b80f10d65ccde6e936d02a93fc7a6ffac86 arm64: dts: qcom: Update cpufreq node for Shikra SoC
+aecde298c64bd17bf270e588c2fa52201058353e arm64: dts: qcom: shikra: Add CPU OPP tables to scale DDR/L3
+b1c88d10cb51b9603e79ad9a6420427a8eb02348 FROMLIST: PCI: qcom: Set max OPP before DBI access during resume
+0540e2bf6d1abb665a5fc3180a65b1ac43b220e7 arm64: dts: qcom: shikra-iqs-evk-imx577-camera: Add DT overlay
+3362915a6fcd6683a5e5f0e74dd50d56df6cff5d arm64: dts: qcom: shikra-cqm-evk-imx577-camera: Add DT overlay
+3cc0b32f7946f78b8e0bab3203d8a8b91edfeb49 arm64: dts: qcom: shikra: Add pin configuration for mclks
+5518ed971462f9817095de1352d08d6b9c4e7ad4 arm64: dts: qcom: shikra: Add CCI definitions
+1063df9bf1bbdabb52fc43f5b2ffff0ec143f640 arm64: dts: qcom: shikra: Add CAMSS node
+fd45a66c40f3aa463e7cf1d5778f5394de0b4586 arm64: dts: qcom: shikra: Add BAM-DMUX support
+f5f313896b16bd7df2b0463adb0fac6cdcf3be33 FROMLIST: misc: fastrpc: fix UAF and kernel panic during cleanup on process abort
+da803bfa8902b323dbb336594b7749f332183365 FROMLIST: arm64: dts: qcom: kodiak: increase fastrpc compute-cb session slots
+c07593b6dabf6afc7a0fbe6db43321a8751098c4 FROMLIST: arm64: dts: qcom: monaco-evk: Add SDHCI support for eMMC via overlay
+daa1cfdb843dab7d2b3cc9997aec2fea6e9a4b9d FROMLIST: arm64: dts: qcom: monaco-evk: Enable SDHCI for SD Card via overlay
+c9fed4e02040ebd57d04ca20bbec1034614391c4 FROMLIST: arm64: dts: qcom: monaco: Move eMMC CQE support from SoC to board DT
+c2152916f4ff3c6039adc687655848920f3bdf58 FROMLIST: arm64: dts: qcom: glymur: Configure DP endpoints for 2-lane operation
+4150e4c321c533e46918c69757bac3c844883b8a arm64: dts: qcom: shikra: Add EPSS L3 interconnect provider node
+a7c58823f27f3ed7f06cfa93098fe018e41176d4 arm64: dts: qcom: hamoa: add CAMX EL2 overlay
+9963a935fd6b563bd48d2b5d71625472ae38f835 arm64: dts: qcom: shikra: Add DDR BWMON support
+e6d54f66afa74ce34004f97ce58d7b0c6048d2c9 arm64: dts: qcom: shikra: Enable MPSS remoteproc
+cbdd4bbfa24a682d76769d4c1c66bb67b262ae4d QCLINUX: memory-dump: add memory dump table for Shikra
+97c3e85c6b893764ac411d31e1dcdc326618298a FROMLIST: arm64: dts: qcom: Map USB connector to EUD for kodiak boards
+f4087fe24848dfb261939a24e6d1875c35570660 FROMLIST: arm64: dts: qcom: kodiak: Fix EUD USB controller connection
+7a6a37ba46b666fc03d1a13ee10a5c24b2eafb6b FROMLIST: usb: dwc3: qcom: notify EUD driver of role changes
+b3e16358638480c0d98b3eec221e3edc5a100a2b FROMLIST: usb: misc: qcom_eud: add host mode coordination
+bc800f621de720dfcef9abfb8f489248706425a1 FROMLIST: usb: misc: qcom_eud: fix virtual attach/detach event handling
+6cdd6d1aafc0b0fd7e71d1a1895d9124fac49cf2 FROMLIST: usb: misc: qcom_eud: improve enable_store API
+70b16fab4fa8df15bf3f03ec8cd2c6e83f054330 FROMLIST: usb: misc: qcom_eud: add per-port role switch support
+7cfb0851c7ab1c4834557b4a05293b838a3d9174 FROMLIST: usb: misc: qcom_eud: add per-port High-Speed PHY control
+96776d717058a25990fcc3b8e3dc50283318c57f FROMLIST: usb: misc: qcom_eud: add sysfs attribute for port selection
+2777be2052310495a74b182e7d29b529e28a98c6 FROMLIST: dt-bindings: soc: qcom: eud: Add support for dual-port configuration
+d3920a82fdd99c44d030a77ca4fe2b389662c728 FROMLIST: dt-bindings: connector: Add role‑switch provider phandle
+9ef565e2a8b9d98dd315b3814cf29a14028c889b Revert "FROMLIST: dt-bindings: soc: qcom: eud: Restructure to model multi-path hardware"
+83289d58af6f4729b4e916bc518a4e31de468fa1 Revert "FROMLIST: usb: misc: qcom_eud: add sysfs attribute for port selection"
+f2085400d2e8080e923d9460080c44c23e100f24 Revert "FROMLIST: usb: misc: qcom_eud: add per-path High-Speed PHY control"
+2db37e49e7bed52d050d1ba666b22c711f5f365c Revert "FROMLIST: usb: misc: qcom_eud: add per-path role switch support"
+4aec80c668d14a65745cfc4d922f5a973d238fed Revert "FROMLIST: usb: misc: qcom_eud: improve enable_store API"
+16d311865d4d9be416cf6006ca91233f5714a90b Revert "FROMLIST: usb: misc: qcom_eud: add host mode coordination"
+1d4b38026a7c9d93ff088836e1f763d9627f8c26 Revert "FROMLIST: usb: misc: qcom_eud: fix virtual attach/detach event handling"
+115a68ac417c46ede2dc7f5d26215587297b29fe Revert "FROMLIST: arm64: dts: qcom: kodiak: Align EUD node with binding"
+b3a95ed3ebbdf6cc48db5152448e6dc16a73b53a Revert "FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Enable EUD debug functionality"
+02756915a89ae24f31438b5876166866c6d39a10 FROMLIST: usb: typec: hd3ss3220: Add wakeup support from system suspend
+3bb1fa9528d7953809bce6ccb61ce34216c29ec1 FROMLIST: usb: typec: hd3ss3220: Enable VBUS based on role state
+ffa23fc6417a5bae66f1c084db0818332dd968ed FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Enable EUD debug functionality
+021960356b8dc8d6fadf51c7c37845f0450588f8 FROMLIST: arm64: dts: qcom: kodiak: Align EUD node with binding
+7beae90702e286064ec1fa10ac62248c4ae685e6 FROMLIST: usb: misc: qcom_eud: fix virtual attach/detach event handling
+bb39e27c40ec8112f0f84e0d6c6fbd8cdb238b99 FROMLIST: usb: misc: qcom_eud: add host mode coordination
+6385d66023bcf61925047ced8a08b94ebf65d634 FROMLIST: usb: misc: qcom_eud: improve enable_store API
+2ca892299cc5cd7467b980dc4469d2a74b44cb73 FROMLIST: usb: misc: qcom_eud: add per-path role switch support
+6d0b1cd5138cfc7a988b8224400076fa9ec01d96 FROMLIST: usb: misc: qcom_eud: add per-path High-Speed PHY control
+4c123a4cbf71e5bac181db7f839fc0cdd484669b FROMLIST: usb: misc: qcom_eud: add sysfs attribute for port selection
+781b9581392f66ef203e9693c03e719ae4b3b625 FROMLIST: dt-bindings: soc: qcom: eud: Restructure to model multi-path hardware
+8839e25ca8ee4f8f6b180e2461fac3cc8a9b6c57 dt-bindings: usb: Add binding for Genesys Logic GL3590 hub
+b9e83bfae87c83f948a07cc653d385fabb36bc24 usb: misc: onboard_usb_hub: Add Genesys Logic GL3590 hub support
+696f9d1bf6efc4cd9b33e529f49a15946c18873a FROMLIST: dt-bindings: phy: qcom-m31-eusb2: Add Glymur compatible
+95169c79750881f0d04b68f41ef27b9fb2cea722 FROMLIST: dt-bindings: phy: qcom,sc8280xp-qmp-usb43dp-phy: Add Glymur compatible
+72667367aaaaaf23697a1db00a300f8496e2cbf0 QCLINUX: defconfig: Enable Qualcomm SPEL driver
+1784993e8d6760195bf7dde5c36e94a2486e8382 FROMLIST: arm64: dts: qcom: glymur: Enable SPEL powercap driver
+cee779428b078ee0bf0cad246cb92d692e5e4a41 FROMLIST: drm/msm/a6xx: Limit GXPD votes to recovery in A8x
+a82f6f10d55258cb0ef0ca6a2f7912e9fdae3b85 FROMLIST: drm/msm/a8xx: Make a8xx_recover IFPC safe
+58c1242600cda87a8c2e7a4937dca96b0d7d8e2d FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Add WCD headset playback and record for qcs6490-rb3gen2 industrial mezzanine
+74641f34587334a71d2dcdf5dca1dff8249e3eb7 FROMLIST: arm64: dts: qcom: qcs6490: Enable DP audio
+53cf71070aa839a2ad9c817c2b2368246b1c2afc FROMLIST: arm64: dts: qcom: Enable secondary mi2s
+33d3cd72cd0ee06579a99577fa5a913b58db65c6 FROMLIST: arm64: dts: qcom: kaanapali: Add GPU cooling
+3bfffd56e9eeeaa20497fe69a3a4887f2165d78e FROMLIST: arm64: dts: qcom: kaanapali: Add qfprom node
+ee32a8c23d8ea363b214127b66f1cb16a4432953 FROMLIST: arm64: dts: qcom: monaco-pmics: Add ADC support for PMM8620AU
+827f315a8da1107de7bea34cd1aed65b6008ad73 FROMLIST: arm64: dts: qcom: kaanapali: Enable cpufreq cooling devices
+1299a507ca5d01a7288e9026f8efd265e1110960 FROMLIST: arm64: dts: qcom: kaanapali-qrd: Enable GPU
+fc06ad289abc04b5613a658090fb9a7603374dfe FROMLIST: arm64: dts: qcom: kaanapali-mtp: Enable GPU
+1d47d861498567cd2c8b9f7d249d99d2f5446a0a FROMLIST: arm64: dts: qcom: Add GPU support for Kaanapali
+cd4fdfb33dfd1fcf60b41397f05dd0a6cd85bbc5 FROMLIST: arm64: dts: qcom: kaanapali: add the GPU SMMU node
+3843ab50c3f31b575d4fcc780e387159d2cca3dc FROMLIST: arm64: dts: qcom: lemans-pmics: Add ADC support for PMM8654au
+7be177d33316d709da51dce6c5f86bf30331d840 FROMLIST: arm64: dts: qcom: Add header file for ADC5 Gen3 channel macros
+3f033cbfa8a76a10568dbbe3d1699852f6288851 FROMLIST: powercap: qcom: Add SPEL powercap driver
+086796ef8d7ec36f6493883d706a0b8f621b07a5 FROMLIST: dt-bindings: power: limits: Describe Qualcomm SPEL hardware
+0ce73133945c15ce77f08151f682b00557217455 FROMLIST: soc: qcom: spmi-pmic: add SUBTYPEs for Glymur/Kaanapali/SM8750 PMICs
+fee7c34a4bbc61e8af1b65b450337beca2396f27 FROMLIST: arm64: dts: qcom: sm8750: wire UFS to ice instance
+29aa2aba8e767e1057666a6483923c8da2edd816 WORKAROUND:arm64: dts: glymur-crd: Reset gpio added to touchscreen node
+66efe947dad0aaa1757d367956b203c574f4f311 FROMLIST: arm64: dts: qcom: glymur: Add camera clock controller support
+6750ab7bc951bdd17832e1ef9ff87b24bd2ecd64 FROMLIST: arm64: dts: qcom: glymur: Enable LLCC/DDR/DDR_QOS dvfs
+5ca5c57c17f3c39b3a748bcff632b79d1999e8d2 FROMLIST: arm64: dts: qcom: glymur: Add crypto engine and BAM
+3ca8902c1a0c19c074f6152eccdb37b16b68b57c FROMLIST: arm64: dts: qcom: glymur: add TRNG node
+31f52c7c44162710996fd567a9ba3a9c2576a196 WORKAROUND:arm64: dts: glymur: Q6APM SID fixed
+d55166684f76b2aaa2d6cbf149d97d2cb4926c66 FROMLIST: arm64: dts: qcom: glymur-crd: Drop forced host mode for USB SS0 and SS1
+640e0a9a66a8d8ae36fcd393b54e083790092838 FROMLIST: arm64: dts: qcom: glymur: Mark USB SS1 and SS2 as role-switch capable
+b1410c495f5fba8f941dda2b2cd647ba963882ff FROMLIST: arm64: dts: qcom: glymur: Add psci reboot-mode edl
+ea029b659b91d7f833fc9b10ae48a4abb81f5b35 FROMLIST: arm64: dts: qcom: glymur: Add iris video node
+4654c2c7ab30ae655346316bf96d7496da50b8f6 FROMLIST: arm64: dts: qcom: glymur: Add remoteproc PAS loader for SoCCP on Glymur DT
+3d1f37318fdefec94cc331faae56600ca2620f3d WORKAROUND: arm64: dts: qcom: glymur: Upgrade dispcc opp entry to turbo
+a1c9fd3f33c21bfb2678ab1228b8107c363ddfa5 WORKAROUND: arm64: dts: qcom: glymur: Add refgen and qref supplies for PCIe PHY on Glymur
+3e6f07bb434fdda967a9ad946036c8f742884c03 FROMLIST: arm64: dts: qcom: glymur-crd: Add Embedded controller node
+a178b2271d956691baec21fcc18d1dd450799288 FROMLIST: arch: arm64: dts: qcom: Add support for PCIe3a
+15477534a9e7c3caa3e69a1a1bcaf9f9c1dad64f FROMLIST: arm64: dts: qcom: glymur: add coresight nodes
+bc664592261b19a8dac0e6ce3c3dd907a225b3e7 PENDING: arm64: dts: qcom: glymur: add Coresight devices for APSS debug block
+5f4b94d17978a8c5cf97ba76a3b45c26c59b6b12 FROMLIST: arm64: dts: qcom: sm8750: allow mode-switch events to reach the QMP Combo PHY
+850c3c0a83b47e345f1abf5bea36d21044da79cd FROMLIST: wifi: ath12k: enable threaded NAPI when DP IRQ affinity is unavailable
+f5f5360ce89b10b08ae9371d74b5970a53e8ff4a FROMLIST: genirq: export irq_can_set_affinity() for module drivers
+8bbe314fd7346ec4e74b160b99f54b818af35da2 PENDING: media: qcom: venus: support PAS boot and flexible IOMMU handling
+121d6a2f273b9af2a9d48aba887bb1ff9f98d11c PENDING: dt-bindings: media: qcom: venus: add iommu-map support
+03baa6bce8b33ed503b69e8d32cb39861d2643d8 FROMLIST: media: iris: Add platform data for glymur
+97f393da4fa1f35b428d27cacef556b31f48d7b8 FROMLIST: media: iris: Add support to select core for dual core platforms
+428f03614bc404f2a3bdccf049a53e205ad6ee23 FROMLIST: media: iris: Add power sequence for Glymur
+36925cccb34ff533b792a73e151ba52cd2d5b167 FROMLIST: media: iris: Use power domain type to look up pd_devs index
+43f8008081f008f27c417ffb4db6bfba11e37e17 FROMLIST: media: iris: Rename clock and power domain macros to use vcodec prefix
+a704da5ad104963e76f5fdbc6044057690caf68f FROMLIST: dt-bindings: media: qcom,glymur-iris: Add glymur video codec
+a39682c0928d9d3f5a5f0f70d56f2118518f47ff FROMLIST: media: iris: Fix VM count passed to firmware
+2119eda20561b0383f0bc3493d7908841132c916 FROMLIST: media: iris: Add platform data for X1P42100
+eb72f02882913936d3b055b7fb56bc85dcc0eb52 FROMLIST: media: iris: Add hardware power on/off ops for X1P42100
+8bd56d0e3afb2fd6ee37b9e58c64af30c8fbe6d8 FROMLIST: dt-bindings: media: qcom,sm8550-iris: Add X1P42100 compatible
+4224b95f63cd71c565a4bdb0b97ced98f943d83b FROMLIST: media: qcom: iris: extract firmware description data
+10f101b3273a0101bb28d6c35d3dfb0503d1c287 FROMLIST: media: qcom: iris: use new firmware name for SM8250
+2cb6e86f15f02e0786578fbed65732ecb4ac4655 FROMLIST: media: qcom: iris: split platform data from firmware data
+123d5ea2dabe88a081922d3b44d6cf857674bcd9 FROMLIST: media: qcom: iris: split firmware_data from raw platform data
+a40da675a7582a5ba95455aaab56b9557312c071 FROMLIST: media: qcom: iris: drop hw_response_timeout_val from platform data
+f4ae97728b76f007b5deac796c2cf815bb5420c1 FROMLIST: media: qcom: iris: move get_instance to iris_hfi_sys_ops
+a6625a0660fae1a835dc699ed507f6bed091a2aa FROMLIST: media: qcom: iris: merge hfi_response_ops and hfi_command_ops
+c118090e106fa681265eac9889a34fde760d7aa9 FROMLIST: media: qcom: iris: split HFI session ops from core ops
+3ba6edcae18fae7533b657e975fc26d09f3b4f8d FROMLIST: media: qcom: iris: don't use function indirection in gen2-specific code
+f7c099d95df11961e696cf97f4f2b3eb3f785d24 FROMLIST: media: qcom: iris: use common set_preset_registers function
+61333e4328bb6332909aa8afb328965b48885f43 FROMLIST: media: qcom: iris: drop pas_id from the iris_platform_data struct
+48df6afa3711addcb4a74d8a4d0f0696053693fc PENDING: dt-bindings: media: iris: add sm8550 iris context bank function IDs
+f4c1c6e5a6df14e31fbc82722f83ae47917726b5 PENDING: media: iris: add helper to select context bank device
+bf97a5be01bc4419f0a95a296f1eddd12bdf4428 PENDING: media: iris: add context bank devices using iommu-map
+9bfd102524eb4481e62b60c81d1fa36091f09507 PENDING: media: iris: enable sm8550 context banks via init_cb_devs
+573b0f8af6ef1ba0c060945950e8a6ebaef8a8f5 FROMLIST: media: iris: add FPS calculation and VPP FW overhead in frequency formula
+46f670f2b85181106503ed4d1c597e080c4c3c3e FROMLIST: media: qcom: venus: flip the venus/iris switch
+81db8e00f423892064aae3d936322f6c200fcda6 FROMLIST: media: qcom: venus: relax encoder frame/blur step size on v6
+fabd6c3cc2b841276a77447534739ba88995d2b3 FROMLIST: media: qcom: venus: relax encoder frame/blur dimension steps on v4
+9f150e13135aa9528e6e623ebe76fabf70e69374 FROMLIST: media: qcom: venus: drop extra padding in NV12 raw size calculation
+fe0cd11ec5ac3ac3c2595cc5f71c9a0e0daa010e PENDING: media: iris: update MDT PAS load call for new API
+fb6622cf93fd939918247f3c785df56f9e14ff4d FROMLIST: media: iris: Enable Secure PAS support with IOMMU managed by Linux
+1a7aeec169892b24bcce1d93e4f1c72e4516c9ed FROMLIST: media: iris: Add platform data for kaanapali
+69e477549a309e4ffa3ee8a56daec91989ed3e9c FROMLIST: media: dt-bindings: qcom-kaanapali-iris: Add kaanapali video codec binding
+919fd6caf1f2c9a69bf6edcb6acd24a592cd74e3 arm64: dts: qcom: Fix pm4125 vbus regulator compatible and constraints
+4458857fd79849d2e1b9895c437f28d70f50d9c6 arm64: dts: qcom: Add AudioCoreCC node support on Shikra
+aaca6ad047e95d1df41580246fbbf2f5b3da2be8 arm64: dts: qcom: shikra-cqs-evk: Enable display
+9dced9856a781eeb7871c3eb54ce20c0a30d7bc4 arm64: dts: qcom: Add dedicated BT 3.3V dummy regulator.
+177f6d9fc4c818f0fb5b539d3a807d6a8eb32566 arm64: dts: qcom: shikra: Add pm4125 s1 regulator
+3f93bc1b28abbe7b28b2510ea80b8d8976ca59b8 FROMLIST: arm64: dts: qcom: shikra: Enable ice support
+f338615753fcafae4139e0102482e21b2ed8931b FROMLIST: arm64: dts: qcom: shikra: Add TRNG support
+e40dfa6dc3f7d594719a862aac0b8b876dd8a692 FROMLIST: arm64: dts: qcom: shikra: Add qcrypto node support
+94303b9bb56fbd784242fc4731d44ecec7236ba2 arm64: dts: qcom: shikra-cqm-evk: Enable display and add DLC0697 panel
+86dbcacf924548d2ea0c42dbf2ff6afa315ff8d6 arm64: dts: qcom: shikra: Add MDSS display subsystem
+da1d8afb5c1cb73fd15770f9cd7731b7a745c8b2 arm64: dts: qcom: shikra: Enable BT support on EVK boards.
+5f9f6b52570df043a17175b79cb22162c74b8e3b arm64: dts: qcom: shikra: Add coresight nodes
+9b792ed04aa67c698f91f7d447052eeddbe339c0 arm64: dts: qcom: Modify compatible for Shikra APCS device
+97ff73d0e81cf43b4ec32ccbb1c73e27846e0752 arm64: dts: qcom: shikra: Add CX power domain to GCC
+44abb9678dea2c834fd17277e0e598fd7f0de808 arm64: dts: qcom: Update Min and max Voltages for Shikra Retail
+8ed336e96e198de1e07ba51285b785e0c03d23c1 arm64: dts: qcom: Modify MPM pin count for shikra
+7953d4ba522fb7fced2fe3e459ffb96af4cf1fcb arm64: dts: qcom: shikra: fix compatible field for iommu nodes
+067bcd986399bf2ba6cb29dac82259ebb17a4fa7 arm64: dts: qcom: shikra: update reserved memory regions
+083469c9643ffd8613041821f6f38765b38369c9 arm64: dts: qcom: shikra: Enable cpufreq cooling devices
+ea1f540eb943aad441feee3db5140c0e53789513 arm64: dts: qcom: shikra-iqs: Enable CDSP and LPAICP
+113158e6601c74390784367526a64b394f5606b2 arm64: dts: qcom: shikra-cqs: Enable CDSP and LPAICP
+db350050a7018334569ab4545e71e06af03a5b91 arm64: dts: qcom: shikra-cqm: Enable CDSP, LPAICP and MPSS
+58b584e1b926d7847df55722bee56a6dbd0cae22 arm64: dts: qcom: shikra: Add CDSP, LPAICP, MPSS remoteproc PAS nodes
+78d3c6106bc7213b8e248a7485c09f8aded38659 arm64: dts: qcom: shikra: Add LLCC node
+1732a1b1aee813124ee850b6d640e9c7c220f5ce arm64: dts: qcom: shikra: correct RPM tags for iris interconnects
+ca4896c8af36561578484cd6396924731b7a789a arm64: dts: qcom: shikra: enable USB-C port handling
+12af2a85706e74b7a113883f176687556b5a200e arm64: dts: qcom: Add QUPv3 configuration for Shikra
+40208f4390d3b060a7e6c1cc0e7e562edc150ca9 arm64: dts: qcom: shikra-evk: Enable Iris core
+9d316b6b04600ce191e569003e0f9ae2b7830221 arm64: dts: qcom: shikra: Add Iris video codec node
+e64e5c97ce0090d4edfc284aaa79c4ae35e0e840 arm64: dts: qcom: shikra: enable WiFi on EVK boards
+2fa2a6dcdfb74f3df85e57cc4c9db3c701f4e32f arm64: dts: qcom: shikra: add WiFi node support
+43a55ed8b488c66e862268a028201ddd836ca1ab arm64: dts: qcom: Add clock nodes for adreno smmu
+fc173a962ece3bbfb3e7a2f28ee7134fde003111 arm64: dts: qcom: Add DISPCC and GPUCC nodes support
+1a7cb8722af8b3e3e80826e2c22d0916208286f3 arm64: dts: qcom: shikra: Add PMIC thermal and ADC support
+cb5b8b43b307103cbb6c9906cc34b3dbf5dbcbed arm64: dts: qcom: shikra: Add firmware-name to QUPv3 nodes
+3e87556bc9bb221049d3ab1132782fd9428905f4 arm64: dts: qcom: shikra: Enable TSENS and thermal zones
+bc906ee3df7dcdaa533890e5d28d40efffcf6404 arm64: dts: qcom: Enable primary usb controller on IQS platform
+0e28ea8d8fe790d7c14d99352f0c68c54719d05b arm64: dts: qcom: shikra: Add SMP2P nodes
+dd51384edfb00fd4785ed322295dc045bfd8298c arm64: dts: qcom: shikra: Add cpufreq scaling node
+8d3c2c7bf3a8b2cdb80bfcb56608a1223e4749c4 arm64: dts: qcom: Add USB changes for Shikra
+40b4783d3f202b304fb05aefbb8d44cdb9ca11c4 arm64: dts: qcom: Add SD Card support for shikra SoC
+f365d289d6697fca3910ed24de534547ed0a7176 arm64: dts: qcom: Enable eMMC for shikra EVK
+882038192a85ac1b66d9f47fb289785ca36940ee arm64: dts: qcom: Add eMMC support for shikra SoC
+ae8c7e4b8a391740a9deeb8b64571cb3c2bd5f55 arm64: dts: qcom: Add QUPv3 UART console node for shikra
+e82dea52872812e2c7329b136d742e3c9ddc8f34 arm64: dts: qcom: shikra: Add download mode support
+348cb9091adb0a9cf92056f00b2a6e0f88870940 arm64: dts: msm: add interconnect devices for Shikra
+504f411237949459ca462315ce95b1c6bfbe1924 arm64: dts: qcom: shikra: Add TCSR mutex hwlock support
+ea415c77bc792354ab2bb3e0622f0beb7b902c38 arm64: dts: qcom: shikra: Add watchdog node
+6c9d4500074adbe2c16d9c2f8cd525ceea5bc162 arm64: dts: qcom: Add regulator for Retail and Industrial SOM variants
+4896356e1132733ea823c773095c50fe801a4e5e arm64: dts: qcom: Add RPM power domain controller for shikra
+a3169dc3f07f8c4e49f5b7103edf14afea8b65d3 arm64: dts: qcom: Add SPMI bus controller for Shikra
+4c2f49db15e11dfc4e223e801a5cb9194ade6549 arm64: dts: qcom: Add GCC and RPMCC node support
+3caad8e0011743f93de063b8b0795cec6fb3e114 arm64: dts: qcom: Move rpm_requests in glink-edge node
+db387f497bf473486f8190edc6328f4005a060ab arm64: dts: qcom: Shikra: Add qfprom node
+48ccb17c9cc33b0a167d50eea25410737d445291 arm64: dts: qcom: Add RPM GLINK transport nodes
+127c93d8a1761413607a12c838e1580ba2312d68 dt-bindings: mailbox: qcom,apcs-kpss-global: Add Shikra compatible
+7d3116805e85942d58c3ffd6b877f3d2b0181f8a arm64: dts: qcom: Shikra: add smmu nodes
+75abda8f97f06df75b33cc35f8bd8fbf5f303c7e arm64: dts: qcom: Shikra: Add reserved memory nodes
+c4cda6a751ad0b7efc12d09e30f6e75d59200a5d arm64: dts: qcom: Add Shikra EVK boards
+39a9b76d1ef198a3f25b7bf0fd33803ce18dd390 arm64: dts: qcom: Add Shikra IoT SoM platforms
+ffd35fec5e1b2ef8197f59f8bdfbcdd9f1931df6 FROMLIST: arm64: dts: qcom: monaco: add GDSP fastrpc-compute-cb nodes
+c6232b6ea8c849e2af086b9c4449c88988c581d5 PENDING: arm64: dts: qcom: kaanapali: add TGU in staging dtso
+3ab725095db243301f6814c647a1c75ffb3b51ea PENDING: arm64: dts: qcom: sm8750: add TGU in staging dtso
+519c1e08a87cde161e047df16c229a6675e262ef PENDING: arm64: dts: qcom: hamoa: add TGU in staging dtso
+a0c2f214c89b578a9732844ad8996b65e82ddc77 FROMLIST: PM / devfreq: Introduce the QCOM SCMI Memlat devfreq device
+1ff5a8991ab3f674a8389ba16058fb41e71544d6 FROMLIST: PM / devfreq: Add a governor for tracking remote device frequencies
+3740e8efc6adc70d50e3f0b1381553edb2f63162 FROMLIST: PM / devfreq: Add new track_remote flag for governors
+57c732a2eeb1aa3ca9936a048c107628705aa29b FROMLIST: PM / devfreq: Add new target_freq attribute flag for governors
+f9f710eaa1c24e837685f8ff48871bc54b00eae3 FROMLIST: firmware: arm_scmi: vendors: Add QCOM SCMI Generic Extensions
+37c2cdd6522c4afd4ad087739cf617c25d48178c FROMLIST: firmware: arm_scmi: Add QCOM Generic Vendor Protocol documentation
+147ae875b923556a03d9eeb58324e986fd391c24 FROMLIST: media: qcom: camss: vfe: Add support for VFE 980
+82d90cd0d585319e992d8cc843b68ad74451c000 FROMLIST: media: qcom: camss: csid: Add support for CSID 980
+da33cdb333696e04769ab7070c2c68d45c5c2569 FROMLIST: media: qcom: camss: csiphy: Add support for v2.3.0 two-phase CSIPHY
+68c947e01d3e934b315af9326c031e7d3429fbef FROMLIST: media: qcom: camss: Add SM8750 compatible camss driver
+f338e9a4ca810a4b9e4b3433ad049319764e830e FROMLIST: media: dt-bindings: Add CAMSS device for SM8750
+5ee3fa2f659b7ef6d0c0c8a5d235340830f63a73 FROMLIST: media: qcom: camss: add support for X1P42100 camss
+4630767984b9bef980053afc25f71fea96df2bae FROMLIST: dt-bindings: media: Add bindings for qcom,x1p42100-camss
+5b3177f33b9a1c8ef3391fa3da0a0f571e305a81 FROMLIST: media: qcom: camss: tpg: Add TPG support for multiple targets
+3c9888751bf710360f121789b1585faf9427e5b6 FROMLIST: media: qcom: camss: Add link support for TPG
+2e5536e3f3f730354acd63eb1a7eba6dda1d059c FROMLIST: media: qcom: camss: Add common TPG support
+7a0e85f933ee2a3215a916862a85433801189759 FROMLIST: media: qcom: camss: vfe: Add support for VFE gen4
+deb4970c52f7d293a9033ab780218b58b04aeff7 FROMLIST: media: qcom: camss: csid: Add support for CSID gen4
+44eeba07c40f8f886b51852bd38398321a93a8f1 FROMLIST: media: qcom: camss: csiphy: Add support for v2.4.0 two-phase CSIPHY
+8e053fae161f74ba06e5c9e4ec035a5ae4c9a422 FROMLIST: media: qcom: camss: Add Kaanapali compatible camss driver
+fbfaf727da6ce008cb13ae55334500d977cca63f FROMLIST: media: dt-bindings: Add CAMSS device for Kaanapali
+e175c7c7dd06ae7c954b0c27e5f9c93e2d3d7d3c FROMLIST: media: qcom: camss: Drop legacy PHY descriptions from x1e
+1936f24b24f415d450e15b88adc06ee2edd51f9e FROMLIST: media: qcom: camss: Add support for PHY API devices
+a2d4cea7c489f0e5a98efa03eeb9035bcdbf3a58 FROMLIST: media: qcom: camss: Add legacy_phy flag to SoC definition structures
+2de5b26c6d28091d52cbf1f45df013102913a217 FROMLIST: media: qcom: camss: Add support to populate sub-devices
+862f4660c9423df51175e12463adc5711b5f0ce0 FROMLIST: dt-bindings: media: qcom,x1e80100-camss: Describe iommu entries
+679e06dafe70e380ec9cf144b4a698dc451da252 FROMLIST: dt-bindings: media: qcom,x1e80100-camss: Add support for combo-mode endpoints
+98a94df316d3b9095875be5314abfa0ba5e8c381 FROMLIST: dt-bindings: media: qcom,x1e80100-camss: Add optional PHY handle definitions
+2bf02f77a37e6827e94b7cfbab814efc0367aa41 FROMLIST: phy: qcom-mipi-csi2: Add a CSI2 MIPI DPHY driver
+5208fd04a96133a71726c578477ae17710f706f2 FROMLIST: dt-bindings: phy: qcom: Add CSI2 C-PHY/DPHY schema
+13b145b618a707f29740e8d04bba4d722d558361 FROMLIST: phy: dphy: Add clock_lane_polarity to DPHY config struct
+1c506976cfa8ed9e22cee27b932cf1686102acb4 FROMLIST: phy: dphy: Add clock_lane_position to DPHY config struct
+d0dfd7a68a84085913166c9550d0225be06ff89d FROMLIST: phy: dphy: Add lane_polarities to DPHY config struct
+379e911dfd378ec801d8394ebb7fdf82c2e6d1c3 FROMLIST: phy: dphy: Add lane_positions to DPHY config struct
+643c24b2b397b497d80baf7b4dea28a0a59de898 FROMLIST: platform: arm64: Add driver for EC found on Qualcomm reference devices
+f79499df1eccd7022651db9d10c4f5d20277b42b FROMLIST: dt-bindings: embedded-controller: Add Qualcomm reference device EC description
+b9fa9c0477e82dcb2e3bba3fc143b231ec0fe755 FROMLIST: arm64: dts: qcom: glymur: Add GPU cooling
+329c83fe73857bc62a99b9d98efe4bdea64577d8 FROMLIST: arm64: dts: qcom: Add GPU support for Glymur
+a22f5dd6eb6ff027c2c5f95a3f65a9124f56b096 FROMLIST: arm64: dts: qcom: glymur: Add GPU smmu node
+106c5cf01f6b574809a0a5b7924f5df8a86eb6b1 FROMLIST: arm64: dts: qcom: Add support for MM clock controllers for Glymur
+2d6031dc74502007866eb5ca03679f0464dcf521 FROMLIST: arm64: dts: qcom: glymur-crd: add Audio sound card node
+96a4e082501dd051265630effa770faf71a3aea8 FROMLIST: arm64: dts: glymur: Add LPASS macro codecs and pinctrl
+fbc986a827b2ca08081cd3b897d301cacb391ee4 FROMLIST: arm64: dts: qcom: glymur-crd: Enable ADSP and CDSP
+d3dc21be7ac6050862da185b685b213f17f47f9a FROMLIST: arm64: dts: qcom: glymur: Add ADSP and CDSP for Glymur SoC
+af320b75cd6f3b7ca1d638197818b8e04a897171 FROMLIST: arm64: dts: qcom: Move board nodes to common DTSI
+8a269bc8a41bf66243ecfba0a7f4f70a0f922f8c FROMLIST: dt-bindings: arm-smmu: Update the description for Glymur GPU SMMU
+689314d2e17fd735f296ea7e9bf2c51aab3203f6 FROMLIST: dt-bindings: display/msm: gpu: Document Adreno X2-185
+d55c4cc90b8a3cc682f076e7a1f04e69f376805c FROMLIST: drm/msm/a8xx: Fix RSCC offset
+d2b684d4e5b36500580ec454a89441903f6ab329 QCLINUX: qcom-dcc: add shikra register list and move config to header
+c266573af0cf27d4d9586ca3984e214ba621028f FROMLIST: PCI: qcom: Add D3cold support
+42dca681e3625e064d3da83c667c9fe6fbdd37f5 FROMLIST: PCI: dwc: Use common D3cold eligibility helper in suspend path
+c49333b62420f49dd4ea833e1be7bc2152edc0e6 FROMLIST: PCI: qcom: Power down PHY via PARF_PHY_CTRL before disabling rails/clocks
+a82544790da99023eecd0ed4d7bba94f6029463c FROMLIST: PCI: qcom: Add .get_ltssm() helper
+b323b93436feb062fcf65c043ec733ad988fcd00 FROMLIST: PCI: host-common: Add helper to determine host bridge D3cold eligibility
+afa0a1f432833e20e52e8d2479ba7e9e74198c85 FROMLIST: nvme-pci: Use pci_dev_suspend_retention_supported() API during suspend
+600a445e98eabebc04ced93dd5c7b21584e1cc05 FROMLIST: PCI: qcom: Indicate broken L1ss exit during resume from system suspend
+f4887160715421cb2d22b559d00f7804086b488f FROMLIST: PCI: Indicate context lost if L1ss exit is broken during resume from system suspend
+8adef17c5de94ef8764d70bc4c67a68ae9175645 FROMLIST: PCI: Introduce an API to check if RC/platform can retain device context during suspend
+894d5cdf78514514890fea0287020c6e9888ec3e FROMLIST: PCI: qcom: Add .get_ltssm() helper
+c140559e999d5069b399acdf8f97b0477a8b6e72 FROMLIST: PCI: qcom: Prevent GDSC power down on suspend
+a86b4ea9b6311f5165c66b8a80bb515a4e741cd5 FROMLIST: PCI: qcom: Add D3cold support
+77a9ef67cdd30d05ad84ece864eda300c6271b42 FROMLIST: PCI: host-common: Add shared D3cold eligibility helper for host bridges
+a0e203639b43a18975ea90f8d5ffbdaf458af1dd FROMLIST: PCI: dwc: Use common D3cold eligibility helper in suspend path
+9e2f111b1297b44c140e3b9c46a2507a3e162741 PENDING: arm64: dts: qcom: talos: enable video codec on Talos
+e0ba7183d63d0a96142a2eac288975e0393d172c FROMLIST: misc: fastrpc: Allow fastrpc_buf_free() to accept NULL
+c9010fca1f0da1ba943f691be84f78d298fa4770 FROMLIST: misc: fastrpc: Allocate entire reserved memory for Audio PD in probe
+cd522d4183baf51a28731a64174fd8a610ceab8c FROMLIST: misc: fastrpc: Remove buffer from list prior to unmap operation
+9dcad42c27d25d0f584fe7089ed35555248e839d FROMLIST: misc: fastrpc: Fix initial memory allocation for Audio PD memory pool
+94b182f7070c4535afb5ce0871ab52a4bbfb3cac FROMLIST: misc: fastrpc: Add reference counting for fastrpc_user structure
+352cb6c8d98d35cd1c5c55fd63a5348605f2c103 FROMLIST: misc: fastrpc: Add polling mode support for fastRPC driver
+db409f4e259889c9c2edaf6fd937363d390866fe FROMLIST: misc: fastrpc: Expand context ID mask for DSP polling mode support
+0a6e64c0f0f724fbe3532a8f87cd6a452245a6b7 FROMLIST: misc: fastrpc: Replace hardcoded ctxid mask with GENMASK
+c75022aae2399155bdec5e433b67bd9feb639779 FROMLIST: misc: fastrpc: Move fdlist to invoke context structure
+ff67f6a055a339d05f0386c7e3bcbfbe3cc472a9 FROMLIST: arm64: defconfig: Enable CAMCC driver on Qualcomm Glymur SoC
+d15f5a17f8be4c6116c1a398ab5e6c3a25852ef1 WORKAROUND: arm64: dts: qcom: purwa-iot-evk: support Bluetooth over both USB and UART
+f19fa91d95c822f87dc8d30b854f0660e95b9928 QCLINUX: qcom.config: Enable QCOM SCMI memlat bus scaling
+3623de023fc23c916a464f2bc9768875d595bbbc FROMLIST: wifi: ath12k: allow peer_id 0 in dp peer lookup
+a7780373c84ebe7855c5b7e9162ffeac4e74d2c4 FROMLIST: wifi: ath11k: add MSDU length validation for TKIP MIC error
+b2599e03b60fa727eb11d3d4f9abb8b5ec6edf12 FROMLIST: wifi: ath11k: fix invalid data access in ath11k_dp_rx_h_undecap_nwifi
+f5b9e96d3c301935f7387e5ae2edb95e29ad203b FROMLIST: wifi: ath12k: fix memory leak in ath12k_wifi7_dp_rx_h_verify_tkip_mic()
+670d0021452a91a99d66fcef03c0af876b85469f FROMLIST: arm64: dts: qcom: hamoa: Enable LLCC/DDR/DDR_QOS dvfs
+eea3e9858db5f675261967f5b88b78727049bf98 FROMLIST: clk: qcom: gxclkctl: Remove GX/GMxC rail votes to align with IFPC
+0f287b8555a738553cc284eb0fb728e1c40eb269 FROMLIST: clk: qcom: common: ensure runtime PM suspend completes on probe
+a44ce308e141d7cbadf5ed61c791366ffb35d82c FROMLIST: clk: qcom: gxclkctl: Use custom disable callback for gx_gdsc
+13610c9b09b946e07b2b55518962f6c498a844f3 FROMLIST: clk: qcom: gdsc: Add custom disable callback for GX GDSC
+f030676615c0917a3bb04a3d0f4ca63d7561371b FROMLIST: dt-bindings: crypto: qcom-qce: Document the Glymur crypto engine
+380a518d34e3fe5d13c85214eb83cb7a39ff87cf FROMLIST: dt-bindings: crypto: qcom,prng: Document Glymur TRNG
+a0521166c4d7d0cf502a55528474cdcd3c8897e6 FROMLIST: arm64: dts: qcom: purwa: Add EL2 overlay for purwa-iot-evk
+0b1d1bebb9de8e793bc0f92ef1c8798f955fbc2f arm64: dts: qcom: Introduce Shikra Soc base dtsi
+bd4458e2deb5ea1264ca23d4a7f92e323945fb64 FROMLIST: wifi: ath12k: tighten RX monitor TLV bounds check
+f3fc0c636335daa7cb06a522934241c86f87b67d FROMLIST: wifi: ath12k: add dp_mon support 32-bit TLV headers
+c87780b09593544fee282291fa5d3adf546e32c3 FROMLIST: wifi: ath12k: add HAL ops for monitor TLV header decode and alignment
+79e4ddc0ddf29bab210d927010affbd656b9eb7c FROMLIST: wifi: ath12k: refactor HAL TLV32/64 decode helpers
+fcd7afbccd1e2444a0a02441053c81cf2397c494 FROMLIST: wifi: ath12k: fix TLV32 length mask
+2fef133500b06af9fc65011c52948a8fd51a50ce FROMLIST: wifi: ath12k: fix peer_id usage in normal RX path
+ea4373ad8c68734d030589028bec154f49f70ec7 FROMLIST: wifi: ath12k: add channel 177 to the 5 GHz channel list
+dba3666c1593972a39a2a02d6b948c8b7d81ee65 FROMLIST: wifi: ath12k: prepare REO update element only for primary link
+7135e975772752e61ebebff9410a5f2865df5816 FROMLIST: wifi: ath12k: fix incorrect channel survey index
+50b47806d0500d568848fdbfe1f8c2bbca652ccd WORKAROUND: Revert "drm/msm/dpu: enable virtual planes by default"
+2d42c35af66ed0db002e2d2d8481719dd05b804b WORKAROUND: power: reset: reboot-mode: fix NULL deref when dev is not set
+2fbdd74ad152cbed32ae7fb4d4be2bec77f2f192 FROMLIST: drm/msm/dp: Add MST stream support for SA8775P DP controller 0 and 1
+2b42252f7d560af98eff354867de94a5085a0155 FROMLIST: drm/msm/dpu: use msm_dp_get_mst_intf_id() to get the intf id
+9115cc691ea7293fd68e0a8a2cbb8d785f420dae FROMLIST: drm/msm/dp: add HPD callback for dp MST
+44240affae534ea1baa0a38225481e4b06feb426 FROMLIST: drm/msm/dp: add connector abstraction for DP MST
+362ac4e780ebdea33ef6e3e6a39bb0d2fb84960b FROMLIST: drm/msm/dp: wire MST helpers into atomic check and commit paths
+b4c8ea94ee64986e4b4d5aff7823e5abd6a9aeef FROMLIST: drm/msm/dp: add dp_mst_drm to manage DP MST bridge operations
+5828ac79f9793009a4c522f6653cd3a005c5e18c dt-bindings: arm: Document reboot mode magic
+d86129381ec0ade1667f9c11d8bedaeedbeaa6f1 arm64: dts: qcom: qcs6490-rb3gen2: Enable CAN bus controller
+dd9a4b8355449dd5de2ffa91ba42e7452db231db arm64: dts: qcom: kodiak: Add EL2 overlay
+147846a90b4db45dcf09a6f25ba23938bc24d0f6 WORKAROUND: arm64: dts: qcom: sc7280: avoid EFI overlap for ADSP remote heap
+a7b9b6d8b0ef8713aea096ed6c6c0fa74db2ed25 FROMLIST: remoteproc: qcom_q6v5_pas: Add SoCCP node on Kaanapali
+69f19b62b1e31971422a5584acb92a17581a2104 FROMLIST: remoteproc: qcom: pas: Add late attach support for subsystems
+6abb4da6bd3dac1abdd22928987be3424bc8daac FROMLIST: dt-bindings: remoteproc: qcom: Document pas for SoCCP on Kaanapali and Glymur platforms
+0e24ee43742483b2c7692d170671aa6cc291b27e FROMLIST: dt-bindings: remoteproc: qcom: move interrupts and interrupt-names list out of pas-common
+46b29d2742bb3bc86c509f4b62081dfc8a1414c7 FROMLIST: dt-bindings: remoteproc: qcom: cleanup qcom,adsp.yaml
+88293dfec01cf603c4c8e8d59fe2c37460a2672e QCLINUX: arm64: dts: qcom: Add Purwa camx overlay dts
+34ef5deec98e549fd466f69fffdd84a46e81e002 FROMLIST: drm/msm/dp: initialize dp_mst module for each DP MST controller
+3db9c62c0b848ffbdb7553483025444de853f367 FROMLIST: drm/msm/dpu: initialize encoders per stream for DP MST
+f6d1caa809e6ef60f2dbd5ea70db6ada887a1df0 FROMLIST: drm/msm/dp: add prepared to manage link-level operations
+1a002c01f97b09f7e1d320c8315259dee197c588 FROMLIST: drm/msm/dp: add dp_display_get_panel() to initialize DP panel
+ea8c3f4f4f644732066d028687c6453dced86e19 FROMLIST: drm/msm/dp: add an API to initialize MST on sink side
+40f8e5dc86fc734fd6b56e59a7a0852e9b8996d7 FROMLIST: drm/msm/dp: Mark the SST bridge disconnected when mst is active
+623aff0132670ee1629abc39144b8aae60db0991 FROMLIST: drm/msm/dp: replace power_on with active_stream_cnt for dp_display
+c51784e2d0dc687e1160c1892b654598d078967f FROMLIST: drm/msm/dp: abstract out the dp_display stream helpers to accept a panel
+d0d281a3e54ca59e8436a707f473a8ba30418cac FROMLIST: drm/msm/dp: pass panel to display enable/disable helpers
+6ce77512dacf736166537d59a93d858162a32f4f FROMLIST: drm/msm/dp: simplify link and clock disable sequence
+6cf1bd2dbcb71f50b0a1172697eea79806f8c345 FROMLIST: drm/msm/dp: Always program MST_FIFO_CONSTANT_FILL for MST use cases
+491646d2998807021b8535a8710d1894cd8dc256 FROMLIST: drm/msm/dp: Add support for sending VCPF packets in DP controller
+d98aec1f6504844e545b73c60577a0450ec91ff2 FROMLIST: drm/msm/dp: Add support for MST channel slot allocation
+74c4ce56c2c931ad4146c0e6fa1d3e027cfbd13b FROMLIST: drm/msm/dp: no need to update tu calculation for mst
+77209eeca75d25cf90f851b99795276196a7b311 FROMLIST: drm/msm/dp: Add support to enable MST in mainlink control
+091b8da2b696c09ff5ff059eaedae153b6e2e14c FROMLIST: drm/msm/dp: add support to send ACT packets for MST
+77bb6ddd464666ffdb6eb897405ac4ddc64d3b03 FROMLIST: drm/msm/dp: Add catalog support for 3rd/4th stream MST
+69601a26ddf3e83dd5939fe0423efaf0078202be FROMLIST: drm/msm/dp: use stream_id to change offsets in dp_catalog
+47eb662a82bf18db1311287b8abde25022886a0a FROMLIST: drm/msm/dp: Add support for programming p1/p2/p3 register blocks
+26d443b21c72856b5ebc87ece753e842cdd1205e FROMLIST: drm/msm/dp: introduce max_streams for DP controller MST support
+1d1b03ba191218725a1b8ae49682271360b99cdf FROMLIST: drm/msm/dp: introduce stream_id for each DP panel
+c35a36e5981fe0459178b1463576607ad0b800d1 FROMLIST: drm/msm/dp: separate dp_display_prepare() into its own API
+6fafcda8ea97291d095ddf0453a113318b8ce4c3 FROMLIST: drm/msm/dp: make bridge helpers use dp_display to allow re-use
+21de468d0148357ee4fb963ba9bc11681972e0e0 FROMLIST: drm/msm/dp: split dp_ctrl_off() into stream and link parts
+a41663e9c3ea1a5571e1b926b6bc6e891c2fc6d3 FROMLIST: drm/msm/dp: move the pixel clock control to its own API
+4aed13058ab8723098306a07595d5862cd5672c9 FROMLIST: drm/msm/dp: allow dp_ctrl stream APIs to use any panel passed to it
+b5bd798c5f70454548be3850d8c851648f1f0ae8 FROMLIST: drm/msm/dp: split link setup from source params
+50cb4636bf503473eabd1fa56aad9f5323276234 FROMLIST: drm/msm/dp: extract MISC1_MISC0 configuration into a separate function
+6dc5de64e373ae005c0e502996666a4490999e3f FROMLIST: drm/msm/dp: splite msm_dp_ctrl_config_ctrl() into link parts and stream parts
+cd4e6cdc31b91e5a9b2bc1e5c5856fe4ecc593f0 FROMLIST: drm/msm/dp: re-arrange dp_display_disable() into functional parts
+31c47bca173a1e79d76e23f7f154faf23735e6a0 FROMLIST: drm/msm/dp: break up dp_display_enable into two parts
+98e1cb107ec1fc0ae616e14e6f9bbdc53c36fcc7 FROMLIST: drm/msm/dp: drop deprecated .mode_set() and use .atomic_enable
+6989ab8e411c64892997fc88a7927acd49a6335a FROMLIST: drm/msm/dp: remove cached drm_edid from panel
+675a11e3485adb2ef91e71b575a662ff320d4165 QCLINUX: arm64: dts: qcom: Add kodiak lite camx overlay dts
+2844d19748043c1ba35aaee14e7a2d12ab9d0f02 QCLINUX: arm64: dts: qcom: Add kodiak lite camx overlay dts
+925a93ca00cdac30feb4f81d331b88ed5f94eded QCLINUX: arm64: dts: qcom: Add kodiak lite camx overlay dts
+44a326540dfe51751783d132692d4cfedbe651b3 PENDING: arm64: dts: qcom: hamoa: switch iris iommus to iommu-map
+af8dabacea61b5e9f7f7fadf821237072050849b FROMLIST: arm64: dts: qcom: purwa-iot-som: enable video
+94e21a67ced5fa2f15c7b128b598f8a3e841a117 FROMLIST: arm64: dts: qcom: purwa: Override Iris clocks and operating points
+043244b06c8592ba2159538838acafdf964aa6fc FROMLIST: arm64: dts: qcom: hamoa-iot-evk: Add Embedded controller node
+0e685bd843c1f024fe6970d2ff5b8ce7ca0a811d FROMLIST: arm64: dts: qcom: x1-crd: Add Embedded controller node
+64c4c26c934e2c3b9e7b278bd71aef08d3667fac FROMLIST: arm64: dts: qcom: purwa-iot-evk: Add camss node
+10ec6e9d4ffa830675a3fa67b6d7949a1ed28fc9 FROMLIST: arm64: dts: qcom: purwa: Add camss node
+8fc2339db1c4c4c1cc2fdcd1e78c7d94106b5850 FROMLIST: arm64: dts: qcom: purwa: Fix GPU IOMMU property
+d0d7da3ee6809d7bc524ab5d488c2be261709adf FROMLIST: arm64: dts: qcom: purwa: Drop the Hamoa workaround for PDC
+d3504b4ead691f0a221d1ee0e0df328ee344266b FROMLIST: arm64: dts: qcom: x1e80100: Add deepest idle state
+20dee275662d8fdf0f762e0bb468f0a74e880284 FROMLIST: arm64: dts: qcom: x1e80100: Remove interconnect from SCM device
+590c4b72fddbeefc0eff92d1dfae300550cdc2a0 FROMLIST: arm64: dts: qcom: hamoa-iot-evk-camera-imx577: Add DT overlay
+2e475232d5ce6e2b4c7e1621835e664b73300e04 FROMLIST: arm64: dts: qcom: hamoa-iot-som: Add pm8010 L4M regulator
+644db5bdf9f97f17fef1fb37ff45477305392792 FROMLIST: arm64: dts: qcom: x1e80100-dell-inspiron14-7441: Switch on CAMSS RGB sensor
+e852e9363d0da3cffa8b7424123c56decc8c164c FROMLIST: arm64: dts: qcom: x1e80100-lenovo-yoga-slim7x: Add ov02c10 RGB sensor on CSIPHY4
+9981d8d14e52707ae74e793bfc07e39b90e06a6b FROMLIST: arm64: dts: qcom: x1e80100-lenovo-yoga-slim7x: Add l7b_2p8 voltage regulator for RGB camera
+098f4439000214eeec46b11630d95d074dd41dac FROMLIST: arm64: dts: qcom: x1e80100-lenovo-yoga-slim7x: Add pm8010 camera PMIC with voltage levels for IR and RGB camera
+e6517543ce1782053bb63fb5cd0f91799912de76 FROMLIST: arm64: dts: qcom: x1e80100-t14s: Add on ov02c10 RGB sensor on CSIPHY4
+1ab7e87f03665e82207a5ee3a8d6d83c67226131 FROMLIST: arm64: dts: qcom: x1e80100-t14s: Add pm8010 camera PMIC with voltage levels for IR and RGB camera
+68b3b69bff20a742aef527f1476614b6d4f97959 FROMLIST: arm64: dts: qcom: x1e80100-crd: Add ov08x40 RGB sensor on CSIPHY4
+3021bd4f806df75d27e79291572e372cb5139589 FROMLIST: arm64: dts: qcom: x1e80100-crd: Add pm8010 CRD pmic,id=m regulators
+cbf2d805cc33ebf2aad31294b5ac1220bd39e64c FROMLIST: arm64: dts: qcom: x1e80100: Add CAMSS block definition
+486e11c5046cff3c385363c7eb5beef7eb56526a FROMLIST: arm64: dts: qcom: x1e80100: Add CCI definitions
+2fdff4c24cbcc5bfc762d058dc08c1f028d2b012 FROMLIST: arm64: dts: qcom: hamoa: Add PSCI SYSTEM_RESET2 types
+e197c1d0dd9591c729cd462ccd70c02e5552a263 FROMLIST: arm64: dts: qcom: x1e80100: Add CAMCC block definition
+65b0ffe246a055815093c05196aae57e4780451f FROMLIST: arm64: dts: qcom: hamoa: enable ETR and CTCU devices
+45daaf3015ce31fe40e00dee69283a676b7153f9 FROMLIST: arm64: dts: qcom: hamoa: Add CoreSight nodes for APSS debug block
+e3d4f3e53fe41e3aaf9d0b04f99cf3ee31489023 FROMLIST: arm64: defconfig: Enable Qualcomm reference device EC driver
+abfeee71ec2257a591930d301f965151539d1380 QCLINUX: arm64: dts: qcom: Install camx DTBO overlays
+7998dbf1695da00ef7a54c3fe90328e251400c90 FROMLIST: arm64: dts: qcom: install DT overlays via dtbs_install
+ef11d92a47a0b9e89ebd385a3e7887d80855c54b PENDING: arm64: dts: qcom: glymur: add TGU and ETR in staging dtso
+3809f9657abaccf42a34848de9fec39431ecf46f WORKAROUND: power: sequencing: qcom-wcn: skip BT devices without bt-enable GPIO
+f918c7227d9309bc2bde593fa3171edf504b9a85 WORKAROUND: arm64: dts: qcom: hamoa-iot-evk: support Bluetooth over both USB and UART
+4710c2271fcfdd86eb280555bb67a85c806ed887 WORKAROUND: remoteproc: qcom: Fix RB8 device hung issue
+2ca2f1e73de10e7803736df6664b353129756c38 WORKAROUND: phy: qcom: qmp-pcie: Add vdda-refgen and vdda-qref supplies for Glymur
+e31e2a51cbe0d4140a3f40245a99da1a73fe6bb3 FROMLIST: phy: qcom: qmp-pcie: Add Gen5 8-lanes mode for Glymur
+17c15b7a45d809599bba57d4bda438adf5d2cafa FROMLIST: phy: qcom: qmp-pcie: Support multiple nocsr resets
+556f5fb1e4bf399f0fa1386b2d30d3ad4bc4a304 FROMLIST: phy: qcom: qmp-pcie: Add multiple power-domains support
+c94608e167eca00767f6d09caaeafed9dbdc7a45 WORKAROUND: Revert "PCI: dwc: Remove MSI/MSIX capability for Root Port if iMSI-RX is used as MSI controller"
+0aa3a1766e5dfccc5267ce00a3fd206d6e00dfd5 WORKAROUND: scsi: ufs: core: Set uic_cmd_timeout to max
+354d6164d97884b2963dc45fafe019a177ac24a4 WORKAROUND: arm64: dts: qcom: lemans: Disable global IRQ for pcie1
+abd705c32bf137d2ee73b7ae2aa3a4fa42c05a30 QCLINUX: PCI: Disable L1ss through quirk for Qualcomm SA8775P
+b37de7379c3de69d6ac5898bb1ed01ceaef6f752 QCLINUX: drivers: increase deferred probe timeout
+88c0208c1c1344d0f99ec3c10125205a914000c3 QCLINUX: firmware: qcom_scm: Add new scm to update Camera QoS
+1564b829d7522416a7f06506f0c800139c0c1680 FROMLIST: arm64: dts: qcom: monaco: Add OPP-table for ICE UFS and ICE eMMC nodes
+20819a018d8917bfc38d27137962280bc37c3539 FROMLIST: arm64: dts: qcom: kodiak: Add OPP-table for ICE UFS and ICE eMMC nodes
+ec066a091ca362d64c30fdcf53d5867b17c0ef83 FROMLIST: mmc: sdhci-msm: Set ICE clk to TURBO at sdhci ICE init
+c864c2b431f60ebc66ba156fa03708e405220aa0 FROMLIST: ufs: host: Add ICE clock scaling during UFS clock changes
+619f570a7c0815328b876827a0fcb2d8b84a4cd1 FROMLIST: soc: qcom: ice: Add OPP-based clock scaling support for ICE
+c6beed3785df654472b7710a8dc127a0c826a69a FROMLIST: dt-bindings: crypto: ice: add operating-points-v2 property for QCOM ICE
+642b88a0cb4caeae047f5e70f516be0c22b26302 arm64: dts: qcom: monaco: Add iface clock and power domain for ice sdhc
+090f8a6e4d63229c20ec0e80889335a9abb39883 arm64: dts: qcom: kodiak: Add iface clock and power domain for ice sdhc
+6dfd834f61048cec37fc676092baca1128e35ed6 arm64: dts: qcom: sm8450: Fix ICE reg size
+13f0207fa579cf5a92d9550043f5435d843f2a8a arm64: dts: qcom: kodiak: Fix ICE reg size
+9a09c47c497668220d70d46e3992c0818c184ae8 arm64: dts: qcom: sm8750: Add power-domain and iface clk for ice node
+ff23c9251656ce5f4e6ad3f93c1d7f3707102fdc arm64: dts: qcom: sm8650: Add power-domain and iface clk for ice node
+b47b00009acd194af70fddbf9ddab5e0f13e242f arm64: dts: qcom: sm8550: Add power-domain and iface clk for ice node
+eaa857a6a71fc14528a4e468c3d1d77b098f3873 arm64: dts: qcom: sm8450: Add power-domain and iface clk for ice node
+65e12242d4a088f7451713c2efd8906e13968706 arm64: dts: qcom: kodiak: Add power-domain and iface clk for ice node
+b7a913f72283681ee75dcc9c6b60b49b80aa51aa arm64: dts: qcom: sc7180: Add power-domain and iface clk for ice node
+95db34a67af72cf00620eab64c4391418d57113b arm64: dts: qcom: monaco: Add power-domain and iface clk for ice node
+3212650d20acd771dae88ea929ba094621494a42 arm64: dts: qcom: lemans: Add power-domain and iface clk for ice node
+8599ce043637af45a260629fb94292b3408a5d4d arm64: dts: qcom: kaanapali: Add power-domain and iface clk for ice node
+6869415c954be5f1a1f587c93582eaf2e18913d1 soc: qcom: ice: Allow explicit votes on 'iface' clock for ICE
+2e348560beda37b05b333dd7c365e1cb3866bbba dt-bindings: crypto: qcom,ice: Fix missing power-domain and iface clk
+14258b6b269b623aae5c9dd1dd8e6c5d2954dc63 FROMLIST: arm64: dts: qcom: monaco: enable the inline crypto engine for SDHC
+db48580580f1a14d1cc5a8eb28bec1eb56ae68b3 FROMLIST: arm64: dts: qcom: kodiak: enable the inline crypto engine for SDHC
+66fc47f0f0426bfa1aa9770873b2b041d7999db6 FROMLIST: dt-bindings: mmc: sdhci-msm: Add ICE phandle
+85db80de3cac9b35e504bdf6d2968c49fb4ab678 mmc: Avoid reprogram all keys to Inline Crypto Engine for MMC runtime suspend resume
+0aa90b7d45babe6116bcbb3006ae4636256b6e0f FROMLIST: drivers: soc: qcom: smem: Switch partitions to xarray
+c35a974bb284caa5d4e957d2680cbdddf024a4d5 WORKAROUND: soc: qcom: smem_dramc: Fix v3 DDR freq table out-of-bounds
+c3f7aa01c1a75c9f4466a4110f05421cae0870d7 soc: qcom: smem: Expose DDR data from SMEM
+287f0f5c451d23c09c4c15a25cff6c282ab9b13b FROMLIST: serial: qcom_geni: fix kfifo underflow when flush precedes DMA completion IRQ
+9292d3848597cea843e9ca2982812dc91bd3cb5f FROMLIST: arm64: dts: qcom: qcs615-ride: Enable QSPI and NOR flash
+e843c372a9cd415b30923cafb8e91f22c2d3c53e FROMLIST: arm64: dts: qcom: talos: Add QSPI support
+91c991e1dd0b049e3a7061d3121d4e751df01343 FROMLIST: arm64: dts: qcom: talos-evk-som: Enable Adreno 612 GPU
+b0df65ce2b4a3e1a472a73343179e04740430656 FROMLIST: arm64: dts: qcom: talos-evk: Add sound card support with DA7212 codec
+1156de8f2e8f4f2c32b6ff9f748ed6c45e410e52 FROMLIST: arm64: dts: qcom: talos: Add GPR node, audio services, and MI2S1 TLMM pins
+59c445335534e8510be4f58ac71e23972a21adb2 FROMLIST: arm64: dts: qcom: talos: Add psci reboot-modes
+1ad9a7078f59798bedc819982f3db7ff8744682b FROMLIST: arm64: dts: qcom: Enable cdsp qmi tmd devices for talos
+ea40b9c56d8db46b0fafb3f7e6837c7496db0273 FROMLIST: arm64: dts: qcom: qcs615-ride: Add PSCI SYSTEM_RESET2 types
+0e0000ec077fa2879b9f8a6b74963083dce2fc8f FROMLIST: arm64: dts: qcom: kaanpaali: Add USB support for QRD platform
+c8348283e7d0e023937769923a790e4e623491cf FROMLIST: arm64: dts: qcom: kaanpaali: Add USB support for MTP platform
+9a6d0ea49964f0c97e4ae6ff5e3699651716123a FROMLIST: arm64: dts: qcom: kaanapali: Add USB support for Kaanapali SoC
+9f79df68ae0a07f1e337aeedbc84e5b784fe4345 FROMLIST: arm64: dts: qcom: kaanpali: Add power-domain and iface clk for ice node
+25c6a748cd3b64e815a8ee8c741a7adcf3852618 FROMLIST: dt-binding: document QCOM platforms for CTCU device
+e26c6bd27041aee2b8489821f321ab47e7dd27b0 FROMLIST: coresight: Pass trace mode to link enable callback
+8a434325ff927de18844270fb5c22a5466709134 FROMLIST: coresight-tmc: Defer probe when associated CPUs are offline
+0f52cdc1dff3cebb4edbb7582b461e1e37057ab7 FROMLIST: coresight-tmc: Update management interface for CPU-bound TMCs
+feb0e09015796dcafdce648114120bd3f0d07e67 FROMLIST: coresight-tmc-etf: Refactor enable function for CPU cluster ETF support
+a457c74d10a7a7b50af970fb2c74e4e1732e5e0c FROMLIST: coresight-tmc: Support probe and initialization for CPU cluster TMCs
+8f18abc97bff67c8abc03701e54f5d70661687e3 FROMLIST: coresight-replicator: Update management interface for CPU-bound devices
+8ab218b4fc848d5557ee614ce4cacef34d289999 FROMLIST: coresight-replicator: Defer probe when associated CPUs are offline
+5496d028d0b384095f50dfc20429f942f939d3e9 FROMLIST: coresight-replicator: Support CPU cluster replicator initialization
+6c0e0e8e88a3ad617631b442a9e0e6991e3a534f FROMLIST: coresight-funnel: Defer probe when associated CPUs are offline
+2130188ce618b0e0e962bbf305beebc97629e780 FROMLIST: coresight-funnel: Support CPU cluster funnel initialization
+757432ec0a1685e6b00f943c9dd417d6441e906b FROMLIST: dt-bindings: arm: coresight: Add 'qcom,cpu-bound-components' property
+4a12928d61a7a7b338e764948f616b16e5307906 FROMLIST: stm: class: Add MIPI OST protocol support
+fdebcc6db37758f82a5ee69da20818879979f022 FROMLIST: coresight: cti: expose banked sysfs registers for Qualcomm extended CTI
+2211919548bf910091ab9bcf124ea96bb5933fe8 FROMLIST: coresight: cti: add Qualcomm extended CTI identification and quirks
+9e9d1cdb3eac907e76d7815af91b4e25a15f1b0e FROMLIST: coresight: cti: encode trigger register index in register offsets
+c884ad0e3843f642dcfd6edcac1adcf70b2e1d14 FROMLIST: coresight: cti: Convert trigger usage fields to dynamic bitmaps and arrays
+916d4b0d2ef1b1e853af6d6b40b53c2b35fd1e9b FROMLIST: qcom-tgu: Add reset node to initialize
+4f808ed6fedbd08599b032c504bc59370b092ffc FROMLIST: qcom-tgu: Add timer/counter functionality for TGU
+c9d6b6bc6e02435f2b0f33e475e7b2a091142e44 FROMLIST: qcom-tgu: Add support to configure next action
+02178e4e95e5a4d543b4893eaddfdc5902a680c9 FROMLIST: qcom-tgu: Add TGU decode support
+7b7e7705ce4f55d25c26798d42ba67b35a856cbd FROMLIST: qcom-tgu: Add signal priority support
+8a1cacecb602bb106ed5f4114416effd39e42581 FROMLIST: qcom-tgu: Add TGU driver
+8f1dbb09dbb561a590b0bbde8bba3a0fdff85989 FROMLIST: dt-bindings: arm: Add support for Qualcomm TGU trace
+e5bba49f774bde73c3eb8341b64c203b8401bc11 FROMLIST: coresight: ctcu: enable byte-cntr for TMC ETR devices
+363ccf2e75a6b42a262ed46e3c24f8a4a3fbf8d1 FROMLIST: dt-bindings: arm: add an interrupt property for Coresight CTCU
+d6ad6562f03b1100b2a80f452f75a0c1979573cf FROMLIST: coresight: etr: add a new function to retrieve the CTCU device
+1ea7ee1292db6109f27a4327b6c5d254f612b06e FROMLIST: coresight: tmc: introduce tmc_sysfs_ops to wrap sysfs read operations
+eb81ef14017612b757b53d60739f3d63b324971e FROMLIST: coresight: tmc: add create/clean functions for etr_buf_list
+18e08519fe63413377831a9024eacf07f58b3b6e FROMLIST: coresight: core: refactor ctcu_get_active_port and make it generic
+2daf24f30759b350e77393ec958900d070622b04 FROMLIST: drm/bridge: lt9611uxc: add support for 4K@30 resolution
+43904e5670eb4f2190352fa99c8f3f8de8609cfe FROMLIST: drm/bridge: lt9611uxc: extend mode valid checks
+982b492100e0e50a0a1d1eace5bfe06145969b79 FROMLIST: drm/bridge: lt9611uxc: Increase EDID wait time from 500ms to 1000ms
+89bfa231aeff83e4e7521f8ea2baeb223a45a308 FROMLIST: drm/bridge: add support for lontium lt9211c bridge
+a366b4f0d4a51ed7dffe9717666cbda052b02cb6 FROMLIST: phy: qualcomm: qmp-combo: update DP PHY PLL programming on Glymur
+9b75bf511619dfd178a3e39d999fd59965a556ce FROMLIST:drm/msm/dp: clear EDID on display unplug
+27afe10194732094da0fcb6d5446a4a85963ca40 FROMLIST:drm/msm/dp: turn link_ready into plugged
+0485e158b62551c21e1013bd372d525caec148fe FROMLIST:drm/msm/dp: Add sink_count to debug logs
+c262e372027a2064d44faca02d062f1e2347ad66 FROMLIST:drm/msm/dp: rework HPD handling
+440d9453e60aff5ed7caa0d8607ec0fc239df8f0 FROMLIST:drm/msm/dp: drop event data
+9c5d9263353f026e64672df372535fa448e527e1 FROMLIST:drm/msm/dp: Drop EV_USER_NOTIFICATION
+62f68e4da80d727b02bb5936a87079840e464eb7 FROMLIST:drm/msm/dp: Move link training to atomic_enable()
+08c80c775163309e55004c86b6225f46b8465e65 FROMLIST:drm/msm/dp: Read DPCD and sink count in bridge detect()
+11cf58a2f271d4b8a3d98414bbfd82d5f5edde83 FROMLIST:drm/msm/dp: Fix the ISR_* enum values
+a3fc7d03c53df32cb656d111e31d2f088ed825fd FROMLIST: drm/msm/dp: fix HPD state status bit shift value
+6b3f275f96732f6e6f279fb0bd2e6bca08ef172a FROMLIT: drm/display: add hw_params callback function to drm_connector_hdmi_audio_ops
+59cf766b2aea40fd3853ef3e26938f80a6a760b7 FROMLIST: drm/bridge: display-connector: trigger initial HPD event for DP
+26a065563572355314a5d709033988adb3fa5a2a FROMLIST: drm/bridge: display-connector: don't autoenable HPD IRQ
+ccae22df66516ba7cb1dc660207d4e85585e42a9 FROMLIST: drm/bridge: lt9611uxc: reset edid_read on disconnect
+5ece42df4517ff15557e0b3153fcc1ecae93989c FROMLIST: dt-bindings: display: bridge: lontium,lt9211: Add lt9211c support
+0eb9b1b3cc59382227748abb04f9664974eca882 FROMLIST: dt-bindings: phy: qcom-edp: Add reference clock for sa8775p eDP PHY
+6fe71bfe83c710423071f0109216a78a78b05e50 WORKAROUND: i2c: qcom-geni: Fix -EACCES error during system resume
+d00f47452c64ad7f227539a67ae247421037f273 FROMLIST: i2c: qcom-geni: Support multi-owner controllers in GPI mode
+309f43904792bf00550bdc2ce604271f8decaa65 FROMLIST: soc: qcom: geni-se: Keep pinctrl active for multi-owner controllers
+9586b3ee9a5899d65e4e64b03b3cb17ffb3eb1f2 FROMLIST: dmaengine: qcom: gpi: Add lock/unlock TREs for multi-owner I2C transfers
+e237543cbf2ad562d73e7b992a6eea48de54e23f FROMLIST: dt-bindings: i2c: qcom,i2c-geni: Document multi-owner controller support
+7036b31f637017752ac85d102116aa559943da7b FROMLIST: spi: spi-qcom-qspi: Add interconnect support for memory path
+528f3a1fdcd5dd9d5caeb9f93cec910bcc885bc8 FROMLIST: spi: dt-bindings: qcom-qspi: Add QCS615 compatible
+eee20da4b7d0716a8a3b6994d8eee25631aca37e FROMLIST: thermal: qcom: add support for PMIC5 Gen3 ADC thermal monitoring
+c7d331220fb1f9437c8a3cd76a08e3bf9530d01f FROMLIST: cpuidle: Deny idle entry when CPU already have IPI interrupt pending
+4209d8dde95de1aba846ddc795a975e49d91bcdf FROMLIST: dt-bindings: interrupt-controller: qcom,pdc: Document x1p42100 PDC
+cac4802cc91107af66ec0868d95eb14bc4b22b7f FROMLIST: irqchip/qcom-pdc: Configure PDC to pass through mode
+e5c88613cbb82ee8204be29dc15585261ffb8c0d FROMLIST: dt-bindings: interrupt-controller: qcom,pdc: Document reg and QMP
+614b17a3ce6e07e6cc7a8e840246fec1e97b7ae2 firmware: psci: Implement vendor-specific resets as reboot-mode
+9b860337c2488b39aab9037723121790a3dc11f2 power: reset: reboot-mode: Add support for 64 bit magic
+95651c63b27852b3cc7b9236d9db5642c0d4066f FROMLIST: clk: qcom: camcc-glymur: Add camera clock controller driver
+28958dc3738ad1e8b64fc9e40acee10ec69123b0 FROMLIST: dt-bindings: clock: qcom: Add Glymur camera clock controller
+0fd9700f1e209a6918769c667219b1599bd68934 FROMLIST: clk: qcom: camcc-x1p42100: Add support for camera clock controller
+d07ef6131a7571f9dec74b4bbcf47dae167fac89 FROMLIST: clk: qcom: camcc-x1e80100: Add support for camera QDSS debug clocks
+3d0dbc53306e4c55e19937c0aa2775e68ef03935 FROMLIST: clk: qcom: videocc-x1p42100: Add support for video clock controller
+d88b0879c9389743a869a1562629c394d5553077 FROMLIST: dt-bindings: clock: qcom: Add X1P42100 camera clock controller
+3c71e4b33810e1d9451e4b3f9e914997ebfad3e1 FROMLIST: dt-bindings: clock: qcom: Add X1P42100 video clock controller
+cb61d419103235704ac8fc45d2e2b19f342b2d27 power: reset: reboot-mode: Add firmware node based registration
+5438a46dfa85f8d4895bad921b391cfed1466cda power: reset: reboot-mode: Remove devres based allocations
+90ba0063424e047ccea4f3c96e9786bee0ff18f1 FROMLIST: arm64: dts: qcom: monaco: fix wrong connection for the replicator
+210ebe882e463faf09048ede8af6a39e64bebf1d WORKAROUND: arm64: dts: qcom: monaco-evk: Use refgen regulator for usb2 HS PHY
+57fe496d225090fc0458d0e9513f9e493b82c225 FROMLIST: arm64: dts: qcom: monaco: Add monaco-ac EVK board
+9e9f8be6df0c410bdcff6b6692aee757f1a02eb5 FROMLIST: dt-bindings: arm: qcom: Add monaco-ac-evk support
+be25c6934adcf138707bf5c53f6d705570f4964b FROMLIST: arm64: dts: qcom: monaco-evk: Extract common EVK hardware into shared dtsi
+629134fe3d4c6e28c9c35770aaec38750b52b3e4 PENDING: arm64: dts: qcom: Add EL2 support for Iris for monaco
+7c0861fc4ea1ff775924736a2ce7d9b6ead4c0c4 BACKPORT: arm64: dts: qcom: monaco-evk: Enable primary USB controller in host mode
+0286d5229556de722b35ef6b05db4c4bb772f2bc WORKAROUND: arm64: dts: qcom: monaco: Disable global IRQ for pcie1
+42a4da0900932c872605780b0d091841f93b36f1 WORKAROUND: arm64: dts: qcom: monaco-evk: Remove WCN6855 PMU node to bypass pwrseq flow
+0c83ca5ae0cde8846911680fb0dba0f6e94e94a7 FROMLIST: arm64: dts: qcom: Enable cdsp qmi tmd devices for monaco
+05a66a5d0e8c19de43ceca1fb2c150c0d24a8a89 QCLINUX: arch: arm64: qcom: qcs8300-ride: Enable PCIe Qref regulator
+f6e8d460c56df746315fd4d8baa740442dd4c9a8 FROMLIST: arm64: dts: qcom: qcs8300-ride: add additional SerDes PHY regulator
+229303ff25aec8cdf77d03e24334b5faa74398cd FROMLIST: arm64: dts: qcom: monaco-evk: fix the SerDes PHY regulators
+99a2ba41e5ec0d6dad3920e4cf3401411d247e36 FROMLIST: arm64: dts: qcom: monaco-evk: Enable Bluetooth support
+c25b6d359dda9a7505d6c8b8e9d27358317876b0 FROMLIST: arm64: dts: qcom: monaco: Add PSCI SYSTEM_RESET2 types
+90f2db5804218785652b5a88f9d12e798edde273 FROMLIST: hwmon: Add Qualcomm PMIC BCL hardware monitor driver
+3a68073c5633546c61d3e750913a62f08aa4a361 FROMLIST: dt-bindings: hwmon: Add qcom,bcl-hwmon yaml bindings
+cbce1366d755edc65e68cbf25ac65453dc47b7f7 FROMLIST: thermal: qcom: add qmi-cooling driver
+4e8ea5334c566c3cff92b286aa463a891ee5f8e3 FROMLIST: dt-bindings: thermal: Add qcom,qmi-cooling yaml bindings
+d1305cecc6aa35fbb60583954a47b4b230405866 FROMLIST: thermal: Add Remote Proc cooling driver
+705ac5445b8a756b1cac0a8c4d6b4a621d42b147 FROMLIST: arm64: dts: qcom: sm8750: Enable cpufreq cooling devices
+771ebbc98bd03048ea231a8d1e4fa52637202620 QCLINUX: prune.config: Disable MMU_500 CPRE ERRATA workaround for Qualcomm SOC
+3110b6b3c49547a7c09aeefd7b3801b078e54e17 QCLINUX: qcom.config: Enable SYSFS config
+4087f0b8d5d58e7bcb6f7ea983e28903c4972d87 QCLINUX: prune.config: Enable Realtek PHY config for Rb3Gen2 Industrial board
+1d8f0fc1826cb89dfa051899f09c4c464d8cde15 QCLINUX: qcom.config: Enable MMC_CRYPTO for ICE emmc
+573e3332a64adff6ea94b747253c3b8566dc5c5d QCLINUX: debug: Enable ATH11K CFR
+bad975fd2f5ac83e0331a662f428ec59370dfa7b QCLINUX: qcom.config: Enable compressed firmware support
+b9bd428761c7022f60a86fcfe5775bcb72fff9fa QCLINUX: qcom.config: fix the TNOC config
+93ae1f0a1e710d585deb09113115e1e0aa3c4138 QCLINUX: qcom.config: update TGU config
+d547c3f63f991b149218f0a92f8e0374120dc700 QCLINUX: qcom.config: Enable testmode config
+05f95859f145680c562979434b9ae103c28c5197 QCLINUX: defconfig: Enable Qualcomm BCL driver
+f6dcc96af4a6be4c3bfa5fc19e5112984d4e7dfb QCLINUX: qcom.config: enable CONFIG_CMA for qcom chipsets
+c2f6788f0ded93dc017f0efe6bfc6ecc48c9b642 FROMLIST: arm64: defconfig: Enable Qualcomm WCD937x headphone codec as module
+e439573d65455d9f87f64fff359d893658d30c8b FROMLIST: arm64: defconfig: Enable Glymur clock controllers
+a4d3b1e92dfca03076b2246bca74dd2cc34facbd FROMLIST: arm64: defconfig: Enable SM8750 clock controllers
+dc7fd9fd8e256ef3ffc69b68ec930fd0773f0d3a QCLINUX: qcom.config: Enable CPUidle Teo and Menu governors
+7d7201efcfa0494b84e63f67566b4afcd7b057d4 Revert "QCLINUX: qcom.config: Enable 39-bit VA space for 4K-page builds"
+d946bf595cdff48480e51a3ba13fd1badf9b7993 FROMLIST: arm64: defconfig: Enable VIDEOCC and CAMCC drivers on Qualcomm X1P42100
+cc183799b232b2e1fa4af1dbf5e483582f5654a1 QCLINUX: qcom.config: Enable FTRACE option for performance profiling
+486e1776f724b475b284ee8dfec6529006d0ee8d FROMLIST: arm64: defconfig: Enable Kaanapali clock controllers
+99ab873f38d311911486421c4eca36a7aeeef176 FROMLIST: arm64: configs: Update defconfig for DSI-LVDS bridge support
+7a0717ff698a78693b146d462eb79674ea92d5a0 QCLINUX: qcom.config: enable the ICE related config
+c9ade7e1a05161258837d9d75a14367ec4b1de14 QCLINUX: qcom.config: Enable 39-bit VA space for 4K-page builds
+142073c0225915faa5f0aa34ac03537084a32c47 QCLINUX: prune.config: Enable backlight config for Hamoa/Purwa
+82fff999b7baf94ef341c7c084b60fb5460c5da9 FROMLIST: arm64: defconfig: Enable camcc, videocc clock controllers on SM8750
+8ea4114eb0de1b2e243fb646758c0c9ebbde86a6 QCLINUX: qcom.config: add crypto corresponding config
+9e4e7d8ee0dc47bfe3d6016a430b126bcd489b28 QCLINUX: arm64: configs: qcom.config: Enable CONNECTOR, PROC_EVENTS
+258b6811ef4bb6c5c5861f006956caa0a0db8483 QCLINUX: defconfig: enable Remoteproc cooling feature
+0487c3ad2d5dd99e7ea2ae7d68aebc20fb47b92a QCLINUX: qcom.comfig: disable ICE/UFS crypto
+24814ced4d60e6634ea1e889d45fc358ec71cbd9 QCLINUX: arm64: configs: Added Kubernetes support in qcom.config
+17d067c38dd7d65dc644909eef488c3692739fae QCLINUX: arm64: configs: qcom.config: Enable I2C_QCOM_GENI as built-in
+5d03405ad196c3e34658169a0a7a771da0427d53 QCLINUX: arm64: configs: Added new rt.config for RT kernel
+3bd9ad7739cc052e82852160b53b04edc4147df7 QCLINUX: defconfig: enable EMC2305 defconfig on qcom.config
+53cb5e2aa3d3ba3dfd2c5d69c85402263d860dc9 QCLINUX: arm64: configs: qcom.config: Enable UINPUT
+6c10148b6b03f17e7a88af722244c1d6f63c2e14 FROMLIST: arm64: defconfig: Enable Glymur configs for boot to shell
+c7056e399467160408bf2d9a6d98b76a3bbd61f8 QCLINUX: arm64: configs: qcom.config: Enable GUNYAH_WATCHDOG
+12f519ba42d6cca74cbda8e3b89556b79ba22805 FROMLIST: arm64: defconfig: Enable Sound DMIC driver
+6e0c8400b38b6f91cdd4a1400533d198aab4558c QCLINUX: defconfig: Enable support for vhost-net, vsock
+4c028d167b0e23dabcda29bf008c6a43dd461273 FROMLIST: defconfig: qcom: Enable lt8713sx bridge driver
+18230d962f183d4261768cd9a81ff9e5013ad9be QCLINUX: defconfig: Enable Trusted Execution Environment (TEE) driver for Qualcomm TEE (QTEE)
+ee94df8f33451e53232c63bbc1743f4584dfc6d7 QCLINUX: debug.config: Drop heavy debug configs
+09187e86883b578c079cafd0efbd6a17cef9b468 QCLINUX: defconfig: Enable watchdog drivers for VM usecases
+4e3c4f192dd9a8fc16eb3f8709a0425ec37fd549 QCLINUX: Revert "QCLINUX: defconfig: enable Crypto and ICE related configs"
+d3a51e938d176825f534d69fc78c5ee36a7d5a1b QCLINUX: debug: Enable power management debug configs
+0e66284f1a9e451b80764af8cde575c553b3d22e QCLINUX: defconfig: Enable various power management configs
+c6e1facf633a7680cae62950aac97b26504e7dbb QCLINUX: defconfig: Enable BT_RFCOMM, BT_BNEP and UHID
+a50ffd1370db8ed2179861ee2773d6c4cf2e41a1 QCLINUX: defconfig: Enable ATH reg setting
+2fac45bc231beaac5c93847f2814207e57805956 QCLINUX: debug: Enable WLAN related debug configs
+77c92743a2fea2af820690f3a2c886523de94327 QCLINUX: defconfig: Enable EDAC_QCOM on qcom.config
+0e57d840fcc54174766236b7354eb51db5b40e34 QCLINUX: defconfig: Enable QCA808X ethernet phy config
+9e8bf01f0eb9b88981038436dacaa8e6d92a1e8f QCLINUX: defconfig: enable amc6821 defconfig on qcom.config
+33a42b83321c96eb983ef8cc810df74daa0565cd QCLINUX: defconfig: enable Crypto and ICE related configs
+ffe7eaf70e04b6b0ce6ff3cc5abfddcfa86ed83d QCLINUX: arch: arm64: configs: Enable stm components in qcom.config
+03be9d26eb4a2fa9e07f612546674ddfbd75e67d QCLINUX: debug: Enable additional Qualcomm-specific debug configs
+84dea060a7a93a204b5fcfeab9e4cd29b5cdbbb2 QCLINUX: defconfig: Enable scheduler and thermal related configs
+d316594d98b2995eca246d52ea041fa03b5e7ab7 QCLINUX: defconfig: enable zram defconfig on qcom.config
+9f855f2df6ed80a2389a3e698ac0065fea391b61 QCLINUX: arch: arm64: configs: Enable coresight components in qcom.config
+36721dfbb3c3a061a98e159efa6e81a47e65d3de QCLINUX: defconfig: Define qcom.config and enable DMABUF heaps
+4e6224bb264fc60a4cded146901e6f5f77f06d8f QCLINUX: defconfig: Introduce prune.config fragment
+9e842b409bea2d1344126d1369bc6e36fed0ac60 FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Enable 4-lane DisplayPort Alt Mode
+7513a12c69ef472861f4e293328a42535aebc7fe FROMLIST: arm64: dts: qcom: pm7250b: Enable Qualcomm BCL device
+fb8f5355de91d4053b649308744c1aa8ca95461b FROMLIST: arm64: dts: qcom: pm8350c: Enable Qualcomm BCL device
+528de5d6e6a44fb257a84263b3760c45346a0e9b Revert "arm64: dts: qcom: qcs6490-rb3gen2: Adjust tsens thermal zone"
+2f2f19071014eaa317cc0008e2ce9ad7970479df FROMLIST: dt-bindings: can: microchip,mcp251xfd: allow gpio-hog child nodes
+ae9e420000b61d73bc63464fb3edd552e9ed3187 FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: use DP controller native HPD
+d4888d1fd471e5a2c01d9ce2a5f57fe8382e32aa FROMLIST: arm64: dts: qcom: qcm6490-idp: Enable PCIe1
+4b89795c2c4969d94100fddea66d4bfc4d85880e FROMLIST: arm64: dts: qcom: qcm6490-idp: add and enable BT node
+93952a191ce5e27ae6c139bf8df8ddf3d21424fd FROMLIST: arm64: dts: qcom: Enable lvds panel-DV215FHM-R01 for rb3gen2 industrial mezzanine
+7db1aa6dbfae25597bfc8e9066595ad638c9669f FROMLIST: arm64: dts: qcom: Enable cdsp qmi tmd devices for kodiak
+d5cc610575fbdf2f669bb9fbc4afccfe1ec312a2 FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Adjust tsens thermal zone configuration
+f456e909177f6529ec89229de0f909381d370b97 FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Add PSCI SYSTEM_RESET2 types
+b15a00193274095e3fae44e124904c0302aff0a3 FROMLIST: arm64: dts: qcom: qcm6490-idp: Add PSCI SYSTEM_RESET2 types
+20c09ce873000ed6ee8e4ad9a3ff596f49f63778 watchdog: Add driver for Gunyah Watchdog
+69f45197229d936225716f2bd293c85fc539bf9a FROMLIST: soc: qcom: qmi: Print error codes in failure paths
+3be3a04d1ab7e0fe11250298a8600032875c37a8 FROMLIST: soc: qcom: icc-bwmon: Update zone1_thres_count to 3
+cab3357f188207843476df34b2a294a9009efa5b FROMLIST: pinctrl: qcom: lpass-lpi: Enable runtime PM hooks on remaining SoCs
+3d44b19ae11af7f3b605321f1b44eea949eb9b1d FROMLIST: ASoC: codecs: lpass-wsa-macro: Guard optional NPL clock rate programming
+569c784877f86c008a0845d2515936e35f21cd90 FROMLIST: ASoC: codecs: lpass-va-macro: Switch to PM clock framework for runtime PM
+a13b7731711ba419aea98b5f02207b02dc2726e1 FROMLIST: ASoC: codecs: lpass-wsa-macro: Switch to PM clock framework for runtime PM
+6315b0f585be746932fef2f63f7144664b9ee021 FROMLIST: pinctrl: qcom: lpass-lpi: Resume clocks for GPIO access
+1dcf8dab60c284ce5ad0a78cf602880478714fd5 FROMLIST: pinctrl: qcom: lpass-lpi: Fix GPIO register access helper return types
+63415f5ae006de634d8969d00e441d375a0202d5 FROMLIST: pinctrl: qcom: lpass-lpi: Switch to PM clock framework for runtime PM
+29a3569eb09d60a2060bd999cc63f95c9c582fa8 FROMLIST: ASoC: qcom: qdsp6: q6prm: add the missing LPASS MCLK clock IDs
+d7862b2f4133680b3f7307d7e076b7b35a7e5155 FROMLIST: soc: qcom: pd-mapper: Add support for QCS8300
+d802b5ee85e3de8a36739691629f142310f8d7b1 FROMLIST: soc: qcom: pd-mapper: Add support for SA8775P
+f88c2dedeaf12861c77ec7aa35588fd9c5ac9a2e PENDING: arm64: dts: qcom: rb3gen2-industrial-mezzanine: add overlay for QPS615
+23ab4dc46ced53978b3ffbf9567226f070d5a5ed QCLINUX: arm64: dts: qcom: talos-evk: Switch to interrupt-cells 4
+c536706c5d2521ecf3d36cede2b9bc83306ac95b PENDING: arm64: dts: qcom: kodiak: add TGU device in staging dtso
+39ba536c16047b37ee7524ccf9ee664b370f341c PENDING: arm64: dts: qcom: monaco: add TGU device in staging dtso
+8e1e5d78d03ce789177df30d3b68e5554483b39b PENDING: arm64: dts: qcom: lemans: add TGU device in staging dtso
+af180658a1b0f0d939bda0b93aea7cf0843d8611 PENDING: arm64: qcom: dts: talos: add TGU device in staging dtso
+cd6b5bd29ed731447ac9208c10a1210c1a877d39 PEDNING: arm64: dts: qcom: qcs6490-rb3gen2: fix root node overlay for phy-vreg
+7fe3c3e36a45366e0dbb4122254a26ae80f01b14 PENDING: arm64: dts: qcom: rb3gen2: add overlay for QPS615 ethernet
+ddb0a6e20863b3ea03f1b4b4d58f4397af9bf4e2 PENDING: arm64: dts: qcom: monaco-evk: add overlay for QPS615 ethernet
+a9127f4cdf000654e7dd68f0c0e436ab727ac5a6 PENDING: arm64: dts: qcom: lemans-evk: add overlay for QPS615 ethernet
+47a350b7080859f4a63a7fc95c4df091a716f28a QCLINUX: arm64: dts: qcom: align hamoa camera DTB variable naming
+6489c6f75d0c94454198e0af505d5d2d8dae98c7 QCLINUX: arm64: dts: qcom: Add Hamoa camx overlay dts
+281be97fe6de9114c0734f3230a0debd37b6fb54 QCLINUX: arm64: dts: qcom: monaco: Add CamX EL2 overlay
+1dbc17a7d28bad7830b19a50db9c45454fa41f73 QCLINUX: arm64: dts: qcom: lemans: Fix comment typo in camx EL2 dtso.
+69676ca8cc38c5e8b50ed61ca68f15610a4d74e4 QCLINUX: arm64: dts: qcom: add labels to sensor DTSI
+42a19704bb14685c783be394cfcabeffbfc218d3 QCLINUX: arm64: dts: qcom: lemans: Add CamX EL2 overlay
+b6aba5e2ece3488ee9451118252e1dcf355fbc6b QCLINUX: arm64: dts: qcom: add node labels and explicit QoS flag in monaco
+6eb09c35ef86177123cea91b4ccd1c83ffa77624 QCLINUX: arm64: dts: qcom: add node labels and explicit QoS flag in lemans
+dc9ed767eb4781e40135c3c8bc96b8502d2b98cc QCLINUX: arm64: dts: qcom: Add camx overlay for talos evk
+cc23cf078814e333c7dca8cfc3791efe05e40563 QCLINUX: arm64: dts: qcom: Enable IMX577 sensor on lemans
+56e96170d602268b48a5497feb2a19623588405b QCLINUX: arm64: dts: qcom: disabled vreg_cam1_2p8 regulator
+752a49fde6ec0ba52ea11906a50cb112bef82fe4 QCLINUX: arm64: dts: qcom: talos: add camnoc bandwidth levels
+659ab1f8d98f93cc96fb0ecc8d2a4555bdc4eb6b QCLINUX: arm64: dts: qcom: Change talos camera firmware path
+3368ba216c03238df1dcd95ec487064f1caf6988 QCLINUX: arm64: dts: qcom: Change lemans camera firmware path
+e02b040a5bc9f6814b9d1151f86fa75f29e8edad QCLINUX: arm64: dts: qcom: Change monaco camera firmware path
+12645d58c80988fcddc34026e6a6137c325cd7e5 QCLINUX: arm64: dts: qcom: Change rb3gen2 camera firmware path
+3381092f6075015406b9fa915658ded6c68c7642 QCLINUX: arm64: dts: qcom: Add Talos camx overlay dts
+0527b3a778e89dd7c44c3b88a85b85e5cf0bfacd PENDING: arm64: dts: qcom: change pil camera memory map
+503ea0299e53ae6f36e1b5fd3e17c0393255c6f0 QCLINUX: arm64: dts: qcom: Update Lemans camx overlay dts
+e257c2c7bac9470ef03623fce26ea0e02367e88f QCLINUX: arm64: dts: qcom: Update Monaco camx overlay dts
+809eca6205f5616b173a2d6b345c303864ec9357 QCLINUX: arm64: dts: qcom: Update rbgen2 camx overlay dts
+e09e0c2f3aad3f0b38bc38bfba8b38aec7709bae PENDING: arm64: dts: qcom: qcs8300: Update camera PIL region to 7MB
+473a0147f6a7ad40e9dcf2332230d3494e928d7b QCLINUX: arm64: dts: qcom: Add monaco camx overlay dts
+b3b90f2c69231a376dec233af5feddf97983bed6 QCLINUX: arm64: dts: qcom: Add rb3gen2 camx overlay dts
+d7ed11a4ef1dd0b673d17e91c7f8636b8a68f82c QCLINUX: arm64: dts: qcom: Add lemans camx overlay dts
+5b7b6a3104b118fd5e4f6b345cc46c4231bc331c QCLINUX: arm64: dts: qcom: Add camera DT binding
+df5635b54fe5b14258ff600692a69df7e7201343 FROMLIST: remoteproc: qcom: pas: Drop unused dtb_mem_region field
+1f4be6f4feb0793d1657ccf203f4c8144316ab7a FROMLIST: remoteproc: qcom: pas: Map/unmap subsystem region before auth_and_reset
+965126af636443fd2d0b370ee3606b4c7e14f4c1 FROMLIST: remoteproc: qcom: pas: Fix the dtb PAS context creation
+aebd0b7bd6252fead378d3cef9790b997a9af5f5 FROMLIST: remoteproc: qcom: probe all child devices
+cc59ea3fb2a2a9d8ca9d7d317e50fd8e7e8d4714 FROMLIST: remoteproc: qcom: Fix NULL pointer issue
+3f1acf892d6623a15a7245d398ae04bb6d1e9f50 FROMLIST: Revert "pinctrl: qcom: x1e80100: Bypass PDC wakeup parent for now"
+53e8e4b953a1812f7460d3d0bbec56eb62d091e3 QCLINUX: qcom-dcc: add pakala register list and move config to header
+275d5cadb9afc6daf1fe4d9cbf607dadb7f9afc8 QCLINUX: qcom-dcc: add kodiak register list and move config to header
+4c548acaa0b6d9a60be21112d3ac734db34863af arm64: dts: qcom: sm8750: Add display (MDSS) with Display CC
+e9ecb2652be8cd3fe63a4359a6d12de90761b2c8 arm64: dts: qcom: sm8750-mtp: Enable display
+c88284a87ebe84f312edeb8cf075fc5bbbd99b13 FROMLIST: arm64: dts: qcom: sm8750-mtp: Set sufficient voltage for panel nt37801
+10199ae7f8566854d991070d6c0dce91ada6796a arm64: dts: qcom: sm8750: Add camera clock controller
+8e551dc5b09bad842190bc0605dca1d8c1c444fa QCLINUX: qcom-dcc: group lemans and monaco SoC IDs with comments
+3feb4d9e64e2f54665c8d5b9617d78b7180197a3 QCLINUX: qcom-dcc: move talos config to qcom-dcc-talos-config.h
+e4c2182d6741e7d5ab987e32ca7f3b8ef5befed9 QCLINUX: qcom-dcc: add lemans register list and move config to header
+eae0996b9b5c3c5f54bdaecc6ae148596015d04e FROMLIST: arm64: dts: qcom: sm8750: enable ETR and CTCU devices
+b2ea57bfc5f97af1b5f7b0d750ae315c60921580 Revert "arm64: dts: qcom: agatti: enable FastRPC on the ADSP"
+b13f5026519a07ff58f120fa6afc3ff697d00e5b arm64: defconfig: Enable Agatti audio drivers
+bffe64abb1f9aececff6eb877ebdf8f2bd107d77 arm64: dts: arduino-imola: add support for sound
+5e3e942d1b0b855420e6a47ce1f8163fd66168ad arm64: dts: qcom: agatti: add LPASS devices
+3fad3da0e8ad1d8e748cd2fd9d8f581df1456b59 dt-bindings: mfd: qcom,spmi-pmic: add compatibles for pm4124-codec
+1fa98cb308186a3c850369ade7be19f644199f66 FROMLIST: of: Respect #{iommu,msi}-cells in maps
+6fe53855cdfd13e0712f5901bf3d638640d2b40f FROMLIST: of: Factor arguments passed to of_map_id() into a struct
+badf51b1869eecc56bdffef72078b98a8c9c7af3 FROMLIST: of: Add convenience wrappers for of_map_id()
+216e8f6f4f1633bf6c64789530c0d350cd25065f FROMLIST: iommu/arm-smmu-qcom: Fix fastrpc compatible string in ACTLR client match table
+a8695a4a179e6003a346cf0ec16978ab6f689a6e QCLINUX: memory-dump: use late_initcall and build as built-in for boot debug
+7c9ef49d17b14e38b6c4889bf5714abb670d19ff QCLINUX: qcom-dcc: use late_initcall and build as built-in for boot debug
+3a4648d380fc3d5f2a0396cce16714235705fb85 QCLINUX: qcom-dcc: add register list for the Talos
+b443c9635c8c61d7a660dbd69c8e81eeeb3b6362 QCLINUX: qcom-dcc: add logic to configure linked list in probe
+af194cc05568b4c00b07bc92d3bbf121f76a47b4 FROMLIST: iommu/arm-smmu: Use pm_runtime in fault handlers
+342aeb8c5a4125bff7f8431acf4b6f8b73920dd9 QCLINUX: memory-dump: add support for Glymur
+ec6e14e1fe9c34f76a715ce17cfbba7595d86e81 QCLINUX: qcom-dcc: add device configuration for Glymur
+aaf8ef1234f456bd05343c235d7ad0b921a97220 FROMLIST: phy: qcom: qmp-pcie: Add Gen5 8-lanes mode for Glymur
+e40de0b13fee56bda7d7be1b25b6b765f6aefb3c FROMLIST: phy: qcom: qmp-pcie: Support multiple nocsr resets
+b9ce4df83e3cdfbfcc89d8271e39d3fc168afa8a FROMLIST: phy: qcom: qmp-pcie: Add multiple power-domains support
+b0db271cbbf54cab184d76ae8bcb188803a7c014 FROMLIST: dt-bindings: phy: qcom,sc8280xp-qmp-pcie-phy: Add support for glymur Gen5 x8 bifurcation mode
+b3bff1d52bdf75862574b137b433e7541ce1637b QCLINUX: memory-dump: fix array size issue for Talos
+281d564aa046eb9cea6f4ab86bfe8c70e1858b36 QCLINUX: memory-dump: add memory dump table for Hamoa
+49a40c40824ddef7f7ad4b9884cdf5e65bd01c0f QCLINUX: qcom-dcc: add device configuration for Hamoa
+456b9522d0a1b7af0a215dddab2617d1720f7b3d QCLINUX: memory-dump: add memory dump table for Kaanapali
+f1d5623f0115bd29c040a7936159dc0f6ac8d62b QCLINUX: qcom-dcc: add device configuration for Kaanapali
+f97d300738f8b3d62bc44ebe5e11f7af43cdd4c8 QCLINUX: memory-dump: add memory dump table for Pakala
+59765f2430fbbe05a5efe05ae48c4ca2d928af69 QCLINUX: qcom-dcc: add device configuration for Pakala
+75ec75270f66ec30923cdf604105a1a00b092cc6 QCLINUX: memory-dump: add logic for reserving CMA memory
+04927aa32c487110a30ff2d98de7509725584884 QCLINUX: mem-dump: add memory dump device driver
+01d59d21a9179472325e34a0a1555159f5bd85dd QCLINUX: memory-dump: add QCOM memory dump driver
+0fcb861bbaa6bbc39de7c1fbe16335e5c37438f9 QCLINUX: qcom-dcc: add qcom-dcc dev driver
+33b2ed518990c1f6c1c1509567a83901c3d42c07 QCLINUX: add qcom_debug.config for debug features
+be3e7a4e9a0e14d733662fa8f78e4ebc4af5070a QCLINUX: qcom-dcc: Add driver support for Data Capture and Compare unit(DCC)
+a3602e9cbd3dd4519ddc446ddba1261fe4e156bd FROMLIST: net: phy: qcom: qca808x: Add .get_rate_matching support
+a6ce790e0668cc6f98549c390017c5d1be5d983d FROMLIST: crypto: qce - Add runtime PM and interconnect bandwidth scaling support
+c828f10cd2c53b7ff2cc061e73b239973ee17bc6 arm64: dts: qcom: agatti: enable FastRPC on the ADSP
+fa6b06add383d99c6ee75331081bc25a6986e2e0 FROMLIST: crypto: qce - Switch to using BAM DMA for crypto I/O
+67a9ac3a484b8efd1593025a5fa355eb7aeff918 FROMLIST: crypto: qce - Add support for BAM locking
+e1170f20fb7839d48aa84b406f25eb59f4a123ef FROMLIST: crypto: qce - Add BAM DMA support for crypto register I/O
+b849a69922d805f532786419820e56a9cad967e0 FROMLIST: crypto: qce - Map crypto memory for DMA
+8bbc3c84a5d6f61817df15323e5a0d116b6b62ac FROMLIST: crypto: qce - Use existing devres APIs in devm_qce_dma_request()
+32cdabe75da355e06786cf1d1ebaa944612da8c0 FROMLIST: crypto: qce - Simplify arguments of devm_qce_dma_request()
+20ac178866876878e466c93b583ce7599bf3f225 FROMLIST: crypto: qce - Remove unused ignore_buf
+88c822026c45f1a56623c4d4871c555c1066722b FROMLIST: crypto: qce - Include algapi.h in the core.h header
+67be6e002d88be4f081ec71f6876c256cf13321e FROMLIST: dmaengine: qcom: bam_dma: Add bam_pipe_lock flag support
+88da45e444b4fdb7223b2687afb5dcc0c3173ba3 FROMLIST: dmaengine: qcom: bam_dma: Extend the driver's device match data
+22ea4bf1d0fb65028b8886987e6a28b78f7a5376 FROMLIST: dmaengine: Add DMA_PREP_LOCK/DMA_PREP_UNLOCK flags
+49ac8e0eb9656bdaa63dfa8431879f8fe6798742 FROMLIST: dt-bindings: usb: qcom,dwc3: Correct the SM8750 compatible
+c29f570c16249b9ae1472b08a3570f2985fa5532 UPSTREAM: dt-bindings: usb: qcom,snps-dwc3: Add the SM8750 compatible
