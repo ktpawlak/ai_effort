@@ -1,0 +1,69 @@
+From 561d46d670d47e4f273a31b6258cbfdb32d4c94c Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Fri, 17 Jul 2026 12:10:25 +0200
+Subject: [PATCH v3 2/2] rtc02: skip (TCONF) on read-only RTCs that reject
+ RTC_SET_TIME
+
+Some RTC hardware does not allow setting the time from the host. For
+example Qualcomm PMIC RTCs (rtc-pm8xxx) that are configured without the
+allow-set-time DT property and without an nvmem/UEFI offset return
+-ENODEV from RTC_SET_TIME; the counter free-runs from the epoch and is
+only usable as an uptime source. On such devices rtc02 currently reports
+TFAIL, which is a hardware limitation rather than a kernel defect.
+
+Probe whether the RTC can be set in the setup phase, writing back the
+value just read so a writable RTC is left unchanged. When RTC_SET_TIME
+fails with ENODEV, skip the whole test with TCONF. Only ENODEV is treated
+as "not supported": wider errnos such as EINVAL are used broadly by the
+kernel and could mask a genuine failure, so anything else still results
+in TBROK.
+
+Doing the check in setup, before tst_rtc_clock_save(), also avoids the
+cleanup path (tst_rtc_clock_restore()) issuing RTC_SET_TIME and turning
+the run into a TBROK on such devices. If the probe succeeds the test body
+runs as before, so no additional handling is needed there.
+
+Signed-off-by: Kuba Pawlak <kuba.pawlak@canonical.com>
+---
+v3: drop the long explanatory comment; add a blank line between the
+    RTC_RD_TIME and RTC_SET_TIME probes.
+
+ testcases/kernel/device-drivers/rtc/rtc02.c | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/testcases/kernel/device-drivers/rtc/rtc02.c b/testcases/kernel/device-drivers/rtc/rtc02.c
+index 34509ab..1b954f3 100644
+--- a/testcases/kernel/device-drivers/rtc/rtc02.c
++++ b/testcases/kernel/device-drivers/rtc/rtc02.c
+@@ -16,6 +16,7 @@
+  */
+ 
+ #include <stdio.h>
++#include <errno.h>
+ #include "tst_rtctime.h"
+ #include "tst_wallclock.h"
+ #include "tst_test.h"
+@@ -133,10 +134,20 @@ static void set_rtc_test(void)
+ static void rtc_setup(void)
+ {
+ 	int exists = access(rtc_dev, F_OK);
++	struct rtc_time probe_tm;
+ 
+ 	if (exists < 0)
+ 		tst_brk(TCONF, "RTC device %s not available", rtc_dev);
+ 
++	if (tst_rtc_gettime(rtc_dev, &probe_tm))
++		tst_brk(TBROK | TERRNO, "ioctl() RTC_RD_TIME");
++
++	if (tst_rtc_settime(rtc_dev, &probe_tm)) {
++		if (errno == ENODEV)
++			tst_brk(TCONF | TERRNO, "RTC does not support setting the time");
++		tst_brk(TBROK | TERRNO, "ioctl() RTC_SET_TIME");
++	}
++
+ 	tst_rtc_clock_save(rtc_dev);
+ }
+ 
+-- 
+2.43.0
+

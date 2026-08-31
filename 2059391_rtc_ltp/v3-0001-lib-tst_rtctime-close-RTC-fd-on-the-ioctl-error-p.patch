@@ -1,0 +1,47 @@
+From 8598aa8c58fd1f0ebc458e2d4d745d6d54f3afc9 Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Fri, 17 Jul 2026 12:10:25 +0200
+Subject: [PATCH v3 1/2] lib: tst_rtctime: close RTC fd on the ioctl() error
+ path
+
+tst_rtc_ioctl() opens the RTC device with SAFE_OPEN() but returns -1 on
+an ioctl() failure without closing the descriptor, leaking it on every
+failed call. The RTC character device is exclusive-open, so a leaked fd
+makes the next tst_rtc_ioctl() open fail with EBUSY.
+
+This was mostly latent because the failure path was rarely taken, but it
+is now hit routinely on RTCs that reject RTC_SET_TIME (e.g. Qualcomm PMIC
+RTCs returning -ENODEV). Close the fd on the error path and preserve
+errno so callers can still inspect the ioctl() failure reason.
+
+Signed-off-by: Kuba Pawlak <kuba.pawlak@canonical.com>
+---
+v3: drop the errno save/restore around SAFE_CLOSE(); a successful close()
+    does not clobber errno, and SAFE_CLOSE() breaks the test on failure.
+
+ lib/tst_rtctime.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/lib/tst_rtctime.c b/lib/tst_rtctime.c
+index c62ac73..99c16ec 100644
+--- a/lib/tst_rtctime.c
++++ b/lib/tst_rtctime.c
+@@ -117,11 +117,12 @@ int tst_rtc_ioctl(const char *rtc_dev, unsigned long request,
+ 
+ 	ret = ioctl(rtc_fd, request, rtc_tm);
+ 
+-	if (ret != 0)
++	if (ret != 0) {
++		SAFE_CLOSE(rtc_fd);
+ 		return -1;
++	}
+ 
+-	if (rtc_fd > 0)
+-		SAFE_CLOSE(rtc_fd);
++	SAFE_CLOSE(rtc_fd);
+ 
+ 	return 0;
+ }
+-- 
+2.43.0
+

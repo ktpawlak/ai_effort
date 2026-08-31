@@ -1,0 +1,42 @@
+From 561d46d670d47e4f273a31b6258cbfdb32d4c94c Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Thu, 23 Jul 2026 11:34:05 +0200
+Subject: [PATCH v3 0/2] rtc02: handle RTCs that do not allow setting the time
+
+This series makes LTP's rtc02 cope with RTC hardware that does not allow
+setting the time (e.g. Qualcomm PMIC RTCs, rtc-pm8xxx, which return -ENODEV
+from RTC_SET_TIME when configured without allow-set-time or an nvmem/UEFI
+offset). On such devices rtc02 currently fails a valid, working system.
+
+Patch 1 fixes a pre-existing fd leak in tst_rtc_ioctl() that the new probe
+in patch 2 would otherwise hit on every run (the RTC chardev is
+exclusive-open, so the leak causes a follow-up EBUSY). Patch 2 probes
+set-time support in setup and skips with TCONF when RTC_SET_TIME returns
+ENODEV.
+
+Tested on arm64:
+  - QCS8300 (read-only RTC): rtc02 now TCONF (skipped), was TFAIL.
+  - X1E80100 (writable RTC): rtc02 still TPASS.
+
+Changes since v2:
+  - patch 1: drop the errno save/restore around SAFE_CLOSE(); a successful
+    close() does not clobber errno, and if SAFE_CLOSE() fails the test
+    breaks anyway (Andrea Cervesato).
+  - patch 2: drop the long explanatory comment and let the commit message
+    and code speak for themselves; add a blank line between the RTC_RD_TIME
+    and RTC_SET_TIME probes (Andrea Cervesato).
+
+Link to v2:
+  https://lists.linux.it/pipermail/ltp/2026-July/049974.html
+
+Kuba Pawlak (2):
+  lib: tst_rtctime: close RTC fd on the ioctl() error path
+  rtc02: skip (TCONF) on read-only RTCs that reject RTC_SET_TIME
+
+ lib/tst_rtctime.c                           |  7 ++++---
+ testcases/kernel/device-drivers/rtc/rtc02.c | 11 +++++++++++
+ 2 files changed, 15 insertions(+), 3 deletions(-)
+
+-- 
+2.43.0
+
