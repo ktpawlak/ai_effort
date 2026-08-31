@@ -1,0 +1,86 @@
+From: Sushrut Shree Trivedi <sushrut.trivedi@oss.qualcomm.com>
+Date: Fri, 14 Aug 2026 00:00:00 -0700
+Subject: [PATCH] arm64: dts: qcom: monaco-monza: Add refgen (L7A) vote for PCIe PHY
+
+Add votes for the L7A regulator which acts as the refgen supply for the
+PCIe PHY and ensures stable PHY operation across suspend/resume on Monza
+(QCS8300). This is in addition to the existing L4A (qref) vote.
+
+Monza has two PCIe PHYs bound to different configs:
+  - pcie0_phy -> qcom,qcs8300-qmp-gen4x2-pcie-phy -> qcs8300_qmp_gen4x2_pciephy_cfg
+  - pcie1_phy -> qcom,sa8775p-qmp-gen4x4-pcie-phy -> sa8775p_qmp_gen4x4_pciephy_cfg
+
+Introduce a dedicated sa8775p_qmp_phy_vreg_l list that adds "vdda-refgen"
+(and keeps "vdda-qref") and point BOTH configs at it, so the votes
+declared in the device tree are actually requested by the driver for
+both PHYs. Note "refgen" is a PHY *clock* (already handled optionally via
+qmp_pciephy_clk_l), not a regulator, so it must not appear in the
+regulator list; only the "vdda-refgen" regulator (DT vdda-refgen-supply)
+is added.
+
+Signed-off-by: Sushrut Shree Trivedi <sushrut.trivedi@oss.qualcomm.com>
+---
+  arch/arm64/boot/dts/qcom/monaco-monza.dts |  2 ++
+  drivers/phy/qualcomm/phy-qcom-qmp-pcie.c  | 12 ++++++++----
+  2 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/arch/arm64/boot/dts/qcom/monaco-monza.dts b/arch/arm64/boot/dts/qcom/monaco-monza.dts
+index 7f9644ada286..e1cc6da5fe5c 100644
+--- a/arch/arm64/boot/dts/qcom/monaco-monza.dts
++++ b/arch/arm64/boot/dts/qcom/monaco-monza.dts
+@@ -513,6 +513,7 @@ &pcie0_phy {
+ 	vdda-phy-supply = <&vreg_l6a>;
+ 	vdda-pll-supply = <&vreg_l5a>;
+ 	vdda-qref-supply = <&vreg_l4a>;
++	vdda-refgen-supply = <&vreg_l7a>;
+ 
+ 	status = "okay";
+ };
+@@ -532,6 +533,7 @@ &pcie1_phy {
+ 	vdda-phy-supply = <&vreg_l6a>;
+ 	vdda-pll-supply = <&vreg_l5a>;
+ 	vdda-qref-supply = <&vreg_l4a>;
++	vdda-refgen-supply = <&vreg_l7a>;
+ 
+ 	status = "okay";
+ };
+diff --git a/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c b/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c
+index 2260a8830b60..d63df52cd8e8 100644
+--- a/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c
++++ b/drivers/phy/qualcomm/phy-qcom-qmp-pcie.c
+@@ -2617,6 +2617,10 @@ static const char * const sm8550_qmp_phy_vreg_l[] = {
+ 	"vdda-phy", "vdda-pll", "vdda-qref",
+ };
+ 
++static const char * const sa8775p_qmp_phy_vreg_l[] = {
++	"vdda-phy", "vdda-pll", "vdda-qref", "vdda-refgen",
++};
++
+ /* list of resets */
+ static const char * const ipq8074_pciephy_reset_l[] = {
+ 	"phy", "common",
+@@ -3454,8 +3458,8 @@ static const struct qmp_phy_cfg sa8775p_qmp_gen4x4_pciephy_cfg = {
+ 
+ 	.reset_list		= sdm845_pciephy_reset_l,
+ 	.num_resets		= ARRAY_SIZE(sdm845_pciephy_reset_l),
+-	.vreg_list		= sm8550_qmp_phy_vreg_l,
+-	.num_vregs		= ARRAY_SIZE(sm8550_qmp_phy_vreg_l),
++	.vreg_list		= sa8775p_qmp_phy_vreg_l,
++	.num_vregs		= ARRAY_SIZE(sa8775p_qmp_phy_vreg_l),
+ 	.regs			= pciephy_v5_regs_layout,
+ 
+ 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
+@@ -3543,8 +3547,8 @@ static const struct qmp_phy_cfg qcs8300_qmp_gen4x2_pciephy_cfg = {
+ 
+ 	.reset_list		= sdm845_pciephy_reset_l,
+ 	.num_resets		= ARRAY_SIZE(sdm845_pciephy_reset_l),
+-	.vreg_list		= qmp_phy_vreg_l,
+-	.num_vregs		= ARRAY_SIZE(qmp_phy_vreg_l),
++	.vreg_list		= sa8775p_qmp_phy_vreg_l,
++	.num_vregs		= ARRAY_SIZE(sa8775p_qmp_phy_vreg_l),
+ 	.regs			= pciephy_v5_20_regs_layout,
+ 
+ 	.pwrdn_ctrl		= SW_PWRDN | REFCLK_DRV_DSBL,
+
+-- 
+2.43.0
