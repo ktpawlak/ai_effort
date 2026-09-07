@@ -1,0 +1,90 @@
+LP#2165440 - raw audit output
+generated: 2026-09-03T17:17:15+02:00
+HEAD: 925a0c46bf868cc8863f3662b8c0f9630000e0be
+
+=== [1] Conflict-risk set: files changed by BOTH base(139->145) AND derivative ===
+base changed:  535
+deriv changed: 3288
+intersection:  24
+
+arch/arm/mm/fault.c
+arch/arm64/Kconfig
+drivers/block/zram/zram_drv.c
+drivers/bluetooth/btusb.c
+drivers/bluetooth/hci_qca.c
+drivers/clk/qcom/dispcc-sc8280xp.c
+drivers/hid/hid-ids.h
+drivers/i2c/busses/i2c-qcom-cci.c
+drivers/misc/fastrpc.c
+drivers/net/phy/phy_device.c
+drivers/pci/quirks.c
+drivers/soc/qcom/ice.c
+drivers/tty/serial/pch_uart.c
+drivers/tty/serial/qcom_geni_serial.c
+drivers/usb/typec/ucsi/ucsi.c
+drivers/usb/typec/ucsi/ucsi_ccg.c
+include/net/bluetooth/hci_core.h
+kernel/events/core.c
+net/bluetooth/hci_conn.c
+net/bluetooth/hci_sync.c
+net/bluetooth/mgmt.c
+net/core/filter.c
+net/core/skbuff.c
+net/core/sock.c
+
+=== [2] Delta comparison: base(139->145) vs preRebaseTag(a30603e9c916)->HEAD ===
+FILE                                          base139->145   oldDeriv->HEAD
+arch/arm/mm/fault.c                           35+/0-         35+/0-        
+arch/arm64/Kconfig                            50+/0-         50+/0-        
+drivers/block/zram/zram_drv.c                 1+/1-          1+/1-         
+drivers/bluetooth/btusb.c                     7+/1-          7+/1-         
+drivers/bluetooth/hci_qca.c                   18+/20-        18+/20-       
+drivers/clk/qcom/dispcc-sc8280xp.c            2+/2-          2+/2-         
+drivers/hid/hid-ids.h                         1+/0-          1+/0-         
+drivers/i2c/busses/i2c-qcom-cci.c             1+/1-          1+/1-         
+drivers/misc/fastrpc.c                        68+/39-        68+/39-       
+drivers/net/phy/phy_device.c                  6+/0-          6+/0-         
+drivers/pci/quirks.c                          3+/0-          3+/0-         
+drivers/soc/qcom/ice.c                        30+/8-         24+/6-        
+drivers/tty/serial/pch_uart.c                 13+/6-         13+/6-        
+drivers/tty/serial/qcom_geni_serial.c         15+/2-         10+/10-       
+drivers/usb/typec/ucsi/ucsi.c                 20+/4-         20+/4-        
+drivers/usb/typec/ucsi/ucsi_ccg.c             5+/0-          NONE          
+include/net/bluetooth/hci_core.h              6+/3-          6+/3-         
+kernel/events/core.c                          4+/12-         4+/12-        
+net/bluetooth/hci_conn.c                      24+/7-         24+/7-        
+net/bluetooth/hci_sync.c                      33+/4-         33+/4-        
+net/bluetooth/mgmt.c                          9+/8-          9+/8-         
+net/core/filter.c                             13+/4-         13+/4-        
+net/core/skbuff.c                             17+/3-         17+/3-        
+net/core/sock.c                               11+/2-         11+/2-        
+
+=== [3] Reverse-apply proof that each base fix survived ===
+e8a8932da9e1   fastrpc.c                PRESENT    misc: fastrpc: Fix NULL pointer dereference in rpmsg callback
+9e7eb4e51665   fastrpc.c                PRESENT    misc: fastrpc: fix DMA address corruption due to find_vma misuse
+64623c0cad99   fastrpc.c                PRESENT    misc: fastrpc: fix use-after-free race in fastrpc_map_create
+8db4ac292173   fastrpc.c                PRESENT    misc: fastrpc: fix use-after-free of fastrpc_user in workqueue context
+e92f544a16f6   qcom_geni_serial.c       PRESENT    serial: qcom_geni: fix kfifo underflow when flush precedes DMA completion IRQ
+a705e0c19895   qcom_geni_serial.c       PRESENT    serial: qcom-geni: fix UART_RX_PAR_EN bit position
+0134391aac66   ucsi_ccg.c               NOT-APPLICABLE (see README 4) usb: typec: ucsi: ccg: reject firmware images without a ':' record header
+
+=== [4] Amended commits (final hashes in HEAD) ===
+b289971d30c9   FROMLIST: soc: qcom: ice: Add OPP-based clock scaling support for ICE
+89f09ef7d2f1   PENDING: driver: bluetooth: hci_qca: fix SSR unable to wake up bug
+76e4ebdee049   PENDING: misc: fastrpc: Add rpdev check in device_open
+9eb613e56663   PENDING: misc: fastrpc: Add support for invoke v2
+
+=== [5] History integrity ===
+commit count HEAD:   1281828
+commit count backup: 1281828
+merge commits in derivative range: 0
+
+tree delta vs backup/cranky-qcom-pre-icefix:
+ debian.qcom/changelog       | 2 +-
+ drivers/bluetooth/hci_qca.c | 2 +-
+ drivers/misc/fastrpc.c      | 4 ++++
+ drivers/soc/qcom/ice.c      | 3 +++
+ 4 files changed, 9 insertions(+), 2 deletions(-)
+
+=== [6] Build verification (arm64 allmodconfig, cross aarch64-linux-gnu-) ===
+All 20 at-risk objects compiled with zero errors, incl. ice.o, hci_qca.o, fastrpc.o.

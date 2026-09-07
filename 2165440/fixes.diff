@@ -1,0 +1,49 @@
+diff --git a/drivers/bluetooth/hci_qca.c b/drivers/bluetooth/hci_qca.c
+index a6ed06b2ab27..da619c4be735 100644
+--- a/drivers/bluetooth/hci_qca.c
++++ b/drivers/bluetooth/hci_qca.c
+@@ -1617,7 +1617,7 @@ static void qca_wait_for_dump_collection(struct hci_dev *hdev)
+ 	struct qca_data *qca = hu->priv;
+ 
+ 	wait_on_bit_timeout(&qca->flags, QCA_MEMDUMP_COLLECTION,
+-			    TASK_UNINTERRUPTIBLE, msecs_to_jiffies(MEMDUMP_TIMEOUT_MS));
++			    TASK_UNINTERRUPTIBLE, MEMDUMP_TIMEOUT);
+ 
+ 	clear_bit(QCA_MEMDUMP_COLLECTION, &qca->flags);
+ }
+diff --git a/drivers/misc/fastrpc.c b/drivers/misc/fastrpc.c
+index 4b095b1c2f73..b2b4a86f8a5d 100644
+--- a/drivers/misc/fastrpc.c
++++ b/drivers/misc/fastrpc.c
+@@ -3140,6 +3140,7 @@ static int fastrpc_rpmsg_probe(struct rpmsg_device *rpdev)
+ 	spin_lock_init(&data->lock);
+ 	idr_init(&data->ctx_idr);
+ 	data->domain_id = domain_id;
++	dev_set_drvdata(&rpdev->dev, data);
+ 
+ 	err = of_platform_populate(rdev->of_node, NULL, NULL, rdev);
+ 	if (err)
+@@ -3205,6 +3206,9 @@ static int fastrpc_rpmsg_callback(struct rpmsg_device *rpdev, void *data,
+ 	if (len < sizeof(*rsp))
+ 		return -EINVAL;
+ 
++	if (!cctx)
++		return -ENODEV;
++
+ 	ctxid = (rsp->ctx & ~(((1 << 16) - 1)));
+ 	idr = ((rsp->ctx & FASTRPC_CTXID_MASK) >> 16);
+ 
+diff --git a/drivers/soc/qcom/ice.c b/drivers/soc/qcom/ice.c
+index c7f44537d8c6..aeacb26c953b 100644
+--- a/drivers/soc/qcom/ice.c
++++ b/drivers/soc/qcom/ice.c
+@@ -98,6 +98,9 @@ union crypto_cfg {
+ 	};
+ };
+ 
++static DEFINE_XARRAY(ice_handles);
++static DEFINE_MUTEX(ice_mutex);
++
+ static const char * const legacy_ice_clk_names[] = {
+ 	"ice_core_clk",
+ 	"ice",
