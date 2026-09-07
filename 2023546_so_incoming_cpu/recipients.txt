@@ -1,0 +1,18 @@
+Primary mailing list:
+  netdev@vger.kernel.org
+
+Additional mailing lists:
+  linux-kselftest@vger.kernel.org
+  linux-kernel@vger.kernel.org
+
+Maintainers and reviewers:
+  "David S. Miller" <davem@davemloft.net>
+  Eric Dumazet <edumazet@google.com>
+  Jakub Kicinski <kuba@kernel.org>
+  Paolo Abeni <pabeni@redhat.com>
+  Simon Horman <horms@kernel.org>
+  Shuah Khan <shuah@kernel.org>
+
+Original test author:
+  Kuniyuki Iwashima <kuniyu@amazon.com>
+

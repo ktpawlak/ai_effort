@@ -1,0 +1,20 @@
+Upstream base:
+  bc35965f6940a9bf834d54187b6088b8eb09206d
+  Merge tag 'mm-hotfixes-stable-2026-09-03-17-45' of
+  git://git.kernel.org/pub/scm/linux/kernel/git/akpm/mm
+
+Submitted commit:
+  881f0b8e042dd8ba2c634020b953ca8cda12cd92
+  selftests: net: Skip so_incoming_cpu on single-CPU systems
+
+Locally amended commit:
+  f7dcdd312f353a94000a0bc67664aacdb446db3b
+  selftests: net: Skip so_incoming_cpu on single-CPU systems
+
+Mailing-list v2 commit:
+  fa8de91364ca23b87e53e595fecbe32f54120445
+  selftests: net: Skip so_incoming_cpu on single-CPU systems
+
+The source diff is identical. The exact public submission, including its
+headers, commit message, trailers, and Message-ID, is saved in
+sent-message.eml.

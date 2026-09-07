@@ -1,0 +1,37 @@
+Launchpad bug:
+https://bugs.launchpad.net/ubuntu-kernel-tests/+bug/2023546
+
+Launchpad API:
+https://api.launchpad.net/1.0/bugs/2023546
+
+Sent patch, netdev archive:
+https://lore.kernel.org/netdev/20260904140334.562593-1-kuba.pawlak@canonical.com/
+
+Sent patch, linux-kselftest archive:
+https://lore.kernel.org/linux-kselftest/20260904140334.562593-1-kuba.pawlak@canonical.com/
+
+Patchwork record:
+https://patchwork.kernel.org/project/netdevbpf/patch/20260904140334.562593-1-kuba.pawlak@canonical.com/
+
+Archive indexes:
+https://lore.kernel.org/netdev/
+https://lore.kernel.org/linux-kselftest/
+https://lore.kernel.org/lkml/
+
+Original upstream selftest commit:
+https://github.com/torvalds/linux/commit/6df96146b2025e122447354daf66edbfa88e8a1e
+
+Fixture setup skip support:
+https://github.com/torvalds/linux/commit/372b304c1e517c4d3e5b6ca6c9cfb20f027c3b03
+
+Unrelated port-reuse reliability fix:
+https://github.com/torvalds/linux/commit/97de5a15edf2d22184f5ff588656030bbb7fa358
+
+Current upstream source:
+https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/tools/testing/selftests/net/so_incoming_cpu.c
+
+AWS A1 instance specifications:
+https://docs.aws.amazon.com/ec2/latest/instancetypes/pg.html
+
+Azure Bv1 instance specifications:
+https://learn.microsoft.com/en-us/azure/virtual-machines/sizes/general-purpose/bv1-series

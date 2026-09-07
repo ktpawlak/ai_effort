@@ -1,0 +1,39 @@
+Upstream base:
+  bc35965f6940a9bf834d54187b6088b8eb09206d
+
+Submitted patch commit:
+  881f0b8e042dd8ba2c634020b953ca8cda12cd92
+
+Locally amended patch commit:
+  f7dcdd312f353a94000a0bc67664aacdb446db3b
+
+Mailing-list v2 commit:
+  fa8de91364ca23b87e53e595fecbe32f54120445
+
+Build command:
+  make -s -C tools/testing/selftests/net so_incoming_cpu
+
+Build result:
+  success
+
+Single-CPU simulation:
+  A temporary LD_PRELOAD library overrode get_nprocs() to return 1.
+
+Observed result:
+  exit=0 skips=12 failures=0
+  # Totals: pass:0 fail:0 xfail:0 xpass:0 skip:12 error:0
+
+Expected TAP result for every case:
+  ok N so_incoming_cpu.<variant>.<test> # SKIP requires at least two CPUs
+
+Patch style command:
+  ./scripts/checkpatch.pl --no-tree --strict --ignore BAD_SIGN_OFF PATCH
+
+Patch style result:
+  total: 0 errors, 0 warnings, 0 checks, 14 lines checked
+
+Application check:
+  git apply --check --reverse PATCH
+
+Application check result:
+  success

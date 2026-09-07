@@ -1,0 +1,12 @@
+git send-email \
+  --to=netdev@vger.kernel.org \
+  --cc=linux-kselftest@vger.kernel.org \
+  --cc=linux-kernel@vger.kernel.org \
+  --cc=davem@davemloft.net \
+  --cc=edumazet@google.com \
+  --cc=kuba@kernel.org \
+  --cc=pabeni@redhat.com \
+  --cc=horms@kernel.org \
+  --cc=shuah@kernel.org \
+  --cc=kuniyu@amazon.com \
+  0001-selftests-net-Skip-so_incoming_cpu-on-single-CPU-sys.patch

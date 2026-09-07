@@ -1,0 +1,39 @@
+From f7dcdd312f353a94000a0bc67664aacdb446db3b Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Fri, 4 Sep 2026 15:54:14 +0200
+Subject: [PATCH] selftests: net: Skip so_incoming_cpu on single-CPU systems
+
+The test requires at least two CPUs to exercise the distribution of connections
+between per-CPU listeners. It currently enforces this prerequisite with an
+assertion, causing all test cases to fail on single-vCPU systems even though
+no kernel functionality was tested.
+
+Report the unsupported environment as a skip instead.
+
+Signed-off-by: Kuba Pawlak <kuba.pawlak@canonical.com>
+---
+ tools/testing/selftests/net/so_incoming_cpu.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/tools/testing/selftests/net/so_incoming_cpu.c b/tools/testing/selftests/net/so_incoming_cpu.c
+index 4740701f1a9ac840001c9044d7011bf25be7497d..1b73442386aef254c578c54ef2b53b57b4179e6f 100644
+--- a/tools/testing/selftests/net/so_incoming_cpu.c
++++ b/tools/testing/selftests/net/so_incoming_cpu.c
+@@ -81,10 +81,11 @@ static int nr_client_per_server, nr_server, nr_client;
+ 
+ FIXTURE_SETUP(so_incoming_cpu)
+ {
+-	setup_netns(_metadata);
+-
+ 	nr_server = get_nprocs();
+-	ASSERT_LE(2, nr_server);
++	if (nr_server < 2)
++		SKIP(return, "requires at least two CPUs");
++
++	setup_netns(_metadata);
+ 
+ 	if (NR_CLIENT_PER_SERVER_DEFAULT * nr_server < NR_PORT)
+ 		nr_client_per_server = NR_CLIENT_PER_SERVER_DEFAULT;
+-- 
+2.43.0
+
