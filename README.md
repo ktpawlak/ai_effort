@@ -31,6 +31,7 @@ See [`SUMMARY.md`](SUMMARY.md) for a one-page index of every ticket analysis.
 | `fan_control/` | Hamoa fan control investigation |
 | `hamoa_slim_initramfs/`, `monza2_slim_initramfs/` | Slim/minimal initramfs experiments |
 | `config_trim/` | Kernel config trimming notes |
+| `cpufreq_governor_investigation/` | `ondemand` vs `schedutil` + `fast_switch` on Hamoa/Monza2 |
 | `overlay/` | DTB overlay tutorial |
 
 ## Boards
