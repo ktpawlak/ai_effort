@@ -144,20 +144,41 @@ Monza2 stayed at 33–41 °C (no thermal throttling). Scripts: see `bench/`.
 
 ### Monza2 (fan on, mains) — `bench/monza_gov_bench.sh`
 
+Two runs were taken. The first used the same heavy 200M-iter/worker load as
+Hamoa; because QCS8300 tops out ~2.4 GHz it ran ~17 min, so the script was later
+lightened to **60M iters/worker, 3 reps** (~4 min). Both runs agree, and the
+lighter load actually sharpens the sustained-load signal (less time pinned at
+max hides less of the fast_switch cost).
+
+**Run A — heavy load (8×200M, 4 reps):**
+
 | Test | ondemand | schedutil | Verdict |
 |------|----------|-----------|---------|
-| Sustained all-core (8×200M, median) | 125.9 s | 122.7 s | ≈ equal (−2.5%, noise) |
+| Sustained all-core (median) | 125.9 s | 122.7 s | ≈ equal (−2.5%, noise) |
 | **Ramp latency** to 95% max freq (median) | **11.3 ms** | **23.1 ms** (max 71 ms) | schedutil ~2× slower, jittery |
 | **Bursty** duty-cycle work done (15ms on / 25ms off) | **801 M** | **476 M** | ondemand did **+68% more work** |
 
-→ On a board **without** fast_switch, `schedutil` is fine for pinned sustained
-load but clearly regresses **ramp latency and bursty/interactive** performance —
-the deferred `sugov` kthread wakeup is the cause.
+**Run B — lighter load (8×60M, 3 reps), temps 29–34 °C:**
 
-**Why sustained load hides it:** once all cores are pinned at max, no further
-frequency changes happen, so the deferred path never fires. The penalty only
-shows on **transitions** (ramp, bursty, interactive), which is precisely what a
-compute-throughput test misses and what real desktop/interactive use hits.
+| Test | ondemand | schedutil | Verdict |
+|------|----------|-----------|---------|
+| Sustained all-core (median) | 32.6 s | 35.1 s | schedutil **+7.8% slower** |
+| **Ramp latency** to 95% max freq (median) | **11.4 ms** | **13.4 ms** (mean 20.7, max 69 ms) | schedutil slower + long tail |
+| **Bursty** duty-cycle work done (15ms on / 25ms off) | **943 M** | **479 M** | ondemand did **+97% more work** |
+
+→ On a board **without** fast_switch, `schedutil` regresses **ramp latency and
+bursty/interactive** performance in both runs (deferred `sugov` kthread wakeup).
+Sustained throughput is ≈ equal on the long heavy run but shows a real **+7.8%**
+penalty on the shorter run — the shorter the job, the more the ramp/dip cost
+weighs, so the fast_switch penalty is *not* purely an interactive-only concern.
+
+**Why sustained load partly hides it:** once all cores are pinned at max, no
+further frequency changes happen, so the deferred path never fires. On a long
+run that "pinned" phase dominates and the penalty nearly vanishes (Run A, −2.5%);
+on a shorter run the ramp-up and any mid-run dips weigh more, exposing a real
+penalty (Run B, +7.8%). The effect is largest on **transitions** (ramp, bursty,
+interactive) — exactly what a long compute-throughput test misses and what real
+desktop/interactive use hits.
 
 ---
 

@@ -15,14 +15,16 @@ echo "kernel=$(uname -r)  nproc=$(nproc)  taskset=$(command -v taskset||echo non
 echo "start max cpu temp=$(( $(max_cpu_temp)/1000 ))C"
 
 # ---------- Test 1: sustained all-core throughput (interleaved) ----------
-echo ""; echo "=== Test1: sustained all-core (8x200M iters), interleaved ==="
+# Monza2 (QCS8300, ~2.4GHz) is much slower than Hamoa, so use a lighter
+# per-worker load (60M iters ~40s/rep) and 3 reps to keep total runtime sane.
+echo ""; echo "=== Test1: sustained all-core (8x60M iters), interleaved ==="
 : > /tmp/agg.txt
 printf "%-4s %-10s %-8s %-8s\n" "rep" "gov" "time(s)" "peakT"
-for rep in 1 2 3 4; do
+for rep in 1 2 3; do
   if [ $((rep%2)) -eq 1 ]; then GL="ondemand schedutil"; else GL="schedutil ondemand"; fi
   for GOV in $GL; do
     set_gov $GOV; sleep 2
-    r0=$(date +%s.%N); run_allcore 200000000; r1=$(date +%s.%N)
+    r0=$(date +%s.%N); run_allcore 60000000; r1=$(date +%s.%N)
     dt=$(python3 -c "print(f'{$r1-$r0:.2f}')"); pk=$(( $(max_cpu_temp)/1000 ))
     printf "%-4s %-10s %-8s %-8s\n" "$rep" "$GOV" "$dt" "$pk"
     echo "$GOV $dt" >> /tmp/agg.txt
@@ -40,7 +42,7 @@ PY
 rm -f /tmp/agg.txt
 
 # ---------- Test 2: ramp-latency (time to reach 95% max freq from idle) ----------
-echo ""; echo "=== Test2: single-core ramp latency to 95% max freq (ms), 15 trials ==="
+echo ""; echo "=== Test2: single-core ramp latency to 95% max freq (ms), 10 trials ==="
 for GOV in ondemand schedutil; do
   set_gov $GOV; sleep 1
 python3 - "$GOV" <<'PY'
@@ -55,7 +57,7 @@ def burner():
     if have_ts: cmd=['taskset','-c','0']+cmd
     return subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
 res=[]
-for _ in range(15):
+for _ in range(10):
     time.sleep(0.5)  # let cpu0 drop to min
     p=burner(); t0=time.perf_counter(); tmax=None
     while time.perf_counter()-t0 < 0.4:
