@@ -1,0 +1,3 @@
+[submodule "qpa"]
+	path = qpa
+	url = git@github.com:ktpawlak/qpa.git

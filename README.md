@@ -26,7 +26,7 @@ See [`SUMMARY.md`](SUMMARY.md) for a one-page index of every ticket analysis.
 | Directory | Purpose |
 |-----------|---------|
 | `2XXXXXXX_*/` | Per-Launchpad-bug analysis: patches, notes, rebase guides |
-| `qpa/` | Board flashing and test automation |
+| `qpa/` | Board flashing and test automation (submodule: `ktpawlak/qpa`) |
 | `keyboard_gadget/` | USB HID keyboard gadget to drive a DUT remotely (via Raspberry Pi 4) |
 | `fan_control/` | Hamoa fan control investigation |
 | `hamoa_slim_initramfs/`, `monza2_slim_initramfs/` | Slim/minimal initramfs experiments |
