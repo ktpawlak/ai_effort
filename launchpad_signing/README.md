@@ -131,6 +131,36 @@ Not the mechanism any more — the **custody policy**. Specifically:
   starts. Expiry behaviour should be confirmed against real firmware rather
   than assumed.
 
+## A constraint on whatever certificate gets issued
+
+Found while building the interim test chain in
+`~/qualcomm/linux-signed/debian/capsule/test-keys/`, and worth stating before
+anyone requests a certificate from Qualcomm.
+
+**The signing certificate must not carry an `extendedKeyUsage` that excludes
+`emailProtection`.** An EKU of `codeSigning` — the intuitive choice for a
+firmware signing cert — makes verification fail outright, before the signature
+is even examined:
+
+```
+PKCS7_verify:certificate verify error:Verify error: unsuitable certificate purpose
+```
+
+The reason is that EDK2's `Pkcs7Verify()` calls OpenSSL's `PKCS7_verify()`,
+which applies the S/MIME signing purpose to the chain. `purpose_smime()`
+rejects any certificate whose EKU is present but lacks the S/MIME bit. EDK2
+sets `X509_V_FLAG_PARTIAL_CHAIN` and `X509_V_FLAG_NO_CHECK_TIME`, neither of
+which disables the purpose check.
+
+Omitting the extension entirely satisfies it, because the check only rejects
+an EKU that *is* present. The test chain therefore ships a leaf with
+`basicConstraints=CA:FALSE` and `keyUsage=digitalSignature` and no EKU at all,
+which was confirmed to verify.
+
+This is worth raising with Qualcomm explicitly: a certificate that looks
+correct to a PKI team can be one that no device will accept, and the failure
+happens at verification time on hardware rather than anywhere in the build.
+
 ## Reuse
 
 Nothing in the mode is capsule-specific. It signs an opaque blob and returns a
