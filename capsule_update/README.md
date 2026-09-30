@@ -17,6 +17,7 @@ Analysis performed 2026-09-10/11, re-checked 2026-09-25, against the working tre
 | [`pr111-review.md`](pr111-review.md) | Main review: what the PR does (commit table, build → package → postinst staging → next-boot verification → recovery), then findings split into blocking / important / minor / verified-correct, plus a 7-item "minimum before merge" list. |
 | [`capsule-signing-analysis.md`](capsule-signing-analysis.md) | What is actually signed: FMP capsule PKCS#7 yes, inner FIT no (no `-k`, no `hash`/`signature` nodes). Consequences for re-verification, non-capsule write paths, provenance-node trust, and downgrade. |
 | [`capsule-signing-format.md`](capsule-signing-format.md) | **Why Launchpad cannot sign the capsule.** The exact signed blob and `EFI_FIRMWARE_IMAGE_AUTHENTICATION` layout; why the cert chain must be embedded (firmware has only `QcCapsuleRootCert` and no cert store); the `CMS_NOCERTS`/`CMS_NOATTR` mismatch in `sign-file.c`; and the trust-anchor problem that survives any format fix. |
+| [`capsule-binary-layout.md`](capsule-binary-layout.md) | **Byte-level map of a signed `.cap`.** Every header with offsets and field values, the nesting down to the ~40 DTBs, what the signature actually covers (non-contiguous), signed vs unsigned structural differences, and why the outer headers depend on signature length. |
 | [`fit-image-comparison.md`](fit-image-comparison.md) | How the new capsule FIT (`dtb.bin` / `qclinux_fit.img`) differs from the existing `qcom.itb`: same `.its`/`.dts` inputs, everything else different — source dir, pruning, `-E -B 8` external data, FAT wrapper, consumer, per-flavour behaviour. |
 | [`boot-flow.md`](boot-flow.md) | **Platform background.** Qualcomm boot chain and partition layout from the vendored `partitions.conf`: the SPI-NOR / UFS split, which partition feeds each boot stage, the four different kinds of DTB (only `dtb_a`/`dtb_b` are Linux's), and where capsule processing sits. |
 | [`launchpad-port-plan.md`](launchpad-port-plan.md) | **Implementation plan.** How to re-do the PR for Launchpad: the `linux` → `linux-generate` → `linux-signed` split, why the capsule payload should be built in `-generate-`, the signing-mode blocker, the concrete work items per package, and (section 8) the **interim in-kernel unsigned capsule** to use until `-signed-` exists. |
@@ -128,3 +129,43 @@ capsule delta is only **three files**. See `pr111-review.md` section 4.
 - The signing blocker is unaffected.
 
 Analysis in this directory remains valid; only finding #10 changed state.
+
+## Implementation (2026-09-25)
+
+The port described in `launchpad-port-plan.md` has been implemented at
+**`~/qualcomm/linux-signed/`**. That tree contains a working
+`linux-signed-qcom` source package with a `linux-generate-qcom` ancillary that
+builds the capsule payload without a key, plus two patches adding a `CAPSULE`
+signing mode — one to `launchpad` and one to `lp-signing` — both verified to
+apply cleanly upstream.
+
+Start with `~/qualcomm/linux-signed/README.md`. Section 9 of
+`launchpad-port-plan.md` maps each open item in the plan to what was built.
+
+**Update (2026-09-30).** The second open question — whether lp-signing can
+hold an externally issued certificate — is resolved: it can, and the
+certificate chain fits the existing two-column schema as a PEM bundle, so no
+migration is needed. See the "Update" subsection at the end of
+`launchpad-port-plan.md`. Both signing paths, local-key and signing-service,
+have now been run end to end and verified the way device firmware verifies.
+
+The trust-anchor question is unchanged and still gates deployment: Launchpad
+generates its own keys, so a Launchpad-generated key will not chain to
+`QcCapsuleRootCert`. The implementation refuses to autogenerate a capsule key
+rather than silently producing capsules no device will accept. If Qualcomm
+supplies a key and certificates, the machinery to accept and use them exists
+and is tested; what remains is custody policy.
+
+## Related but separate: Ubuntu Core FIT signing
+
+`~/qualcomm/ai_effort/core_fit_signing/carmel-fit-signing.md` analyses the
+DTB/FIT signing step in the Carmel Dragonwing Ubuntu Core kernel snap.
+
+Easy to conflate with the capsule work — same vendor, same DTBs, same FIT, and
+also a detached CMS signature — but it is a **different workstream**: different
+consumer (Secure Boot at boot vs FMP capsule update), different trust anchor
+(SB `db` vs fused `QcCapsuleRootCert`), different key owner (Canonical vs
+Qualcomm), and a different delivery path (snap vs deb).
+
+Both need a new Launchpad signing mode, but only the capsule is blocked on a
+Qualcomm business decision. They should be raised as two requests, not one.

@@ -33,6 +33,9 @@ See [`SUMMARY.md`](SUMMARY.md) for a one-page index of every ticket analysis.
 | `config_trim/` | Kernel config trimming notes |
 | `cpufreq_governor_investigation/` | `ondemand` vs `schedutil` + `fast_switch` on Hamoa/Monza2 |
 | `overlay/` | DTB overlay tutorial |
+| `capsule_update/` | Qualcomm DTB UEFI capsule update: PR review, boot flow, capsule format, Launchpad port plan |
+| `launchpad_signing/` | Patches adding a `CAPSULE` signing mode to `launchpad` and `lp-signing` |
+| `core_fit_signing/` | FIT signing in the Carmel Dragonwing Ubuntu Core kernel snap |
 
 ## Boards
 

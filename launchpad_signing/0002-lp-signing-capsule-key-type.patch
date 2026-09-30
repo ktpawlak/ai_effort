@@ -1,0 +1,120 @@
+diff --git a/lp_signing/enums.py b/lp_signing/enums.py
+index f05b8fc..dfc0e1c 100644
+--- a/lp_signing/enums.py
++++ b/lp_signing/enums.py
+@@ -83,6 +83,15 @@ class KeyType(DBEnumeratedType):
+         """,
+     )
+ 
++    CAPSULE = DBItem(
++        9,
++        """
++        Capsule
++
++        A signing key for UEFI firmware management capsules.
++        """,
++    )
++
+ 
+ class OpenPGPKeyAlgorithm(EnumeratedType):
+     RSA = Item(
+diff --git a/lp_signing/model/key.py b/lp_signing/model/key.py
+index 922d256..77ae9a4 100644
+--- a/lp_signing/model/key.py
++++ b/lp_signing/model/key.py
+@@ -600,7 +600,12 @@ class Key(Storm):
+                 (
+                     "PEM"
+                     if key_type
+-                    in (KeyType.UEFI, KeyType.FIT, KeyType.ANDROID_KERNEL)
++                    in (
++                        KeyType.UEFI,
++                        KeyType.FIT,
++                        KeyType.ANDROID_KERNEL,
++                        KeyType.CAPSULE,
++                    )
+                     else "DER"
+                 ),
+                 "-noout",
+@@ -692,6 +697,19 @@ class Key(Storm):
+                     private_key, public_key = cls._generateAndroidKernelKeys(
+                         tmp, key_type, common_name
+                     )
++                elif key_type == KeyType.CAPSULE:
++                    # Deliberately not generated.  A capsule signature is
++                    # checked before the OS starts, against a root
++                    # certificate provisioned in the device firmware, and
++                    # nothing here can add to that trust store.  A generated
++                    # key would produce capsules that sign and publish
++                    # perfectly and are then rejected by every device.
++                    raise KeyGenerationError.single(
++                        "Capsule keys cannot be generated: they must chain "
++                        "to a root certificate provisioned in the device "
++                        "firmware, so the key and its certificate chain "
++                        "have to be injected."
++                    )
+                 else:
+                     raise KeyGenerationError.single(
+                         f"Unknown key type {key_type.name}"
+@@ -750,6 +768,7 @@ class Key(Storm):
+             KeyType.SIPL,
+             KeyType.FIT,
+             KeyType.ANDROID_KERNEL,
++            KeyType.CAPSULE,
+         ):
+             try:
+                 fingerprint = cls._getX509Fingerprint(key_type, public_key)
+@@ -1081,6 +1100,53 @@ class Key(Storm):
+                         "-r",
+                         str(sig_path),
+                     ]
++            elif key.key_type == KeyType.CAPSULE:
++                if mode == SignatureMode.DETACHED:
++                    # What is signed here is not a capsule but the blob the
++                    # capsule's authentication header covers; the caller
++                    # reassembles the capsule around the result, because
++                    # every enclosing header records a length that depends
++                    # on the size of the signature.
++                    #
++                    # The firmware has no certificate store to look a signer
++                    # up in, so the chain has to travel inside the signature.
++                    # It rides in the certificate slot as a PEM bundle, leaf
++                    # first.  Split it rather than passing the bundle as both
++                    # -signer and -certfile, which would embed the leaf twice.
++                    certs = re.findall(
++                        rb"-----BEGIN CERTIFICATE-----.*?"
++                        rb"-----END CERTIFICATE-----\n?",
++                        key.public_key,
++                        re.DOTALL,
++                    )
++                    if not certs:
++                        raise SignatureError.single(
++                            "Capsule certificate slot holds no PEM "
++                            "certificate"
++                        )
++                    cert.write_bytes(certs[0])
++                    cmd = [
++                        "openssl",
++                        "smime",
++                        "-sign",
++                        "-binary",
++                        "-outform",
++                        "DER",
++                        "-md",
++                        "sha256",
++                        "-signer",
++                        str(cert),
++                        "-inkey",
++                        str(private_key),
++                        "-in",
++                        str(message_path),
++                        "-out",
++                        str(sig_path),
++                    ]
++                    if len(certs) > 1:
++                        chain = tmp / "capsule-chain.pem"
++                        chain.write_bytes(b"".join(certs[1:]))
++                        cmd[-4:-4] = ["-certfile", str(chain)]
+             elif key.key_type in (KeyType.CV2_KERNEL, KeyType.ANDROID_KERNEL):
+                 if mode == SignatureMode.DETACHED:
+                     cmd = [

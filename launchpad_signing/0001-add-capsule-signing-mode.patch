@@ -1,0 +1,169 @@
+--- a/lib/lp/services/signing/enums.py
++++ b/lib/lp/services/signing/enums.py
+@@ -74,6 +74,12 @@
+         An Android kernel signing key.
+         """)
+ 
++    CAPSULE = DBItem(9, """
++        Capsule
++
++        A signing key for UEFI firmware management capsules.
++        """)
++
+ 
+ class OpenPGPKeyAlgorithm(EnumeratedType):
+ 
+--- a/lib/lp/archivepublisher/signing.py
++++ b/lib/lp/archivepublisher/signing.py
+@@ -67,6 +67,10 @@
+     pass
+ 
+ 
++class CannotAutogenerateKeyError(Exception):
++    pass
++
++
+ class SigningUpload(CustomUpload):
+     """Signing custom upload.
+ 
+@@ -163,6 +167,9 @@
+             self.sipl_x509 = None
+             self.fit_key = None
+             self.fit_cert = None
++            self.capsule_key = None
++            self.capsule_cert = None
++            self.capsule_chain = None
+             self.autokey = False
+         else:
+             signing_for = self.distro_series.name if self.distro_series else ''
+@@ -197,6 +204,29 @@
+                 archive,
+                 signing_for
+                 )
++            # As for fit, keep the capsule material in its own directory.
++            # Unlike every other type here, a capsule signature is only
++            # useful if it chains up to a root the device firmware already
++            # trusts, so there is a third file: the intermediate CA
++            # certificates to embed alongside the leaf.
++            self.capsule_key = self.getSeriesPath(
++                pubconf,
++                os.path.join("capsule", "capsule.key"),
++                archive,
++                signing_for
++                )
++            self.capsule_cert = self.getSeriesPath(
++                pubconf,
++                os.path.join("capsule", "capsule.crt"),
++                archive,
++                signing_for
++                )
++            self.capsule_chain = self.getSeriesPath(
++                pubconf,
++                os.path.join("capsule", "capsule-chain.pem"),
++                archive,
++                signing_for
++                )
+             self.autokey = pubconf.signingautokey
+ 
+         self.setComponents(tarfile_path)
+@@ -282,6 +312,7 @@
+             SigningKeyType.OPAL: self.signOpal,
+             SigningKeyType.SIPL: self.signSipl,
+             SigningKeyType.FIT: self.signFit,
++            SigningKeyType.CAPSULE: self.signCapsule,
+             }
+ 
+         for dirpath, dirnames, filenames in scandir.walk(self.tmpdir):
+@@ -297,6 +328,8 @@
+                     key_type = SigningKeyType.SIPL
+                 elif filename.endswith(".fit"):
+                     key_type = SigningKeyType.FIT
++                elif filename.endswith(".capsule"):
++                    key_type = SigningKeyType.CAPSULE
+                 elif filename.endswith(".cv2-kernel"):
+                     key_type = SigningKeyType.CV2_KERNEL
+                 elif filename.endswith(".android-kernel"):
+@@ -349,6 +382,7 @@
+             SigningKeyType.OPAL: [self.opal_pem, self.opal_x509],
+             SigningKeyType.SIPL: [self.sipl_pem, self.sipl_x509],
+             SigningKeyType.FIT: [self.fit_cert, self.fit_key],
++            SigningKeyType.CAPSULE: [self.capsule_cert, self.capsule_key],
+             }
+         # If we are missing local key files, do not proceed.
+         key_files = [i for i in fallback_keys.get(key_type, []) if i]
+@@ -403,6 +437,13 @@
+         if key_type in (SigningKeyType.UEFI, SigningKeyType.FIT):
+             file_suffix = ".signed"
+             public_key_suffix = ".crt"
++        elif key_type == SigningKeyType.CAPSULE:
++            # Detached, and named for what it is rather than ".signed":
++            # the uploader has to reassemble the capsule around it, because
++            # every enclosing header records a length that depends on the
++            # size of the signature.
++            file_suffix = ".sig"
++            public_key_suffix = ".crt"
+         else:
+             file_suffix = ".sig"
+             if key_type == SigningKeyType.CV2_KERNEL:
+@@ -696,6 +737,61 @@
+             image_signed]
+         return self.callLog("FIT signing", cmdl) == 0
+ 
++    def generateCapsuleKeys(self):
++        """Refuse to generate capsule keys for this archive.
++
++        Every other key type here is safe to autogenerate: a fresh
++        self-signed key produces a signature that whoever consumes it was
++        always going to have to be told about.  A capsule is different.  It
++        is verified before the OS starts, against a single root certificate
++        fused into the device, and there is no way to add to that store from
++        the archive side.  Autogenerating a key would therefore produce
++        capsules that build, publish and install perfectly and are then
++        silently rejected by every device that receives them.
++
++        Capsule keys must be provisioned deliberately, with a chain that
++        terminates at a root the target firmware already trusts.
++        """
++        raise CannotAutogenerateKeyError(
++            "Capsule signing keys cannot be autogenerated: a capsule must "
++            "chain to a root certificate provisioned in the device "
++            "firmware. Install capsule.key, capsule.crt and optionally "
++            "capsule-chain.pem under the archive signing root.")
++
++    def signCapsule(self, image):
++        """Attempt to sign a UEFI firmware management capsule payload.
++
++        The image here is not a capsule; it is the blob the capsule's
++        authentication header covers, which the uploader extracted precisely
++        so that this step would not need to know anything about capsule
++        layout.  What comes back is a detached PKCS#7 SignedData.
++
++        Two properties distinguish this from the kmod-style signatures above,
++        and both are required by the EDK2 verifier:
++
++        * the certificate chain is embedded in the signature, because the
++          firmware has no certificate store to look a signer up in; and
++        * the signed attributes are present, because the verifier expects
++          a CMS structure rather than a bare signature.
++
++        That is why this cannot reuse ``kmodsign -D``, which omits both.
++        """
++        image_sig = "%s.sig" % image
++        remove_if_exists(image_sig)
++        (key, cert) = self.getKeys('Capsule', self.generateCapsuleKeys,
++            self.capsule_key, self.capsule_cert)
++        if not key or not cert:
++            return
++        self.publishPublicKey(cert)
++        cmdl = [
++            "openssl", "smime", "-sign", "-binary", "-outform", "DER",
++            "-md", "sha256", "-signer", cert, "-inkey", key,
++            "-in", image, "-out", image_sig,
++            ]
++        if self.capsule_chain and os.path.exists(self.capsule_chain):
++            cmdl[-4:-4] = ["-certfile", self.capsule_chain]
++        return self.callLog("Capsule signing", cmdl) == 0
++
+     def convertToTarball(self):
+         """Convert unpacked output to signing tarball."""
+         tarfilename = os.path.join(self.tmpdir, "signed.tar.gz")
