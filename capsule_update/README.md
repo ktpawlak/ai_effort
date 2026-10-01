@@ -7,7 +7,10 @@ branch `GuanquanTian:dtb-capsule-resolute-devel-tip` → `resolute-qcom-devel`,
 Related: **#112** (injects the capsule signing certs in CI).
 
 Analysis performed 2026-09-10/11, re-checked 2026-09-25, against the working tree at
-`~/qualcomm/ubuntu-qcom-kernel` (base kernel also at `~/qualcomm/kernel/`).
+`~/qualcomm/ubuntu-qcom-kernel` (the Qualcomm GitHub repo carrying the PR).
+The Ubuntu kernel source package it has to land in is a different tree,
+`~/qualcomm/resolute/linux-qcom/linux-main` (`linux-resolute`), alongside
+`linux-meta` and `linux-signed`.
 
 ## Files
 
@@ -133,13 +136,13 @@ Analysis in this directory remains valid; only finding #10 changed state.
 ## Implementation (2026-09-25)
 
 The port described in `launchpad-port-plan.md` has been implemented at
-**`~/qualcomm/linux-signed/`**. That tree contains a working
+**`~/qualcomm/resolute/linux-qcom/linux-signed/`**. That tree contains a working
 `linux-signed-qcom` source package with a `linux-generate-qcom` ancillary that
 builds the capsule payload without a key, plus two patches adding a `CAPSULE`
 signing mode — one to `launchpad` and one to `lp-signing` — both verified to
 apply cleanly upstream.
 
-Start with `~/qualcomm/linux-signed/README.md`. Section 9 of
+Start with `~/qualcomm/resolute/linux-qcom/linux-signed/README.md`. Section 9 of
 `launchpad-port-plan.md` maps each open item in the plan to what was built.
 
 **Update (2026-09-30).** The second open question — whether lp-signing can
