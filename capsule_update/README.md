@@ -24,6 +24,7 @@ The Ubuntu kernel source package it has to land in is a different tree,
 | [`fit-image-comparison.md`](fit-image-comparison.md) | How the new capsule FIT (`dtb.bin` / `qclinux_fit.img`) differs from the existing `qcom.itb`: same `.its`/`.dts` inputs, everything else different — source dir, pruning, `-E -B 8` external data, FAT wrapper, consumer, per-flavour behaviour. |
 | [`boot-flow.md`](boot-flow.md) | **Platform background.** Qualcomm boot chain and partition layout from the vendored `partitions.conf`: the SPI-NOR / UFS split, which partition feeds each boot stage, the four different kinds of DTB (only `dtb_a`/`dtb_b` are Linux's), and where capsule processing sits. |
 | [`launchpad-port-plan.md`](launchpad-port-plan.md) | **Implementation plan.** How to re-do the PR for Launchpad: the `linux` → `linux-generate` → `linux-signed` split, why the capsule payload should be built in `-generate-`, the signing-mode blocker, the concrete work items per package, and (section 8) the **interim in-kernel unsigned capsule** to use until `-signed-` exists. |
+| [`uefi-signing-enablement.md`](uefi-signing-enablement.md) | **Prerequisite for attaching `-signed-` at all.** Why `do_uefi_signed = true` makes `control-create` and `make` disagree (unanchored grep vs make variable) and breaks `dh_prep`; why `Image.gz` can never be signed by `sbsign` and `CONFIG_EFI_ZBOOT`/`vmlinuz.efi` fixes it for 0.37 % size; and the missing `qcom-rt` sign line that would have made `linux-image-qcom-rt` uninstallable. |
 
 ## Headline conclusions
 
