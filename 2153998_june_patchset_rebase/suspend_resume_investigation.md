@@ -3,7 +3,7 @@
 Date: 2026-06-18
 Board: Qualcomm Hamoa IoT EVK (x1e80100 / Snapdragon X Elite)
 Kernel: 7.0.0-1006-qcom, branch master-next, version 7.0.0-1006.10ubuntu2
-Tree: ~/qualcomm/linux
+Tree: ~/qualcomm/resolute/linux-qcom/linux-main
 
 ---
 

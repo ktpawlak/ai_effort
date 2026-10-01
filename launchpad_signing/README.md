@@ -4,7 +4,7 @@ Patches against Launchpad itself. They are kept here rather than in the source
 package they serve, because they are changes to Canonical infrastructure and
 are not part of any `debian/` tree.
 
-The package that consumes this mode is **`~/qualcomm/linux-signed/`**; the
+The package that consumes this mode is **`~/qualcomm/resolute/linux-qcom/linux-signed/`**; the
 analysis that led to it is in `../capsule_update/`, principally
 `launchpad-port-plan.md`.
 
@@ -134,7 +134,7 @@ Not the mechanism any more — the **custody policy**. Specifically:
 ## A constraint on whatever certificate gets issued
 
 Found while building the interim test chain in
-`~/qualcomm/linux-signed/debian/capsule/test-keys/`, and worth stating before
+`~/qualcomm/resolute/linux-qcom/linux-signed/debian/capsule/test-keys/`, and worth stating before
 anyone requests a certificate from Qualcomm.
 
 **The signing certificate must not carry an `extendedKeyUsage` that excludes

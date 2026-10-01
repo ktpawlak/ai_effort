@@ -217,7 +217,7 @@ Boards use SSH password `changeme12` (see repo instructions; the scripts embed
 `ondemand`** when finished.
 
 Source references:
-- `~/qualcomm/linux/drivers/cpufreq/scmi-cpufreq.c` (Hamoa fast_switch logic)
+- `~/qualcomm/resolute/linux-qcom/linux-main/drivers/cpufreq/scmi-cpufreq.c` (Hamoa fast_switch logic)
 - `~/canonical/kernel/ubuntu/noble/linux/drivers/cpufreq/qcom-cpufreq-hw.c`
   (`fast_switch_possible` / `icc_scaling_enabled`, ~lines 217–235)
 - `debian.master/config/annotations` (`CPU_FREQ_DEFAULT_GOV_*`) in both trees

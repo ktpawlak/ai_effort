@@ -26,12 +26,12 @@ merge).
 
 | Path | Description |
 |------|-------------|
-| `~/qualcomm/linux` | Ubuntu derivative kernel (target). Base branch: `master-next`. |
+| `~/qualcomm/resolute/linux-qcom/linux-main` | Ubuntu derivative kernel (target). Base branch: `master-next`. |
 | `~/qualcomm/qualcomm-linux` | Qualcomm's tree (source of patches). |
 | `~/canonical/linux` | Mainline reference tree (currently ~v7.2-rc3+). |
 | `~/qualcomm/ai_effort/2158071_july_patchset_rebase` | This effort's artifacts. |
 
-**Test branch created for this effort (in `~/qualcomm/linux`):**
+**Test branch created for this effort (in `~/qualcomm/resolute/linux-qcom/linux-main`):**
 `test-2158071-qcom-next-7.1-rc6-20260609` (branched from `master-next`).
 
 ---
@@ -65,7 +65,7 @@ Same methodology as the June effort (documented in
 
 2. **Subjects already present in the Ubuntu tree** (excluding `UBUNTU:` packaging):
    ```bash
-   git -C ~/qualcomm/linux log --no-merges --format="%s" \
+   git -C ~/qualcomm/resolute/linux-qcom/linux-main log --no-merges --format="%s" \
        HEAD ^028ef9c96e96 | grep -v "^UBUNTU:"
    ```
    → **3913** subjects.
@@ -119,15 +119,15 @@ Output files:
 
 ## Cherry-pick execution (results)
 
-Cherry-picked onto branch `test-2158071-qcom-next-7.1-rc6-20260609` in `~/qualcomm/linux`
+Cherry-picked onto branch `test-2158071-qcom-next-7.1-rc6-20260609` in `~/qualcomm/resolute/linux-qcom/linux-main`
 using the June automation (`git cherry-pick -x`, oldest-first, auto-skip empties,
 auto-resolve simple conflicts by taking *theirs*, stop on complex conflicts).
 
 **Prerequisite:** the ubuntu tree did not have all qcom-linux objects locally. Added a
 local remote and fetched the tag so cherry-pick could reference the SHAs:
 ```bash
-git -C ~/qualcomm/linux remote add qcomlocal ~/qualcomm/qualcomm-linux
-git -C ~/qualcomm/linux fetch qcomlocal c99e264f29022f53dcb9f012a0d1dd80ea61fa06
+git -C ~/qualcomm/resolute/linux-qcom/linux-main remote add qcomlocal ~/qualcomm/qualcomm-linux
+git -C ~/qualcomm/resolute/linux-qcom/linux-main fetch qcomlocal c99e264f29022f53dcb9f012a0d1dd80ea61fa06
 ```
 
 ### Outcome
@@ -165,7 +165,7 @@ Add GEM_NOC interconnect for adreno SMMU).
 
 Pushed to the CBD remote to build the `qcom` (non-RT) flavour:
 ```bash
-cd ~/qualcomm/linux
+cd ~/qualcomm/resolute/linux-qcom/linux-main
 git push cbd HEAD:refs/heads/test-2158071-qcom-next-7.1-rc6 -o native --force
 ```
 
@@ -327,7 +327,7 @@ UBUNTU_BASE=028ef9c96e96                                 # Linux 7.0
 git -C ~/qualcomm/qualcomm-linux log --no-merges --format="%H %s" \
     "$QCOM_TIP" ^"$UPSTREAM_BASE" > qcom_all_commits.txt
 
-git -C ~/qualcomm/linux log --no-merges --format="%s" \
+git -C ~/qualcomm/resolute/linux-qcom/linux-main log --no-merges --format="%s" \
     HEAD ^"$UBUNTU_BASE" | grep -v "^UBUNTU:" > /tmp/applied_subjects.txt
 
 # cross-reference by subject → commits_to_cherrypick.txt (oldest-first)
@@ -339,7 +339,7 @@ Deployed the green build to the Hamoa IoT EVK (Resolute/26.04, `ubuntu@192.168.1
 by reusing the CBD artifacts (no rebuild):
 
 ```bash
-cd ~/qualcomm/linux
+cd ~/qualcomm/resolute/linux-qcom/linux-main
 ~/qualcomm/ai_effort/qpa/cbd-deploy.sh --no-push \
     --build-id kpawlak-resolute-e4e8520252b7-3907
 ```

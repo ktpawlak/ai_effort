@@ -5,7 +5,7 @@ Operator: kuba.pawlak@canonical.com
 
 CONTEXT
 -------
-- Ubuntu kernel tree: ~/qualcomm/linux (branch: master-next)
+- Ubuntu kernel tree: ~/qualcomm/resolute/linux-qcom/linux-main (branch: master-next)
   Base: upstream Linux 7.0 + Ubuntu SAUCE patches + Qualcomm patches from
   qcom-next-7.0-rc6-20260409 (previously cherry-picked, linear history).
 - Qualcomm tree: ~/qualcomm/qualcomm-linux
@@ -258,7 +258,7 @@ PREREQUISITES
 
 PUSH & TRIGGER A BUILD
 -----------------------
-  cd ~/qualcomm/linux
+  cd ~/qualcomm/resolute/linux-qcom/linux-main
   git push cbd -o native
 
   The push output prints the build job ID, e.g.:
@@ -420,7 +420,7 @@ CBD DEPLOYMENT — automated script (2026-06-23)
 ~/qualcomm/qpa/cbd-deploy.sh
   Push → wait for build → download → SCP → dpkg install → reboot
 
-Usage (from ~/qualcomm/linux):
+Usage (from ~/qualcomm/resolute/linux-qcom/linux-main):
   ~/qualcomm/qpa/cbd-deploy.sh                          # qcom flavour
   ~/qualcomm/qpa/cbd-deploy.sh --flavour qcom-rt        # RT flavour
   ~/qualcomm/qpa/cbd-deploy.sh --flavour all --install qcom-rt

@@ -24,7 +24,7 @@ Default SSH password after flashing: `changeme12` (changed from `ubuntu` by flas
 
 | Path | Description |
 |------|-------------|
-| `~/qualcomm/linux` | Ubuntu kernel tree — target for cherry-picks. Branch: `master-next`. |
+| `~/qualcomm/resolute/linux-qcom/linux-main` | Ubuntu kernel tree — target for cherry-picks. Branch: `master-next`. |
 | `~/qualcomm/qualcomm-linux` | Qualcomm upstream tree — source of Qualcomm patches (qcom-next tags). |
 | `~/qualcomm/noble` | Noble (24.04) kernel source for Monza2 (kernel `6.8.0-1078-qcom`). |
 | `~/qualcomm/images/` | Ubuntu images, organised by `<os-version>/<release-tag>/` (e.g. `24.04/x11/`). |
@@ -55,9 +55,9 @@ git -C ~/qualcomm/qualcomm-linux log --no-merges --format="%H %s" \
     "$QCOM_TIP" ^"$UPSTREAM_BASE" > /tmp/qcom_all_commits.txt
 
 # Get subjects already applied in the ubuntu tree
-UBUNTU_UPSTREAM_BASE=$(git -C ~/qualcomm/linux log --oneline --no-merges | \
+UBUNTU_UPSTREAM_BASE=$(git -C ~/qualcomm/resolute/linux-qcom/linux-main log --oneline --no-merges | \
     grep "^.\{8\} Linux [0-9]" | head -1 | awk '{print $1}')
-git -C ~/qualcomm/linux log --no-merges --format="%s" \
+git -C ~/qualcomm/resolute/linux-qcom/linux-main log --no-merges --format="%s" \
     HEAD ^"$UBUNTU_UPSTREAM_BASE" | grep -v "^UBUNTU:" > /tmp/ubuntu_applied_subjects.txt
 ```
 
@@ -107,7 +107,7 @@ No rule to make target 'arch/arm64/boot/dts/qcom/foo.dtb'
 
 **Always diff first** before choosing a fix:
 ```bash
-diff ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi \
+diff ~/qualcomm/resolute/linux-qcom/linux-main/arch/arm64/boot/dts/qcom/foo.dtsi \
      ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi
 # Lines with '<' = ubuntu-only content — must be preserved if ubuntu-specific
 ```
@@ -142,7 +142,7 @@ After a rebase, always verify `qcs8300.dtsi` (or `monaco.dtsi` in kernel 7.0+) h
 
 ## CBD remote kernel build (Hamoa / Resolute)
 
-CBD is the Canonical remote kernel build system. Run from `~/qualcomm/linux`:
+CBD is the Canonical remote kernel build system. Run from `~/qualcomm/resolute/linux-qcom/linux-main`:
 
 ```bash
 # Build qcom flavour (~35 min warm cache)

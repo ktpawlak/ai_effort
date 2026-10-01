@@ -143,7 +143,7 @@ SMMU starves the IPCC mailbox IRQ; `icc_bwmon` then spams the freq error).
 ### Fix (committed)
 
 Build the four controllers in, matching `CLK_X1E80100_GCC`. Edit
-`debian.qcom/config/annotations` in `~/qualcomm/linux`:
+`debian.qcom/config/annotations` in `~/qualcomm/resolute/linux-qcom/linux-main`:
 
 ```
 CONFIG_CLK_X1E80100_CAMCC   policy<{'arm64': 'y'}>
@@ -155,7 +155,7 @@ CONFIG_SM_VIDEOCC_8550      policy<{'arm64': 'y'}>   # x1e80100 reuses sm8550 vi
 Validate, build, deploy:
 
 ```bash
-cd ~/qualcomm/linux
+cd ~/qualcomm/resolute/linux-qcom/linux-main
 python3 debian/scripts/misc/annotations --arch arm64 --flavour qcom \
     --query --config CONFIG_CLK_X1E80100_CAMCC      # -> "y"
 git commit -am "UBUNTU: [Config] qcom: build x1e80100 camcc/dispcc/gpucc/videocc in"
@@ -547,7 +547,7 @@ regardless of the slim-initramfs goal.
   ```
   Reflash installs the STOCK kernel; reinstall the built-in-clk kernel with:
   ```bash
-  cd ~/qualcomm/linux
+  cd ~/qualcomm/resolute/linux-qcom/linux-main
   ~/qualcomm/ai_effort/qpa/cbd-deploy.sh --no-push \
       --build-id kpawlak-resolute-8efb801ad5fc-3844 --no-reboot
   ```

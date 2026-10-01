@@ -1,7 +1,7 @@
 # Runtime CSIPHY/Camera Fixes — Squash Analysis & Action Log
 
 Date: 2026-06-16
-Tree: `~/qualcomm/linux`, branch `master-next`
+Tree: `~/qualcomm/resolute/linux-qcom/linux-main`, branch `master-next`
 Context: Post-rebase runtime debugging fixes for the x1e80100 Hamoa IoT EVK
 camera (CSIPHY) bring-up. Three hand-written fixes were sitting just below the
 `Ubuntu-qcom-7.0.0-1006.8` release commit. Goal: see whether they can be
@@ -114,7 +114,7 @@ sub-fixes (camss PHY_TYPE_DPHY check removal + phy clock-name correction),
 each with its own root-cause paragraph. Retains
 `Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>`.
 
-### Safety backups (in `~/qualcomm/linux`)
+### Safety backups (in `~/qualcomm/resolute/linux-qcom/linux-main`)
 - branch `backup-before-squash`
 - tag    `backup-before-squash-20260616`
 

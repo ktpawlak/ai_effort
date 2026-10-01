@@ -8,7 +8,7 @@
 
 | Path | Description |
 |------|-------------|
-| `~/qualcomm/linux` | Ubuntu kernel tree. Branch: `master-next`. This is the target. |
+| `~/qualcomm/resolute/linux-qcom/linux-main` | Ubuntu kernel tree. Branch: `master-next`. This is the target. |
 | `~/qualcomm/qualcomm-linux` | Qualcomm's upstream tree. Source of patches. |
 | `~/qualcomm/commits_to_cherrypick.txt` | List of commits applied in the last rebase (for reference). |
 | `~/qualcomm/qualcomm_rebase.txt` | Prose summary of the last rebase (qcom-next-7.0-rc6 → 7.1-rc2). |
@@ -55,14 +55,14 @@ wc -l /tmp/qcom_all_commits.txt   # total qcom commits in new tag
 Find the boundary commit: the "Linux X.Y" commit in the ubuntu tree (the common ancestor with upstream). Use `git log` to find it:
 
 ```bash
-UBUNTU_UPSTREAM_BASE=$(git -C ~/qualcomm/linux log --oneline --no-merges | \
+UBUNTU_UPSTREAM_BASE=$(git -C ~/qualcomm/resolute/linux-qcom/linux-main log --oneline --no-merges | \
     grep "^.\{8\} Linux [0-9]" | head -1 | awk '{print $1}')
 ```
 
 Then get all non-Ubuntu subjects already applied:
 
 ```bash
-git -C ~/qualcomm/linux log --no-merges --format="%s" \
+git -C ~/qualcomm/resolute/linux-qcom/linux-main log --no-merges --format="%s" \
     HEAD ^"$UBUNTU_UPSTREAM_BASE" | grep -v "^UBUNTU:" > /tmp/ubuntu_applied_subjects.txt
 ```
 
@@ -102,7 +102,7 @@ Save as `/tmp/do_cherrypick.sh`:
 #!/bin/bash
 # do NOT use set -e — it breaks conflict detection
 SHA_FILE="/tmp/shas_to_pick.txt"
-cd ~/qualcomm/linux
+cd ~/qualcomm/resolute/linux-qcom/linux-main
 
 while read sha; do
     echo "==> Picking $sha"
@@ -263,7 +263,7 @@ git -C ~/qualcomm/qualcomm-linux log --format="%s" "$UPSTREAM_BASE" | \
 
 **Always diff first** to understand the scope and check for ubuntu-specific content:
 ```bash
-diff ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi \
+diff ~/qualcomm/resolute/linux-qcom/linux-main/arch/arm64/boot/dts/qcom/foo.dtsi \
      ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi
 ```
 - Lines with `<` = ubuntu-only content. If these are just old versions of qcom content (no-label node names, old strings) → safe to copy wholesale.
@@ -272,7 +272,7 @@ diff ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi \
 **Option A — copy the file** (when all `<` lines are just old qcom content, no ubuntu additions):
 ```bash
 cp ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi \
-   ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi
+   ~/qualcomm/resolute/linux-qcom/linux-main/arch/arm64/boot/dts/qcom/foo.dtsi
 ```
 
 **Option B — surgical insert** (when ubuntu tree has content absent from qcom-linux):
@@ -282,7 +282,7 @@ Add only the missing node/label at the correct position in the ubuntu file:
 # Identify the missing block in qcom-linux
 grep -n "missing_label" ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dtsi
 # Find a unique anchor nearby in ubuntu tree
-grep -n "nearby_node" ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi
+grep -n "nearby_node" ~/qualcomm/resolute/linux-qcom/linux-main/arch/arm64/boot/dts/qcom/foo.dtsi
 # Edit ubuntu file to insert the missing block before/after the anchor
 ```
 **Example:** `monaco.dtsi` has ubuntu-specific camera pin states (`cam1_avdd_2v8_en_default`, `cam2_avdd_2v8_en_default`) absent from qcom-linux. Copying wholesale would lose them. Instead, only the missing `lpass_tlmm` pinctrl node and its `#include` were inserted surgically.
@@ -290,7 +290,7 @@ grep -n "nearby_node" ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dtsi
 **Option C — cherry-pick the graduated commits** (when changes are non-trivial or span multiple files):
 ```bash
 # Pick in oldest-first order from qcom-linux
-git -C ~/qualcomm/linux cherry-pick -x <sha-from-qcom-linux>
+git -C ~/qualcomm/resolute/linux-qcom/linux-main cherry-pick -x <sha-from-qcom-linux>
 ```
 Cherry-pick from the qcom-linux SHA, not the upstream SHA (the upstream SHA won't exist in our local clone).
 
@@ -323,7 +323,7 @@ find ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/ -name "foo.dts"
 grep "^#include" ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dts
 # Copy missing files
 cp ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dts \
-   ~/qualcomm/linux/arch/arm64/boot/dts/qcom/foo.dts
+   ~/qualcomm/resolute/linux-qcom/linux-main/arch/arm64/boot/dts/qcom/foo.dts
 ```
 
 **Known occurrences (7.1-rc2 rebase):**
@@ -336,7 +336,7 @@ cp ~/qualcomm/qualcomm-linux/arch/arm64/boot/dts/qcom/foo.dts \
 
 ### Before starting
 ```bash
-cd ~/qualcomm/linux
+cd ~/qualcomm/resolute/linux-qcom/linux-main
 git status           # must be clean
 git log --oneline -5 # note current HEAD
 ```
@@ -383,7 +383,7 @@ After all DTS errors are fixed, compiler errors from C source files appear. Thes
 
 **Detection:**
 ```bash
-wc -l ~/qualcomm/linux/path/to/file.c
+wc -l ~/qualcomm/resolute/linux-qcom/linux-main/path/to/file.c
 wc -l ~/qualcomm/qualcomm-linux/path/to/file.c
 # If ubuntu has ~50% or fewer lines → double cherry-pick likely
 
@@ -393,7 +393,7 @@ git log --oneline -- path/to/file.c | grep -E "FROMLIST|FROMGIT"
 
 **Fix:** If ubuntu has no ubuntu-specific content in the file, copy wholesale from qcom-linux:
 ```bash
-cp ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/linux/path/to/file.c
+cp ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/resolute/linux-qcom/linux-main/path/to/file.c
 ```
 
 **Known occurrences (7.1-rc2 rebase):**
@@ -410,7 +410,7 @@ cp ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/linux/path/to/file.c
 
 ```bash
 # Identify ubuntu-specific lines (present in ubuntu but not qcom-linux)
-diff ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/linux/path/to/file.c | grep "^>"
+diff ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/resolute/linux-qcom/linux-main/path/to/file.c | grep "^>"
 ```
 
 **Known occurrences (7.1-rc2 rebase):**
@@ -425,7 +425,7 @@ diff ~/qualcomm/qualcomm-linux/path/to/file.c ~/qualcomm/linux/path/to/file.c | 
 
 **Detection:**
 ```bash
-grep -n "function_name" ~/qualcomm/linux/path/to/file.c
+grep -n "function_name" ~/qualcomm/resolute/linux-qcom/linux-main/path/to/file.c
 # Shows two line numbers for the same definition
 ```
 
@@ -442,7 +442,7 @@ grep -n "function_name" ~/qualcomm/linux/path/to/file.c
 
 **Detection:**
 ```bash
-grep -n "#if\|#endif\|suspicious_symbol" ~/qualcomm/linux/path/to/file.c
+grep -n "#if\|#endif\|suspicious_symbol" ~/qualcomm/resolute/linux-qcom/linux-main/path/to/file.c
 # Check if definition is inside a #if block that the usage is outside
 ```
 
@@ -471,7 +471,7 @@ grep -n "#if\|#endif\|suspicious_symbol" ~/qualcomm/linux/path/to/file.c
 **Diagnosis:**
 ```bash
 # Check ubuntu's version of the API
-grep -n "function_name\|struct_name" ~/qualcomm/linux/include/relevant/header.h
+grep -n "function_name\|struct_name" ~/qualcomm/resolute/linux-qcom/linux-main/include/relevant/header.h
 
 # Check qcom-linux version to understand the new API contract
 grep -n "function_name\|struct_name" ~/qualcomm/qualcomm-linux/include/relevant/header.h
@@ -503,9 +503,9 @@ ls ~/qualcomm/qualcomm-linux/drivers/foo/bar.c
 grep "^#include" ~/qualcomm/qualcomm-linux/drivers/foo/bar.c | grep "dt-bindings"
 
 # Copy source + headers
-cp ~/qualcomm/qualcomm-linux/drivers/foo/bar.c ~/qualcomm/linux/drivers/foo/bar.c
+cp ~/qualcomm/qualcomm-linux/drivers/foo/bar.c ~/qualcomm/resolute/linux-qcom/linux-main/drivers/foo/bar.c
 cp ~/qualcomm/qualcomm-linux/include/dt-bindings/clock/qcom,bar.h \
-   ~/qualcomm/linux/include/dt-bindings/clock/qcom,bar.h
+   ~/qualcomm/resolute/linux-qcom/linux-main/include/dt-bindings/clock/qcom,bar.h
 ```
 
 **Known occurrences (7.1-rc2 rebase):**
@@ -545,7 +545,7 @@ The kernel is built on a remote CBD (Canonical Build Device) machine. All build 
 From the ubuntu tree directory, push with the `native` option:
 
 ```bash
-cd ~/qualcomm/linux
+cd ~/qualcomm/resolute/linux-qcom/linux-main
 git push cbd -o native
 ```
 

@@ -553,7 +553,7 @@ From `pr111-review.md`, applicable regardless of build location:
 ## 9. Implemented (2026-09-25)
 
 Sections 3 to 6 above are done. The implementation lives at
-`~/qualcomm/linux-signed/`; see its `README.md` for the full description and
+`~/qualcomm/resolute/linux-qcom/linux-signed/`; see its `README.md` for the full description and
 the list of what was verified rather than assumed.
 
 Summary of what was built:
