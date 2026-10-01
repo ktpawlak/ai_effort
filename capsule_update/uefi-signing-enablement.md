@@ -4,8 +4,11 @@ Prerequisite for attaching `linux-signed-qcom`: the kernel source package has to
 produce `linux-image-unsigned-*` binaries, and those binaries have to contain
 something Launchpad can actually sign.
 
-Two independent problems had to be fixed. The first stopped the build outright.
-The second would have passed the build and then failed in the signing service.
+Two independent problems. The first stopped the build outright and **is fixed**.
+The second passes the build and then fails in the signing service; it is
+**documented but deliberately not fixed** — the tree still builds `Image.gz`.
+
+Read the status banner on each section before using it.
 
 ---
 
@@ -95,12 +98,16 @@ after:   uefi_signed = true    bin_pkg_name = linux-image-unsigned-7.0.0-1014
 
 ---
 
-## 2. `Image.gz` cannot be signed
+## 2. `Image.gz` cannot be signed — open, **not** fixed
 
-Fixing (1) gets a clean build, but Launchpad would then reject the payload.
+> **Status: investigated, measured, and deliberately left alone.** The tree
+> still builds `Image.gz`. Everything below is the evidence for the decision
+> that still has to be made, not a description of the current tree.
+
+Fixing (1) gets a clean build, but Launchpad will then reject the payload.
 
 `debian/package.config` asks for `sig_type: efi`, which is `sbsign`, which
-requires a **PE/COFF** binary. The tree was building:
+requires a **PE/COFF** binary. The tree builds:
 
 ```make
 build_image	= Image.gz
@@ -128,7 +135,17 @@ a real PE header, built by `__EFI_PE_HEADER` in `arch/arm64/kernel/efi-header.S`
 (the `ccmp x18, #0, #0xd, pl` instruction whose opcode spells `MZ`). But it costs
 35 MB.
 
-### Fix: `CONFIG_EFI_ZBOOT`
+### Consequence of leaving it as `Image.gz`
+
+The split in (1) works: the kernel builds `linux-image-unsigned-*` and
+`linux-signed-qcom` can be attached. But the `efi` signing request for
+`/boot/vmlinuz-<abi>-<flavour>` will fail in the signing service, because that
+file is `Image.gz` under a different name.
+
+So the packaging is correct and the signing step is not yet viable. That is a
+known, bounded gap — not a silent one.
+
+### The option if/when it is taken: `CONFIG_EFI_ZBOOT`
 
 `vmlinuz.efi` is a PE wrapper around the *same* compressed payload — the EFI
 decompressor. That is what `debian.master` already does on arm64.
@@ -164,9 +181,9 @@ All four were confirmed by running Kconfig rather than by reading it:
 Keeping gzip (rather than following generic to zstd) makes this a wrapper-only
 change: the payload bytes are what the platform was already booting.
 
-The two stale notes saying `we use arch/arm64/boot/Image.gz` were updated.
+The two notes saying `we use arch/arm64/boot/Image.gz` would need updating too.
 
-### Does this break the Qualcomm boot path?
+### Would this break the Qualcomm boot path?
 
 - The capsule/FIT work is unaffected — `qcom-next-fitimage.its` bundles **DTBs
   only**, no kernel image. The two are independent.
@@ -176,7 +193,10 @@ The two stale notes saying `we use arch/arm64/boot/Image.gz` were updated.
   payload can still be extracted (`drivers/firmware/efi/Kconfig`, `EFI_ZBOOT`
   help text). U-Boot supports this.
 
-Still worth a boot test on hardware before upload.
+Unproven, and the reason this was not taken: nobody has booted `vmlinuz.efi` on
+these boards. The `we use arch/arm64/boot/Image.gz` annotation presumably
+encodes a Qualcomm boot-chain requirement that is not written down here. That
+needs establishing before the switch, not after.
 
 ---
 
@@ -227,17 +247,27 @@ first.
 
 ---
 
-## Changes
+## Changes actually applied
 
 | repo | file | change |
 |---|---|---|
-| `linux-main` | `debian.qcom/rules.d/arm64.mk` | `do_uefi_signed` → `uefi_signed`; `Image.gz` → `vmlinuz.efi` |
-| `linux-main` | `debian.qcom/config/annotations` | `EFI_ZBOOT=y`, `KERNEL_GZIP=y`, `KERNEL_ZSTD=n`, `EFI_SBAT_FILE=""` |
+| `linux-main` | `debian.qcom/rules.d/arm64.mk` | `do_uefi_signed` → `uefi_signed` (one line) |
 | `linux-signed` | `debian/package.config` | `sign arm64 efi vmlinuz qcom-rt` |
+
+## Deliberately **not** applied
+
+| | |
+|---|---|
+| `Image.gz` → `vmlinuz.efi` | Investigated and measured (section 2). Reverted; the tree keeps `Image.gz` and `CONFIG_EFI_ZBOOT=n`, and the four config annotations are byte-identical to before. |
+
+**Consequence to keep in view:** signing is now switched on at the packaging
+level, so the kernel emits `linux-image-unsigned-*` and `linux-signed-qcom` can
+be attached — but the `efi` signing request will fail, because the file at
+`/boot/vmlinuz-<abi>-<flavour>` is a gzip stream. Section 2 has the evidence and
+the one-line change that would resolve it when the boot-path question is settled.
 
 ## Still to confirm on hardware
 
-- The board boots `vmlinuz.efi`.
 - Whether the firmware's UEFI db actually trusts the Canonical cert LP signs
   with, or whether these boards need that provisioning (the same open question
   as for the capsule chain — see `launchpad-port-plan.md`).
