@@ -51,8 +51,25 @@ This matters for two things these notes already discuss:
   than overwriting it, and bumping the commit recorded in `linux-signed`'s
   `debian/copyright` and `README.md`.
 
-The repo's other component, `uefi_sec/` (a small C daemon plus systemd unit),
-is unrelated to capsule generation and is not used.
+The repo's other component, `uefi_sec/`, is **not needed**. It is a userspace
+daemon that loads the `qcom.tz.uefisecapp` trusted app over the legacy QSEECom
+userspace API and sends it `SERVICE_UEFI_VAR_SYNC_VAR_TABLES` in a 600-second
+loop. Our kernel talks to that *same* TA itself:
+`drivers/firmware/qcom/qcom_qseecom_uefisecapp.c` ("Client driver for Qualcomm
+SEE UEFI Secure App") is built in — `CONFIG_QCOM_QSEECOM_UEFISECAPP=y` — and
+calls `efivars_register()`, so `efivarfs` is backed by uefisecapp directly.
+That is the path the capsule flow already uses for `OsIndications` and the
+capsule result variables. The kernel driver implements only the four standard
+efivar ops and never issues a var-table sync, because the TA persists on
+`set_variable`; the daemon's periodic sync is a legacy-stack concern, not a
+correctness requirement here.
+
+It could not be used even if wanted: `Makefile.am` lists `SecureUILib.h` in
+`uefi_sec_SOURCES` but that header is absent from the repo, and it links
+`-lQseeComApi -ldrmfs -lrpmb -lssd -lminkdescriptor -ldmabufheap` — proprietary
+Qualcomm LE libraries not in the Ubuntu archive — while its unit requires
+`qteesupplicant.service`, which is Qualcomm LE/Android userspace. Running it
+alongside the kernel driver would mean two independent clients of one TA.
 
 Provenance and the BSD licence text were missing from `linux-signed`'s
 `debian/copyright`, which declared the whole package GPL-2 "retrieved from
