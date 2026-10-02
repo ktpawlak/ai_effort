@@ -26,6 +26,38 @@ The Ubuntu kernel source package it has to land in is a different tree,
 | [`launchpad-port-plan.md`](launchpad-port-plan.md) | **Implementation plan.** How to re-do the PR for Launchpad: the `linux` → `linux-generate` → `linux-signed` split, why the capsule payload should be built in `-generate-`, the signing-mode blocker, the concrete work items per package, and (section 8) the **interim in-kernel unsigned capsule** to use until `-signed-` exists. |
 | [`uefi-signing-enablement.md`](uefi-signing-enablement.md) | **Prerequisite for attaching `-signed-` at all.** Why `do_uefi_signed = true` makes `control-create` and `make` disagree (unanchored grep vs make variable) and breaks `dh_prep` — fixed; the missing `qcom-rt` sign line that would have made `linux-image-qcom-rt` uninstallable — fixed; and why `Image.gz` can never be signed by `sbsign`, with the measured `CONFIG_EFI_ZBOOT`/`vmlinuz.efi` alternative — **investigated, not applied**, so signing requests will still fail until that is decided. |
 
+## Upstream of the capsule tool (2026-10-02)
+
+These notes consistently call `qcom_capsule_tool/` "the vendored tool", which
+reads as though it originated in the kernel tree. It does not. It is a copy of
+a public Qualcomm repository:
+
+    https://github.com/qualcomm/cbsp-boot-utilities
+    path:   uefi_capsule_generation/src/qcom_capsule_tool
+    commit: fde4dcb2eb96047efa868751c66bb8c4c0bd1674
+    licence: BSD-3-Clause-Clear (not GPL)
+
+`linux-signed` vendors 14 of the 15 upstream files. Thirteen are byte-identical
+to that commit (verified with `cmp`, not by size); only `generate_capsule.py`
+differs, carrying our `--emit-signable` / `--assemble` split-signing modes.
+`create_config_json.py` is not copied because nothing imports it — the build
+writes `config.json` from `capsule.env` instead.
+
+This matters for two things these notes already discuss:
+
+- The `uuid.uuid4()` reproducibility bug at `XmlFwEntryValidation.py:395`, and
+  the stable-`FileGuid` fix, now have a concrete place to be sent.
+- Refreshing the tool means re-applying the `generate_capsule.py` delta rather
+  than overwriting it, and bumping the commit recorded in `linux-signed`'s
+  `debian/copyright` and `README.md`.
+
+The repo's other component, `uefi_sec/` (a small C daemon plus systemd unit),
+is unrelated to capsule generation and is not used.
+
+Provenance and the BSD licence text were missing from `linux-signed`'s
+`debian/copyright`, which declared the whole package GPL-2 "retrieved from
+upstream linux git"; fixed in `linux-signed` commit `e904177`.
+
 ## Headline conclusions
 
 1. **Design is sound**; the failures are in packaging and CI plumbing.
