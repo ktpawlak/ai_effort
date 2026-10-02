@@ -257,6 +257,46 @@ source package.**
 - Avoids further growth of the qcom delta against shared Canonical packaging,
   which was already finding #9 in `pr111-review.md`.
 
+### Proposal: ship `qcom_capsule_tool` as its own Debian package
+
+Raised as: if the tool were packaged separately, generating a capsule would
+reduce to `mkimage` + `dd`/`mformat`/`mcopy`, then `sysfw-version-create`,
+`fv-create`, `update-json`, `generate-capsule` in a per-GUID loop.
+
+**That sequence is accurate** — it is `qcom-capsule-tool create` with its five
+steps written out (see `capsule_creator.py:_run`). Packaging the tool is also
+reasonable on its own merits: it would remove ~160 KB of vendored Python and
+the BSD stanza from `linux-signed/debian/copyright`.
+
+**But it does not reduce this project's work**, because every hard part sits
+outside the tool:
+
+1. **Signing is inline and needs the private key.** `-p` is
+   `OpenSslSignerPrivateCertFile`; `generate_capsule` shells out to `openssl
+   smime` with it at build time. Launchpad builders have no signing key — the
+   entire reason for the `--emit-signable` / `--assemble` split. A separate
+   package changes nothing here, and would still have to carry that delta
+   unless it is upstreamed first.
+2. **The sequence omits `update-fv-xml`.** It assumes `FvUpdate.xml` already
+   exists. The one shipped upstream is a *sample*: `FlashType=UFS` with a
+   single `xbl.elf` -> `xbl_a`/`xbl_b` entry. Hamoa and Purwa are SPINOR and
+   update `dtb`. Used verbatim it would target the wrong flash type and the
+   wrong partition — the bootloader. We generate it from `partitions.conf`
+   with `UpdateFvXml --update-partitions dtb`, so `dtb` is UPDATE and
+   everything else IGNORE.
+3. **Bare `mkimage -f qcom-next-fitimage.its` is fragile.** The ITS statically
+   names 99 `fdt` entries at fixed paths; if the kernel did not build one,
+   mkimage fails. Hence `build-dtb-image.sh --prune`, which drops `fdt` and
+   `conf` nodes whose DTBs are absent.
+4. **No provenance.** We stamp `/qcom-dtb-capsule-provenance` into each DTB and
+   emit `expected-dtb-sha256` / `expected-kver`; the runtime verifier depends
+   on them.
+
+So the proposal is a packaging cleanup, not a shortcut. It is worth doing only
+after the signing split lands upstream — otherwise it converts a vendored
+delta into a separate source package that still needs an MIR and still carries
+the same patch.
+
 ---
 
 ## 5. Work items
