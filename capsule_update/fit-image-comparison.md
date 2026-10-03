@@ -1,9 +1,26 @@
 # FIT image comparison — `qcom.itb` (existing) vs `dtb.bin` (new in PR #111)
 
-> **Update (2026-10-03): the two no longer share source files.** When the
-> capsule build moved out of the kernel package into `linux-signed`, the ITS
-> and metadata DTS were **copied**, not shared. There are now two
-> byte-identical pairs in two different source packages:
+> **RESOLVED (2026-10-03): `qcom.itb` no longer exists.** The kernel package's
+> FIT generation was removed in linux-qcom `fbbe71beb3f2` "UBUNTU: [Packaging]
+> Drop FIT image generation from the kernel package", which effectively reverts
+> `544acfcd732a`. `linux-signed` is now the sole owner of
+> `qcom-next-fitimage.its` / `qcom-metadata.dts`, and the capsule FIT
+> (`qclinux_fit.img` → `dtb.bin`) is the only FIT produced.
+>
+> Nothing consumed `qcom.itb` — it was referenced only at its creation site —
+> so the removal was self-contained. `device-tree-compiler` stayed in
+> Build-Depends (its `fdtput` stamps the DTB build version under
+> `do_dtbs_version`); only `u-boot-tools` became unnecessary.
+>
+> **The comparison below is retained as history.** The left-hand column
+> describes a build path that no longer exists; the right-hand column is still
+> accurate and is now the whole story. The drift hazard documented at the end
+> is resolved by construction.
+
+> **Update (2026-10-03, superseded by the above): the two no longer share
+> source files.** When the capsule build moved out of the kernel package into
+> `linux-signed`, the ITS and metadata DTS were **copied**, not shared. There
+> were then two byte-identical pairs in two different source packages:
 >
 > | | path |
 > |---|---|
@@ -12,7 +29,7 @@
 >
 > A Debian source package cannot read another's build inputs, and
 > `linux-modules` ships only the *built* `qcom.itb`, not the `.its` — so the
-> copy was the only option available at the time. **Nothing keeps them in
+> copy was the only option available at the time. **Nothing kept them in
 > sync.** See "Drift between the two ITS copies" at the end of this file.
 
 Both are FIT images generated from the **same two source files**:
@@ -151,3 +168,60 @@ configuration list. Comparing the `compatible` strings of its `conf-*` nodes
 against those of the pruned capsule FIT, and failing the build on entries
 present in `qcom.itb` but absent from the capsule, would turn the silent
 failure into a build error. Not implemented.
+
+---
+
+## Resolution (2026-10-03)
+
+The duplication was resolved in the opposite direction to the recommendation
+above: rather than making the kernel package the owner and having `-signed`
+read the installed copy, the kernel's FIT generation was **deleted** and
+`-signed` became the sole owner. That is simpler, and it is the right call
+because nothing consumed `qcom.itb` — the capsule is the only consumer of a
+FIT in this stack.
+
+Removed from `linux-qcom` (commit `fbbe71beb3f2`, effectively reverting
+`544acfcd732a`):
+
+- the `do_fitimage` block in `debian/rules.d/2-binary-arch.mk`
+- `do_fitimage = true` in `debian.qcom/rules.d/arm64.mk`
+- the `do_fitimage=false` default in `debian/rules.d/0-common-vars.mk` and the
+  `printenv` echo in `debian/rules.d/1-maintainer.mk`
+- `debian.qcom/fitimage/` (both files)
+- `u-boot-tools` from `Build-Depends` in `debian.qcom/control.stub.in`
+
+**`device-tree-compiler` was deliberately kept.** It was added by the same
+commit and so looks like it should go too, but its `fdtput` is what stamps the
+DTB build version under `do_dtbs_version`, which is still enabled. Removing it
+would have broken the build.
+
+Consequences for the table above: every "existing `qcom.itb`" column entry is
+now historical. The "Practical consequences" items 1, 2, 4 and 6 lose their
+comparative framing — there is no second image to compare against — though
+item 2's renumbering and item 3's fixed 4 MB FAT remain live properties of the
+capsule FIT. The drift hazard is resolved by construction.
+
+### Related: contiguous `conf-N` numbering is a hard requirement
+
+Applied to `-signed` at the same time (from Krzysztof Adamski's
+`0002-UBUNTU-SAUCE-fix-FIT-image-definition.patch`, originally written against
+the kernel package's now-deleted copy): the ITS had gaps in its `conf-N`
+sequence (it skipped 20, 21, 23, 25, 26, 27, 33, 35, 38, 42, 48 …) because
+entries had been removed over time. Undocumented upstream, but a
+non-contiguous sequence makes the bootloader reject the image:
+
+```
+qclinux_fit.img Loading Failed status=0x2
+```
+
+The patch is pure renumbering — 49 changed lines, all of the form `conf-N {`,
+with the 51 configurations and 48 `fdt` images otherwise untouched and no
+`default` property to repoint.
+
+Worth noting that **the capsule was already immune to this by accident**:
+`build-capsule-payload.sh` always passes `--prune`, and the prune pass
+renumbers surviving configurations sequentially from `conf-1`. The error above
+names `qclinux_fit.img`, so it was presumably hit before that renumbering
+existed. The fix was still applied to the source, because the renumbering only
+covers entries `--prune` keeps and relying on a side effect of an optional
+pass is not a guarantee.
