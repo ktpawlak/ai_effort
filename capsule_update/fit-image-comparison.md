@@ -1,8 +1,24 @@
 # FIT image comparison — `qcom.itb` (existing) vs `dtb.bin` (new in PR #111)
 
+> **Update (2026-10-03): the two no longer share source files.** When the
+> capsule build moved out of the kernel package into `linux-signed`, the ITS
+> and metadata DTS were **copied**, not shared. There are now two
+> byte-identical pairs in two different source packages:
+>
+> | | path |
+> |---|---|
+> | kernel (`linux-main`) | `debian.qcom/fitimage/{qcom-next-fitimage.its,qcom-metadata.dts}` |
+> | signed (`linux-signed`) | `debian/capsule/fitimage/{qcom-next-fitimage.its,qcom-metadata.dts}` |
+>
+> A Debian source package cannot read another's build inputs, and
+> `linux-modules` ships only the *built* `qcom.itb`, not the `.its` — so the
+> copy was the only option available at the time. **Nothing keeps them in
+> sync.** See "Drift between the two ITS copies" at the end of this file.
+
 Both are FIT images generated from the **same two source files**:
 `debian.qcom/fitimage/qcom-next-fitimage.its` and
 `debian.qcom/fitimage/qcom-metadata.dts`. That is the only thing they share.
+(As of the split above, "same" means "identical copies", not "one file".)
 
 - Existing: `do_fitimage` block, `debian/rules.d/2-binary-arch.mk:197-210`
   (added by `544acfcd732a UBUNTU: [SAUCE] fit image generation`).
@@ -65,3 +81,73 @@ Both are FIT images generated from the **same two source files**:
    `scripts/dtc/dtc`, the new path the distro `dtc`. Both compile the same
    `qcom-metadata.dts`, so a version skew between them could in principle
    produce differing metadata DTBs between the two images.
+
+---
+
+## Drift between the two ITS copies
+
+Since the capsule build moved to `linux-signed`, `qcom-next-fitimage.its` and
+`qcom-metadata.dts` exist twice, once per source package. They are currently
+byte-identical (`diff` clean, 12104 B / 3315 B), and **no build step, test or
+checksum enforces that**.
+
+### Why this is not as bad as it looks
+
+The capsule does **not** carry its own DTBs. `build-capsule-payload.sh` takes
+them from the *installed* `linux-modules` tree
+(`/usr/lib/firmware/<kver>/device-tree/qcom/`). So DTB **content** can never
+drift — it always comes from the kernel binary package. Only the ITS
+**node list and configuration structure** is duplicated.
+
+### Why it is still a real hazard
+
+The two drift directions fail very differently:
+
+| drift | effect | detected? |
+|---|---|---|
+| Kernel **adds** a board to its ITS; signed copy not updated | the new DTB is installed, but the signed ITS never references it, so it is simply absent from the capsule | **No. Completely silent.** `--prune` only *drops* entries whose DTB is missing; it never *adds* entries for DTBs it was not told about. |
+| Kernel **stops building** a DTB; signed copy still lists it | `--prune` drops the entry and its `conf-N` | Yes — `[WARN] --prune: dropped ...`, though buried in the build log |
+
+The dangerous direction is the silent one, and it is also the likely one: new
+boards get added to the kernel. The result is a capsule that updates the `dtb`
+partition with a FIT that is missing the newest board, which is exactly the
+kind of regression capsule update is supposed to prevent.
+
+Note that **provenance does not catch this.** `expected-dtb-sha256` is computed
+over `dtb-provenance-content-sha256sums.txt`, i.e. over the DTB *files*, never
+over the ITS. A stale signed-side ITS produces a capsule that passes every
+provenance check while containing fewer boards than the kernel supports.
+
+### Recommended fix — single source of truth
+
+Make the kernel package the owner and have `-generate-` read its copy, which is
+the same principle already applied to provenance ("let `-generate-` read these
+files, do not recompute them"):
+
+1. In `debian/rules.d/2-binary-arch.mk`, in the existing `do_fitimage` block,
+   install the two inputs next to the output they produce:
+
+   ```make
+   install -m644 $(CURDIR)/$(DEBIAN)/fitimage/qcom-next-fitimage.its \
+                 $(CURDIR)/$(DEBIAN)/fitimage/qcom-metadata.dts \
+       $(pkgdir)/usr/lib/firmware/$(abi_release)-$*/device-tree/qcom/
+   ```
+
+   15 KB in `linux-modules`, and it makes the package self-describing.
+
+2. Point `build-dtb-image.sh` at the installed copy (it already locates the
+   DTB directory via the `dpkg -S` → `apt-get download` → `dpkg-deb -x`
+   pattern, so the path is already in hand), and delete
+   `debian/capsule/fitimage/*.its` / `*.dts` from `linux-signed`.
+
+Until that is done, treat the two files as a matched pair: **any change to
+`debian.qcom/fitimage/` must be mirrored into `linux-signed`.**
+
+### Cheap interim guard
+
+Without any kernel change, the silent direction can still be detected, because
+`qcom.itb` *is* shipped in `linux-modules` and encodes the kernel's full
+configuration list. Comparing the `compatible` strings of its `conf-*` nodes
+against those of the pruned capsule FIT, and failing the build on entries
+present in `qcom.itb` but absent from the capsule, would turn the silent
+failure into a build error. Not implemented.
