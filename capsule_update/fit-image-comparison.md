@@ -225,3 +225,19 @@ names `qclinux_fit.img`, so it was presumably hit before that renumbering
 existed. The fix was still applied to the source, because the renumbering only
 covers entries `--prune` keeps and relying on a side effect of an optional
 pass is not a guarantee.
+
+### The companion patch 0001 needs no action
+
+`0001-UBUNTU-SAUCE-Fit-image-format-refinement.patch` adds `-E -B 8` (external
+data, 8-byte alignment) to the kernel package's `mkimage` call, without which
+the bootloader cannot load the image. It requires no action on either side:
+
+- **Kernel package** — moot, that `mkimage` call no longer exists.
+- **`linux-signed`** — already satisfied. `build-dtb-image.sh:680` has always
+  been `mkimage -f "${DEFAULT_ITS_FILE}" out/qclinux_fit.img -E -B 8`, copied
+  from the reference script at
+  `https://github.com/qualcomm-linux/qcom-dtb-metadata.git`, which is where the
+  patch's rationale comes from in the first place.
+
+So both patches in that series are accounted for: 0001 by construction, 0002
+by the renumbering commit above. Neither should be re-applied.
