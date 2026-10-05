@@ -249,3 +249,161 @@ Healthy, running 7.0.0-1016-qcom from the PPA, `systemctl is-system-running` =
 authentication, so the DTB partitions are untouched and `fw_version` is still
 65536. The PPA remains configured and the 1016 kernel installed; 1013 is still
 in GRUB.
+
+---
+
+## Part 2 — retest with authentication-disabled firmware
+
+The board was reflashed with a UEFI build that does not validate capsule
+signatures (`BOOT.MXF_UEFI.2.5-00690-HAMOA-1`, serial log reports
+`FmpDxe(Qualcomm System Firmware Update Driver): Capsule authentication
+disabled`). This removed the one blocker from Part 1 and let the capsule run
+end to end for the first time.
+
+### False start: the capsule was never staged
+
+The first attempt looked like a *new* failure — `fw_version` unchanged,
+`last_attempt_status` still 1, and a serial log saying:
+
+```
+GetPartitionsUnderUpdate: CapsulePendingList is empty.
+No pending capsules found in EFI\UpdateCapsule folder
+```
+
+with no `Pkcs7Verify` or `Security Violation` lines at all. The reboot had
+raced the staging step, so the firmware genuinely had nothing to find, and the
+`last_attempt_status=1` was **stale** from the Part 1 rejection rather than a
+fresh result.
+
+Worth recording as a procedure note: always confirm both
+`/boot/efi/EFI/UpdateCapsule/*.cap` and the `OsIndications` read-back *before*
+rebooting, and clear `/var/lib/dtb-capsule/last-*` so the previous verdict
+cannot be mistaken for the new one.
+
+### The capsule applies
+
+With staging confirmed (`capsule staged at …`, `OsIndications` = `04 00 …`):
+
+```
+Loading mass-storage capsule file 'qcom-dtb-7.0.0-1016-qcom.cap'!
+FmpDxe(Qualcomm System Firmware Update Driver): Capsule authentication disabled
+FmpDxe: CheckTheImage() - No dependency associated
+        PartitionName      = dtb_a
+        Version            = 0x20000
+CapsulePendingList[0]: 2A1A52FC-AA0B-401C-A808-5EA0F91068F8
+```
+
+ESRT afterwards:
+
+| field | before | after |
+|---|---|---|
+| `fw_version` | 65536 | **131072** |
+| `last_attempt_version` | 0 | 131072 |
+| `last_attempt_status` | 1 | **0** |
+
+`/boot/efi/EFI/UpdateCapsule` emptied by firmware, as in Part 1.
+
+**Taken with Part 1 this closes the question of capsule correctness.**
+Production firmware accepted everything up to the signature; permissive
+firmware accepted the signature too and wrote `dtb_a` at the expected version.
+Nothing about the capsule's structure, payload, targeting or versioning is
+wrong — only the key is.
+
+### UEFI really does boot the capsule's FIT
+
+The next boot's serial log shows the firmware parsing a FIT whose contents are
+unmistakably ours:
+
+```
+ParseFitDt: Configuration From BoardParam
+FindConfigToBoot: ... ConfigFdt "qcom,hamoa-evk-el2kvm"
+FindConfigToBoot: Invalid Configuration ConfigFdt "qcom,purwa-evk-camx-el2kvm"
+FindConfigToBoot: ... "qcom,hamoa-evk-el2kvm-staging"
+FindConfigToBoot: i = 0 fdt fdt-hamoa-iot-evk.dtb str len = 21
+```
+
+Those compatible strings and that image name match the capsule's FIT exactly
+(`conf-7` = `qcom,purwa-evk-camx-el2kvm`, `conf-9` =
+`qcom,hamoa-evk-el2kvm-staging`, `fdt-hamoa-iot-evk.dtb` = 21 characters). No
+board param matched, so it fell back to config index 0 (`conf-1`,
+`fdt-hamoa-iot-evk.dtb` + the imx577 overlay) — which is why the running tree
+gains `regulator-cam1`.
+
+Both base DTBs inside the shipped capsule carry the provenance stamp, and it
+matches what the package expects:
+
+```
+b4.dtb  Purwa IoT EVK  /qcom-dtb-capsule-provenance/dtb-provenance-sha256 = f9397b7a…
+b5.dtb  Hamoa IoT EVK  /qcom-dtb-capsule-provenance/dtb-provenance-sha256 = f9397b7a…
+/usr/share/dtb-capsule/expected-dtb-sha256                                = f9397b7a…
+```
+
+### …but GRUB throws it away
+
+Despite all of that, `/sys/firmware/devicetree/base/qcom-dtb-capsule-provenance`
+was **absent** after two clean reboots. The running tree had
+`ubuntu,dtb-version = linux-qcom 7.0.0-1016.19` — which the *kernel package*
+stamps, not the capsule build — so the kernel was clearly running some other
+DTB.
+
+`/boot/grub/grub.cfg` explains it:
+
+```
+devicetree	/boot/dtb-7.0.0-1016-qcom
+  -> /boot/dtbs/7.0.0-1016-qcom/hamoa-iot-evk-camera-imx577.dtb
+     sha256 b18dbcad…, no provenance node
+```
+
+flash-kernel installs a DTB into the root filesystem and points GRUB at it.
+UEFI loads the capsule's DTB and installs it as the EFI configuration table,
+and then **GRUB replaces it** before handing control to the kernel.
+
+Confirmed by removing the directive and rebooting:
+
+```
+/sys/firmware/devicetree/base/qcom-dtb-capsule-provenance/dtb-provenance-sha256
+  = f9397b7a4aa23d85fb91efa9aad9f7f231d17654963e541745706570f0777aec
+```
+
+— an exact match for `expected-dtb-sha256`. Restoring `grub.cfg` restores the
+override. **The delivery mechanism works; a second DTB delivery mechanism on
+the same system wins.**
+
+This needs a product decision, and it is the most consequential finding of the
+whole exercise. As shipped on this image the capsule updates `dtb_a` and the
+running kernel ignores it, so the feature is a no-op for Linux. Options:
+
+- stop flash-kernel installing a rootfs DTB on capsule-managed platforms, and
+  drop the `devicetree` directive from the GRUB config; or
+- keep both and accept the capsule serves only the firmware's own pre-boot DT
+  use, not the OS.
+
+### Two further defects found, fixed in `995d23f`
+
+1. **Stale ESRT verdict.** The result cache was keyed on kernel version alone,
+   so the `confirmed=0` cached from the Part 1 rejection was replayed over the
+   successful apply — the service reported failure for a capsule that had just
+   succeeded. Now additionally keyed on a fingerprint of the ESRT entries, so
+   a changed firmware outcome is always re-checked while unchanged reboots
+   still dedup. Verified by poisoning the cache: the stale verdict is
+   discarded and re-evaluated to `confirmed=1`.
+
+2. **Unhelpful diagnosis of the override.** A missing provenance node reported
+   only "cannot verify DTB content provenance", which points suspicion at the
+   capsule. The script now detects an active `devicetree` directive in
+   `grub.cfg` and says the running kernel is not using the capsule's DTB.
+
+### Still outstanding
+
+`/usr/lib/modules/<kver>/dtb-provenance-sha256` is **not shipped** by
+`linux-modules`, so the strongest check — cross-checking the running DTB's
+provenance against the kernel package actually installed — degrades to a
+warning even on a fully successful apply. Worth closing, since that is the
+check that ties the DTB to the kernel.
+
+### Board state afterwards
+
+Healthy, 7.0.0-1016-qcom, `dtb_a` now written at version 0x20000,
+`grub.cfg` restored to its original form (backup left at
+`/boot/grub/grub.cfg.capsule-test-bak`). The fixed `verify-capsule-result.sh`
+is installed by hand at `/usr/share/dtb-capsule/`.
