@@ -300,15 +300,33 @@ Source: `XmlFwEntryValidation.py:395` calls `uuid.uuid4()` for the FFS
 `FileGuid` whenever the FwEntry XML does not pin one, which ours does not. It
 is embedded twice, plus one checksum byte.
 
-**So the signed content is entirely platform-independent**, and we currently
-send Launchpad two signing requests for what would otherwise be identical
-bytes. Pinning that `FileGuid` would make the build reproducible and allow one
-signature to be wrapped into both capsules, since the only per-platform field
-is already outside the signed region and already travels in `.capsule.vars`.
+**So the signed content is entirely platform-independent**, and we were sending
+Launchpad two signing requests for what would otherwise be identical bytes.
 
-Independently of the signing saving, **a non-reproducible signed artifact is
-undesirable on its own**: as it stands a rebuild cannot be verified to match
-what was signed.
+**Fixed** in `linux-signed` `44ff45d`: `XmlFwEntryValidation.py` now honours
+`QCOM_CAPSULE_FILE_GUID`, which `build-capsule-payload.sh` derives from the DTB
+provenance hash (`uuid5` over `urn:ubuntu:qcom-dtb-capsule:<provenance>`) so it
+stays distinct per payload, as an FFS file identifier should be. Measured
+after the change:
+
+```
+hamoa run1 vs run2 : IDENTICAL   (reproducible)
+hamoa      vs purwa: IDENTICAL   (one signature serves both)
+config.json GUIDs  : 0F6D58FC-… / 185a798b-…  (still distinct, as required)
+```
+
+With the variable unset, upstream's random behaviour is preserved exactly (two
+builds still differ by the same 34 bytes); an unparseable value fails the build
+rather than silently falling back. Nothing can be matching on the value, since
+upstream leaves it random.
+
+Two capsule *files* are still required — the firmware matches the FMP GUID
+against ESRT `fw_class` — but the remaining work to exploit this is wiring
+`signed-build` to wrap one returned signature into both capsules, rather than
+requesting two.
+
+Note this also fixes a problem worth having on its own: **the signed artifact
+is now reproducible**, so a rebuild can be verified to match what was signed.
 
 ### A single merged capsule is possible but not worth it
 
