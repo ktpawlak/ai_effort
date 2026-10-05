@@ -37,19 +37,25 @@ a public Qualcomm repository:
     commit: fde4dcb2eb96047efa868751c66bb8c4c0bd1674
     licence: BSD-3-Clause-Clear (not GPL)
 
-`linux-signed` vendors 14 of the 15 upstream files. Thirteen are byte-identical
-to that commit (verified with `cmp`, not by size); only `generate_capsule.py`
-differs, carrying our `--emit-signable` / `--assemble` split-signing modes.
-`create_config_json.py` is not copied because nothing imports it — the build
-writes `config.json` from `capsule.env` instead.
+`linux-signed` vendors 14 of the 15 upstream files. **Twelve** are byte-identical
+to that commit (verified by diffing every file, not by size); two differ:
+`generate_capsule.py`, carrying our `--emit-signable` / `--assemble`
+split-signing modes, and `XmlFwEntryValidation.py`, carrying the stable
+`FileGuid` fix described below. `create_config_json.py` is not copied because
+nothing imports it — the build writes `config.json` from `capsule.env` instead.
+
+*(Updated 2026-10-05: this section originally read "thirteen are byte-identical,
+only `generate_capsule.py` differs", which was true before the `FileGuid` fix
+was applied to `XmlFwEntryValidation.py`.)*
 
 This matters for two things these notes already discuss:
 
 - The `uuid.uuid4()` reproducibility bug at `XmlFwEntryValidation.py:395`, and
   the stable-`FileGuid` fix, now have a concrete place to be sent.
-- Refreshing the tool means re-applying the `generate_capsule.py` delta rather
-  than overwriting it, and bumping the commit recorded in `linux-signed`'s
-  `debian/copyright` and `README.md`.
+- Refreshing the tool means re-applying **both** deltas rather than
+  overwriting them, and bumping the commit recorded in `linux-signed`'s
+  `debian/copyright` and `README.md`. This is now guarded by
+  `debian/capsule/tests/test-capsule-tool.py` — see below.
 
 The repo's other component, `uefi_sec/`, is **not needed**. It is a userspace
 daemon that loads the `qcom.tz.uefisecapp` trusted app over the legacy QSEECom
@@ -222,3 +228,71 @@ Qualcomm), and a different delivery path (snap vs deb).
 
 Both need a new Launchpad signing mode, but only the capsule is blocked on a
 Qualcomm business decision. They should be raised as two requests, not one.
+
+## What the signable-capsule split actually required (2026-10-05)
+
+Re-measured against upstream `fde4dcb`, since the earlier notes described the
+split only in the abstract.
+
+**Why a split was unavoidable.** Upstream `capsule_creator` runs five steps and
+only the fifth consumes a certificate. On Launchpad the key never exists on the
+build machine, so step 5 cannot run there. Nor can a signature simply be
+patched into a finished capsule afterwards: the outer capsule header, the FMP
+image header and the `WIN_CERTIFICATE` all carry lengths derived from
+`len(cert_data)`, so the capsule has to be *re-assembled* once the signature is
+known. That is what `--assemble` exists for.
+
+**The change is a refactor to expose a seam, not a rewrite.** Upstream had two
+monolithic functions, with the signing call buried mid-way through
+`encode_payload()`. `generate_capsule.py` goes 404 → 601 lines (258 changed),
+almost all of it extracting five reusable pieces —
+
+    encode_image  encode_signable  encode_auth_header
+    encode_image_item  encode_capsule_from_items
+
+— and then adding `assemble_signed_capsule()`, which composes the same pieces
+around an externally-produced signature. `encode_payload()` and
+`encode_capsule()` survive, re-implemented in terms of the extracted helpers.
+
+**The handoff blob is deliberately self-describing:**
+
+    MSS1 image + struct.pack("<Q", monotonic_count)
+
+The count is recovered from the trailing eight bytes at assembly time, so the
+archive signs an opaque file and needs to know nothing about capsule layout.
+Only the FMP image-header fields, which sit outside the signed region, travel
+separately, in the `.capsule.vars` sidecar.
+
+**Measured equivalence** (deterministic stand-in signature, so the two assembly
+paths can be compared byte for byte):
+
+| Check | Result |
+|---|---|
+| 12 of 14 vendored files vs upstream | 0 changed lines |
+| signed: all-in-one vs `--emit-signable` + `--assemble` | identical, 103036 B |
+| unsigned: `--encode` vs `--assemble --unsigned` | identical, 102512 B |
+| blob == exact bytes handed to OpenSSL | true |
+| refactor vs upstream, 6 flag/oem combinations | all identical |
+| upstream vs vendored, 2 payloads + embedded driver | identical, 206296 B |
+
+The last two matter most for risk: the restructuring is provably
+behaviour-preserving on the original all-in-one path, including the
+multi-payload and embedded-driver cases the refactor touched most.
+
+**`--unsigned` is not "signed minus the signature".** `ImageCapsuleSupport`
+also loses `CAPSULE_SUPPORT_AUTHENTICATION` and the authentication header is
+absent entirely, so the two forms are not interconvertible after the fact.
+
+**These claims are now tested in-tree.** `linux-signed` commit `61dd5f8` adds
+`debian/capsule/tests/test-capsule-tool.py`: stdlib only, no build dependency,
+resolves paths relative to `__file__` so it also runs from the copy
+`parameterise-ancillaries` ships into the `-generate-` tree. The
+upstream-comparison checks are skipped rather than failed when
+`QCOM_CAPSULE_UPSTREAM` is unset.
+
+Previously the README asserted the equivalence "is tested" while nothing in the
+tree re-checked it, which left the documented re-apply-the-deltas-by-hand
+refresh procedure without a safety net. Verified by mutation that the tests
+actually fail: dropping the authentication header in `--assemble`, restoring
+upstream's `XmlFwEntryValidation.py` over the delta, and perturbing the capsule
+header length are each caught.
