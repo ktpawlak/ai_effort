@@ -3,10 +3,12 @@
 Target: [`ppa:kuba-t-pawlak/capsule`](https://launchpad.net/~kuba-t-pawlak/+archive/ubuntu/capsule),
 `linux-signed-qcom 7.0.0-1016.19`, built from `d8fb7f8`.
 
-**Hardware was not reachable from this workstation** — it is x86_64, and
-`klumsy` / `tippi` / `balboa` are all behind the VPN (connect timeout / DNS
-failure). So the capsule was taken apart and validated statically instead,
-which turned out to settle the question anyway: see the signing blocker below.
+**Tested on real hardware.** The board is not an SSH target in `~/.ssh/config`
+— it is attached to this workstation over FTDI and documented in
+`ai_effort/qpa` (`AGENTS.md`, `flash-hamoa.sh`), reachable at
+`ubuntu@192.168.1.123`. Model string: *Qualcomm Technologies, Inc. Hamoa IoT
+EVK*. Results in [On-hardware result](#on-hardware-result) below; the static
+teardown that preceded it is kept because it predicted the outcome exactly.
 
 ## Where `d8fb7f8` sits in history
 
@@ -76,12 +78,12 @@ except the final trust decision. Read the outcome from ESRT
 | 1 | Unsuccessful | generic failure |
 | 3 | Incorrect version | anti-rollback: device `fw_version` ≥ 0.0.2.0 |
 | 4 | Invalid image format | our capsule/FV layout is wrong — a real bug |
-| **5** | **Auth error** | **expected result with test keys — pipeline is good** |
+| 5 | Auth error | the spec'd code for this — **but not what Hamoa reports** |
 
-So **status 5 is the pass condition for this build.** Status 4 would be the
-interesting failure, meaning the payload layout is wrong independently of
-signing. Status 3 means the device already has an equal-or-newer DTB firmware
-version and `--fwver` needs bumping.
+Predicted status 5. **The board actually reports 1** — Qualcomm's FmpDxe maps a
+security violation onto `ErrorUnsuccessful` rather than the specific auth code,
+so status 1 here is not the generic catch-all it looks like. Confirmed against
+the serial console; see below.
 
 ## 🟠 Bug found in the published capsule: the FAT lies about its size
 
@@ -151,3 +153,99 @@ One of:
 
 Nothing in the package needs to change for any of these; the signing key is the
 only variable.
+
+## On-hardware result
+
+Board: Hamoa IQ-X7181 IoT EVK, `ubuntu@192.168.1.123`, initially running
+7.0.0-1013-qcom. Control and flashing procedures are in `ai_effort/qpa`.
+
+### Baseline, before touching anything
+
+```
+entry0  fw_class                     0f6d58fc-2258-4d27-9e23-d77219b0897c
+        fw_version                   65536       (0x00010000)
+        lowest_supported_fw_version  0
+        last_attempt_status          0
+```
+
+`entry0.fw_class` is **exactly** the `FMP_GUID` in `hamoa/capsule.env`, which
+settles that question on hardware rather than by assertion. The capsule
+declares `FwVer` 131072 (`0x00020000`) > 65536, and the lowest-supported floor
+is 0, so **anti-rollback passes** — status 3 was never a risk.
+
+The other two ESRT entries are `abc50ba3-…` (fw_version 0) and `22c5bc99-…`
+(fw_version 2097152, floor 1507328); neither is ours.
+
+### Install and staging
+
+`apt install linux-image-7.0.0-1016-qcom linux-modules-7.0.0-1016-qcom
+dtb-capsule-7.0.0-1016-qcom` (plus `efivar`, which is **not** a dependency and
+must be present or staging silently does nothing). The postinst did everything
+right:
+
+```
+dtb-capsule: matched platform 'hamoa' via ESRT FMP_GUID
+dtb-capsule: capsule staged at /boot/efi/EFI/UpdateCapsule/qcom-dtb-7.0.0-1016-qcom.cap
+dtb-capsule: set OsIndications capsule-delivery bit via efivar (verified via read-back)
+```
+
+Platform auto-detection picked **hamoa**, not purwa — the staged file's sha256
+matches `hamoa-dtb.cap` exactly. `OsIndications` read back as `04 00 …`.
+
+### What firmware did
+
+Board rebooted in 85 s onto 7.0.0-1016-qcom. The capsule was **consumed**
+(directory gone), `OsIndications` **cleared**, `fw_version` **unchanged**, and
+`last_attempt_status` went 0 → **1**.
+
+Status 1 alone is ambiguous, so the UEFI log was captured over the serial
+console (`/dev/ttyUSB1`, 115200) across a second attempt:
+
+```
+Selected FW GUID =: 0F6D58FC-2258-4D27-9E23-D77219B0897C
+FmpAuthenticatedHandlerPkcs7: Pkcs7Verify() failed
+FmpDxe(Qualcomm System Firmware Update Driver): CheckTheImage() - Authentication Failed Security Violation.
+FmpDxe(Qualcomm System Firmware Update Driver): SetTheImage() - Check The Image failed with Security Violation.
+Capsule process failed!
+```
+
+**This is the ideal negative result.** Firmware found the capsule, parsed it,
+matched `UpdateImageTypeId` to the Qualcomm System Firmware Update Driver, and
+got all the way to `CheckTheImage()` before refusing. A malformed capsule fails
+*earlier*, with a format error. Everything structural — capsule header, FMP
+layout, GUID, image index, FV/MSS1 wrapper, FAT, FIT, version — is **accepted
+by production firmware**. The only thing wrong is the signing key.
+
+### Three packaging bugs this exposed
+
+Nothing reported any of the above to the user. Each fault hid the next, and
+none is visible without hardware:
+
+1. **`dtb-capsule-verify.service` shipped disabled.** It is installed by hand
+   in `signed-install`, not via `dh_installsystemd`, so nothing generated the
+   snippet `[Install] WantedBy=` relies on. It had never run.
+2. **Once enabled, it was skipped** — `ConditionPathExists=/boot/efi/EFI/UpdateCapsule`
+   assumed firmware clears the directory's *contents*. Hamoa removes the
+   **directory**, so the condition was unsatisfiable in exactly the case the
+   service exists for.
+3. **It then lied.** The MOTD said *"ESRT confirmed apply"* for a capsule
+   firmware had rejected — that string was written unconditionally on the
+   no-provenance-node path.
+
+Fixed in `19c2c6c`, each verified on the board: the enable through a real
+`dpkg-reconfigure` from clean `deb-systemd-helper` state, the condition removal
+across a reboot, and the message against the live rejected capsule. The MOTD
+now reads:
+
+```
+detail: ESRT did not confirm apply (platform=hamoa status=1 [ErrorUnsuccessful]
+        fw_version=65536 vs last_attempt_version=0); also no DTB provenance node ...
+```
+
+### Board state afterwards
+
+Healthy, running 7.0.0-1016-qcom from the PPA, `systemctl is-system-running` =
+`running`. `dtb_a` was **never written** — the capsule never passed
+authentication, so the DTB partitions are untouched and `fw_version` is still
+65536. The PPA remains configured and the 1016 kernel installed; 1013 is still
+in GRUB.
