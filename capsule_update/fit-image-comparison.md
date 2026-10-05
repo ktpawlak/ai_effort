@@ -241,3 +241,81 @@ the bootloader cannot load the image. It requires no action on either side:
 
 So both patches in that series are accounted for: 0001 by construction, 0002
 by the renumbering commit above. Neither should be re-applied.
+
+---
+
+## Why there are two capsules (2026-10-05)
+
+Measured, not inferred: both capsules were built from an identical payload and
+compared byte by byte.
+
+**The two capsules differ only in the FMP GUID.** Everything else is identical:
+
+| | hamoa | purwa | |
+|---|---|---|---|
+| `dtb.bin` | — built **once** from `--soc hamoa purwa`, copied into both — | identical |
+| `TARGET` | `IQ-X7181` | `IQ-X5121` | **no effect** |
+| `FvUpdate.xml` | | | byte-identical |
+| `SYSFW_VERSION.bin` | | | byte-identical |
+| `firmware.fv` | | | identical modulo a random GUID (below) |
+| `config.json` `Guid` | `0F6D58FC-…` | `185a798b-…` | **the only real difference** |
+
+`TARGET` is a no-op because `UpdateFvXml.SUPPORTED_PLATFORMS` maps **both**
+`IQ-X7181` and `IQ-X5121` to the same qcom-ptool dir `iq-x7181-evk`, so both
+resolve the same `partitions.conf`.
+
+### Two capsule *files* are genuinely required
+
+The FMP GUID is the `UpdateImageTypeId` in
+`EFI_FIRMWARE_MANAGEMENT_CAPSULE_IMAGE_HEADER`. Firmware matches it against the
+`ImageTypeId` of its FMP instance — the value a device publishes as
+`/sys/firmware/efi/esrt/entries/*/fw_class`. A capsule carrying only Hamoa's
+GUID is rejected on Purwa and vice versa, so one file per platform is needed.
+`signed-install` already picks the right one by matching ESRT `fw_class`.
+
+### But two *signatures* are not
+
+The FMP GUID lives in the image header, which is **outside**
+`EFI_FIRMWARE_IMAGE_AUTHENTICATION`. The design already relies on this — the
+`.capsule.vars` comment says "only the FMP image-header fields, which are
+outside it, have to travel".
+
+Verified: the FMP GUID appears **nowhere** inside `firmware.fv` (searched
+`bytes_le`, `bytes_be` and ASCII; all absent), and the two `--emit-signable`
+blobs differ in only 34 bytes.
+
+Those 34 bytes are **not platform data — they are build nondeterminism**. Two
+builds of *the same* platform, from identical inputs, differ in exactly the
+same 34 bytes at exactly the same offsets. Masking them makes both pairs
+byte-identical:
+
+```
+hamoa vs purwa    :  34 differing bytes
+hamoa vs hamoa #2 :  34 differing bytes   <-- same platform, same inputs
+same offsets?     : True
+masked: hamoa vs purwa IDENTICAL, hamoa vs hamoa#2 IDENTICAL
+```
+
+Source: `XmlFwEntryValidation.py:395` calls `uuid.uuid4()` for the FFS
+`FileGuid` whenever the FwEntry XML does not pin one, which ours does not. It
+is embedded twice, plus one checksum byte.
+
+**So the signed content is entirely platform-independent**, and we currently
+send Launchpad two signing requests for what would otherwise be identical
+bytes. Pinning that `FileGuid` would make the build reproducible and allow one
+signature to be wrapped into both capsules, since the only per-platform field
+is already outside the signed region and already travels in `.capsule.vars`.
+
+Independently of the signing saving, **a non-reproducible signed artifact is
+undesirable on its own**: as it stands a rebuild cannot be verified to match
+what was signed.
+
+### A single merged capsule is possible but not worth it
+
+`config.json` has a `Payloads` **array**, and `generate_capsule.py` builds
+`ItemOffsetList` with `PayloadItemCount = len(items) - embedded_driver_count`,
+so one capsule could carry both GUIDs as two payload items. Rejected: each item
+embeds its own copy of the 4 MB FV (≈8 MB shipped to every device, half of it
+never used), and `EFI_FIRMWARE_IMAGE_AUTHENTICATION` is per-payload, so it
+would still need two signatures. Two files sharing one signature is the better
+shape.
