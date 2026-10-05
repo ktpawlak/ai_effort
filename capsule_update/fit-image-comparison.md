@@ -320,13 +320,35 @@ builds still differ by the same 34 bytes); an unparseable value fails the build
 rather than silently falling back. Nothing can be matching on the value, since
 upstream leaves it random.
 
-Two capsule *files* are still required — the firmware matches the FMP GUID
-against ESRT `fw_class` — but the remaining work to exploit this is wiring
-`signed-build` to wrap one returned signature into both capsules, rather than
-requesting two.
+### Decision: two capsules, two signatures — deliberately
 
-Note this also fixes a problem worth having on its own: **the signed artifact
-is now reproducible**, so a rebuild can be verified to match what was signed.
+The byte-identical blobs make it *possible* to sign once and wrap the result
+into both capsules. **This was considered and rejected.** Two signing requests
+are not a problem; a pipeline in which a capsule's signature did not come from
+that capsule's own blob is. The saving is one request per upload, and the cost
+is a non-obvious coupling that every future reader of `signed-build` would have
+to understand before touching it.
+
+So the flow stays as it is: one blob, one `.sig` and one `.capsule.vars` per
+machine, assembled independently. `signed-build` requires a signature beside
+each blob and fails if one is missing (unless `--allow-unsigned` is declared
+explicitly). The pinning is kept purely for reproducibility, which is worth
+having on its own.
+
+Verified that the two-capsule path is handled properly end to end:
+
+- **`signed-build`** iterates each `*.capsule` blob, derives the machine from
+  its directory, loads that machine's `.capsule.vars`, assembles with that
+  machine's `CAPSULE_GUID`, and re-reads the result with `--dump-info` so a
+  truncated signature is caught at build time rather than on the device.
+- **`signed-install`** ships every machine's capsule in one per-flavour binary
+  package and hard-fails if any machine's capsule was not assembled.
+- **postinst** reads the device's ESRT `fw_class` entries and matches them
+  against each packaged `capsule.env`'s `FMP_GUID`, lowercasing both sides —
+  which matters, since hamoa's GUID is written uppercase and purwa's lowercase.
+  It requires exactly one match: zero matches skip staging with a warning, and
+  two or more are treated as an ambiguity, recorded in `last-guid-conflict` and
+  surfaced by `verify-capsule-result.sh`.
 
 ### A single merged capsule is possible but not worth it
 
