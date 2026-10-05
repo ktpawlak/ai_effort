@@ -393,13 +393,46 @@ running kernel ignores it, so the feature is a no-op for Linux. Options:
    capsule. The script now detects an active `devicetree` directive in
    `grub.cfg` and says the running kernel is not using the capsule's DTB.
 
-### Still outstanding
+### Provenance marker — closed in `4bf3e96`
 
-`/usr/lib/modules/<kver>/dtb-provenance-sha256` is **not shipped** by
-`linux-modules`, so the strongest check — cross-checking the running DTB's
-provenance against the kernel package actually installed — degrades to a
-warning even on a fully successful apply. Worth closing, since that is the
-check that ties the DTB to the kernel.
+`/usr/lib/modules/<kver>/dtb-provenance-sha256` was **not shipped by anything**,
+so the strongest check the tooling has — does the running DTB belong to the
+kernel currently booted — degraded to a warning even on a fully successful
+apply, and had never once run. The same path, scanned across every installed
+kernel, is also what identifies a rollback target, so that was dead too.
+
+`-generate-` already computes the hash, so it now emits it under that name and
+`signed-install` places it in the module directory of the kernel the capsule
+was built from. `dtb-capsule-<abi>-<flavour>` is version-locked to one kernel,
+so it contributes exactly one marker for its own kernel version.
+
+`linux-modules` is still the better home — the hash is taken over the device
+trees *that* package ships, and `build-capsule-payload.sh` already cross-checks
+against it there and exits 1 on a mismatch. Until the kernel package records
+it, that build-time cross-check stays skipped with a warning, and the line in
+`signed-install` must be dropped if linux-modules ever starts shipping the
+path, since dpkg will not let both own it.
+
+Verified end to end:
+
+| check | result |
+|---|---|
+| payload built from the board's own linux-modules DTBs | hash `f9397b7a…0777aec`, **identical to the PPA capsule's** |
+| build-time cross-check, agreeing modules root | `provenance … confirmed against linux-modules` |
+| build-time cross-check, disagreeing modules root | exits 1 with both values printed |
+| `signed-install` output | `SIGNED/dtb-capsule/dtb-provenance-sha256 usr/lib/modules/7.0.0-1016-qcom` |
+| `signed-install` with the file absent | `EE: … missing`, exit 1 |
+| on the board, with the marker installed | `CONFIRMED: DTB's provenance sha256 matches the linux-modules-7.0.0-1016-qcom package actually installed on this device` |
+
+State file now reads `dtb_pairing_state=apply_confirmed`,
+`dtb_kver_content_match=ok`, `summary="OK: capsule applied and verified"`, and
+the MOTD is correctly silent.
+
+### `--soc` — decision taken
+
+Left as `--soc hamoa,purwa`. The full platform set is 4 435 968 bytes against a
+4096 KB `dtb_a`/`dtb_b` (`partitions.conf:88-89`), so widening it needs a flash
+layout change, not a packaging change.
 
 ### Board state afterwards
 
