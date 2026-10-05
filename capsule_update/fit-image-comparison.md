@@ -303,7 +303,7 @@ is embedded twice, plus one checksum byte.
 **So the signed content is entirely platform-independent**, and we were sending
 Launchpad two signing requests for what would otherwise be identical bytes.
 
-**Fixed** in `linux-signed` `44ff45d`: `XmlFwEntryValidation.py` now honours
+**Fixed** in `linux-signed` `e743fb7`: `XmlFwEntryValidation.py` now honours
 `QCOM_CAPSULE_FILE_GUID`, which `build-capsule-payload.sh` derives from the DTB
 provenance hash (`uuid5` over `urn:ubuntu:qcom-dtb-capsule:<provenance>`) so it
 stays distinct per payload, as an FFS file identifier should be. Measured
@@ -311,7 +311,7 @@ after the change:
 
 ```
 hamoa run1 vs run2 : IDENTICAL   (reproducible)
-hamoa      vs purwa: IDENTICAL   (one signature serves both)
+hamoa      vs purwa: IDENTICAL   (blobs match; still signed separately)
 config.json GUIDs  : 0F6D58FC-… / 185a798b-…  (still distinct, as required)
 ```
 
@@ -357,5 +357,61 @@ Verified that the two-capsule path is handled properly end to end:
 so one capsule could carry both GUIDs as two payload items. Rejected: each item
 embeds its own copy of the 4 MB FV (≈8 MB shipped to every device, half of it
 never used), and `EFI_FIRMWARE_IMAGE_AUTHENTICATION` is per-payload, so it
-would still need two signatures. Two files sharing one signature is the better
-shape.
+would still need two signatures. Two separate files, each signed in its own
+right, is the better shape.
+
+## Reproducing the removed kernel FIT's platform set (2026-10-05)
+
+The FIT the kernel package used to build carried more platforms than the
+capsule does today. What it carried, and what `--soc` would be needed to get it
+back from `build-dtb-image.sh`:
+
+**The old kernel FIT was simply the unfiltered ITS.** The removed `do_fitimage`
+block ran `mkimage -f <full ITS>` directly — no soc filter, no prune — so it
+bundled all **51 configurations / 48 images**. The two ITS copies are
+content-identical; `diff` shows *only* `conf-N` renumbering, so the same set is
+still reachable from the copy `linux-signed` kept.
+
+**Answer: pass nothing.** `--soc` is optional, and when omitted the script
+copies the full ITS verbatim (`build-dtb-image.sh:580`).
+
+Measured against 47 staged DTBs:
+
+| Invocation | configs | images | |
+|---|---|---|---|
+| old kernel FIT (full ITS, no filter) | 51 | 48 | baseline |
+| `--prune` *(no `--soc`)* | 51 | 48 | **exact match** |
+| `--prune --soc <all 18>` | 51 | 47 | one image short |
+| `--prune --soc hamoa purwa` | 9 | 10 | current production |
+
+The 18 valid names, validated against `/soc` in `qcom-metadata.dts`:
+
+```
+glymur hamoa kaanapali mahua purwa qcm6490 qcs615 qcs5430 qcs6490
+qcs8275 qcs8300 qcs9075 qcs9100 sa8775p shikracqm shikracqs shikraiqs sm8750
+```
+
+They **partition** the 51 configurations exactly — per-soc hit counts sum to
+51 with no config matching two names — so any subset gives a predictable slice.
+hamoa 6, purwa 3 (hence today's 9), sa8775p 8, qcs6490/qcs8275/qcs9075 4 each,
+glymur/qcs5430/qcs8300 3, kaanapali/qcs615/qcs9100/sm8750 2, rest 1.
+
+### The 48th image is unreachable via any `--soc` list
+
+`fdt-talos-el2.dtbo` is defined in the images block but referenced by **no**
+configuration. `filter_its` emits only images in `needed_fdts` plus
+`fdt-qcom-metadata.dtb`, so it is dropped for every possible `--soc`
+invocation; passing all 18 names still yields 47 images, not 48. Only omitting
+`--soc` preserves it.
+
+This reads as a **missing configuration**, not a stray overlay: lemans, monaco,
+kodiak and x1 all have a `*-el2kvm` configuration pairing their base DTB with
+their `-el2.dtbo`. qcs615 has only `qcom,qcs615-adp` and `qcom,qcs615-iot`, so
+a `qcom,qcs615-iot-el2kvm` appears to be absent. The orphan is present in
+*both* ITS copies, so dropping the kernel-side FIT did not cause it.
+
+Harmless in practice — a bootloader selecting by configuration can never reach
+an unreferenced image, so the old FIT carried the overlay as dead weight rather
+than offering a working el2kvm variant. Recorded in `linux-signed` `f45c131`
+rather than fixed, since inventing the configuration would assert that the
+combination is supported, which is not established.
