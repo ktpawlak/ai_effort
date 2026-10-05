@@ -306,19 +306,58 @@ Launchpad two signing requests for what would otherwise be identical bytes.
 **Fixed** in `linux-signed` `e743fb7`: `XmlFwEntryValidation.py` now honours
 `QCOM_CAPSULE_FILE_GUID`, which `build-capsule-payload.sh` derives from the DTB
 provenance hash (`uuid5` over `urn:ubuntu:qcom-dtb-capsule:<provenance>`) so it
-stays distinct per payload, as an FFS file identifier should be. Measured
-after the change:
-
-```
-hamoa run1 vs run2 : IDENTICAL   (reproducible)
-hamoa      vs purwa: IDENTICAL   (blobs match; still signed separately)
-config.json GUIDs  : 0F6D58FC-… / 185a798b-…  (still distinct, as required)
-```
+stays distinct per payload, as an FFS file identifier should be.
 
 With the variable unset, upstream's random behaviour is preserved exactly (two
 builds still differ by the same 34 bytes); an unparseable value fails the build
 rather than silently falling back. Nothing can be matching on the value, since
 upstream leaves it random.
+
+#### Correction: the `e743fb7` measurements were taken against empty capsules
+
+The measurements originally recorded here claimed both reproducibility and
+platform-identity were achieved at `e743fb7`. **They proved neither.** The same
+commit introduced a regression — `raw_fwentry.FileGuid` was assigned a `str`
+where the `PARTITION` path needs a `c_byte * 16` — and
+`FVCreation.process_sys_fw_ffs_creation` catches the resulting `TypeError`,
+prints the traceback and continues with "FV created successfully". The build
+exited 0 with a **152-byte capsule instead of 4195736**: no DTB payload at all.
+Two such blobs compare equal, which is indistinguishable from success.
+
+Fixed in `64f9a31` (assign `meta_data_fwentry.FileGuid`, as upstream does). The
+in-tree test had enshrined the bug by using `SimpleNamespace` stand-ins, which
+accept any type; it now uses a real `ctypes.Structure`.
+
+Re-measured against *working* payloads, platform-identity held but
+reproducibility did not — 8 differing bytes, from two further sources that the
+empty blobs had hidden:
+
+| Source | Bytes | Fix |
+|---|---|---|
+| `mkimage` FIT timestamp | 4 | honour `SOURCE_DATE_EPOCH` |
+| `mformat` FAT volume serial (0x27–0x2a) | 4 | `mformat -N`, derived from it |
+| `mcopy` directory-entry mtime | 0 seen¹ | `mcopy -m` + pinned staged mtime |
+
+¹ masked in the original test: the two builds were ~1.2 s apart and FAT mtime
+granularity is 2 s. Pinned anyway.
+
+Both fixed in `11f1900`. Measured after that commit, with real DTBs from
+`linux-modules-7.0.0-1013-qcom`, two builds **three seconds** apart:
+
+```
+payload size       : 4195736 bytes   (was 152)
+hamoa run1 vs run2 : IDENTICAL   (reproducible)
+hamoa      vs purwa: IDENTICAL   (blobs match; still signed separately)
+capsule.env        : distinct per machine
+config.json GUIDs  : 0F6D58FC-… / 185a798b-…  (still distinct, as required)
+```
+
+Two guards now make both failure modes loud, each verified by reintroducing
+the fault: a payload smaller than `dtb.bin` fails the build, and an image that
+`mcopy` grew past `--size` fails it too.
+
+> **If any capsule was built from `e743fb7`…`f45c131`, it was empty.** Worth
+> checking before anything from that range is trusted or published.
 
 ### Decision: two capsules, two signatures — deliberately
 
@@ -375,6 +414,11 @@ still reachable from the copy `linux-signed` kept.
 **Answer: pass nothing.** `--soc` is optional, and when omitted the script
 copies the full ITS verbatim (`build-dtb-image.sh:580`).
 
+> ⚠️ **But the result does not fit the capsule.** This reproduces the old
+> kernel FIT exactly, and the old FIT had no size limit. The capsule does. See
+> *[Removing `--soc` does not fit the partition](#removing---soc-does-not-fit-the-partition-2026-10-05)*
+> below before acting on this.
+
 Measured against 47 staged DTBs:
 
 | Invocation | configs | images | |
@@ -415,3 +459,58 @@ an unreferenced image, so the old FIT carried the overlay as dead weight rather
 than offering a working el2kvm variant. Recorded in `linux-signed` `f45c131`
 rather than fixed, since inventing the configuration would assert that the
 combination is supported, which is not established.
+
+## Removing `--soc` does not fit the partition (2026-10-05)
+
+Following the section above, the next step was to drop `--soc` so the capsule
+carries every platform the old kernel FIT did. **Measurement says it cannot
+ship.**
+
+`qcom-ptool/platforms/iq-x7181-evk/spinor/partitions.conf:88-89` defines the
+target:
+
+```
+--name=dtb_a --size=4096KB --filename=dtb.bin
+--name=dtb_b --size=4096KB --filename=dtb.bin
+```
+
+4096 KB = 4,194,304 bytes. That is the **on-device partition**, not a default
+chosen for convenience in the script.
+
+Measured with the real DTBs from `linux-modules-7.0.0-1013-qcom…ubuntu2`:
+
+| | bytes | vs 4 MB partition |
+|---|---|---|
+| 45 of 47 referenced DTBs, raw | 4,271,914 | already over, before any overhead |
+| resulting FIT (`--prune`, no `--soc`) | 4,283,832 | over |
+| resulting FAT image | 4,435,968 | **+241,664 over** |
+| current `--soc hamoa purwa` | 4,194,304 | fits |
+
+Two referenced DTBs (`kodiak-el2.dtbo`, `qcs5430-fps-camx.dtbo`) were absent
+from the 1013 modules deb, so the complete set is larger still.
+
+**Why the old kernel FIT could carry everything:** it was installed as
+`/usr/lib/firmware/<abi>/device-tree/qcom/qcom.itb` in the kernel package — a
+file on the rootfs, with no size constraint. The capsule writes a fixed-size
+flash partition. The two are not interchangeable, and this looks like the
+conflation behind the request.
+
+It failed *silently*: `mcopy` extends the backing file rather than erroring
+when the payload exceeds the space `dd` reserved, so the script requested 4 MB,
+produced 4.23 MB and exited 0. Now guarded (`11f1900`) — the same invocation
+exits 1 with the sizes named.
+
+### Options
+
+1. **Keep a soc filter** (status quo). `hamoa purwa` → 9 configs / 10 images,
+   638 KB of DTB. Fits with room to spare.
+2. **Widen to a larger subset that still fits.** The 18 names partition the 51
+   configs exactly, so any subset's size is predictable; roughly 3.5 MB of DTB
+   is available. This is a product decision about which boards the capsule
+   serves, not a technical one.
+3. **Change the flash layout.** Enlarging `dtb_a`/`dtb_b` is a firmware-side
+   change and does **not** help already-deployed devices, whose partition table
+   is already written.
+
+Not decided here — options 2 and 3 need a call on which boards the capsule is
+meant to serve. Flagged for the user rather than guessed at.
