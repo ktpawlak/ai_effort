@@ -147,3 +147,102 @@ implemented with edk2's BaseTools capsule header classes. The evidence that it
 produces exactly the bytes shipped devices already accept is above, and on our
 side it would mean deleting `generate_capsule.py` and the whole local assemble
 step rather than writing anything new.
+
+## Appendix: the actual edk2 command sequence
+
+Verified end to end: capsule built, parsed by both edk2 and the Qualcomm tool,
+and the PKCS#7 signature verified against the root.
+
+`GenerateCapsule.py` is not packaged in Ubuntu (`python3-virt-firmware` is a
+different thing), so the tooling has to be vendored. Only six stdlib-only
+files are needed — 2317 lines, ~115 KB — not the whole of BaseTools:
+
+```bash
+R=https://raw.githubusercontent.com/tianocore/edk2/master/BaseTools/Source/Python
+mkdir -p edk2/Common/Uefi/Capsule edk2/Common/Edk2/Capsule edk2/Capsule
+for f in Capsule/GenerateCapsule.py \
+         Common/Uefi/Capsule/UefiCapsuleHeader.py \
+         Common/Uefi/Capsule/FmpCapsuleHeader.py \
+         Common/Uefi/Capsule/FmpAuthHeader.py \
+         Common/Uefi/Capsule/CapsuleDependency.py \
+         Common/Edk2/Capsule/FmpPayloadHeader.py; do
+    curl -sfL "$R/$f" -o "edk2/$f"
+done
+find edk2 -type d -exec touch {}/__init__.py \;
+```
+
+The signer certificate must be a single PEM holding **both** the private key
+and the certificate; `GenerateCapsule.py` passes it to `openssl smime -signer`
+with no `-inkey`:
+
+```bash
+cat signer.key signer.crt > signer.pem
+```
+
+Then the whole capsule is one command — no JSON descriptor is required, every
+field has a command-line flag:
+
+```bash
+PYTHONPATH=$PWD/edk2 python3 edk2/Capsule/GenerateCapsule.py \
+    --encode \
+    --guid                 0F6D58FC-2258-4D27-9E23-D77219B0897C \
+    --fw-version           0x203F9 \
+    --lsv                  0x0 \
+    --monotonic-count      0x0 \
+    --hardware-instance    0x0 \
+    --update-image-index   0x1 \
+    --capflag              PersistAcrossReset \
+    --signer-private-cert  certs/signer.pem \
+    --other-public-cert    certs/chain.pem \
+    --trusted-public-cert  certs/root.crt \
+    -o hamoa-dtb.cap \
+    firmware.fv
+```
+
+Inspect it with either implementation:
+
+```bash
+PYTHONPATH=$PWD/edk2 python3 edk2/Capsule/GenerateCapsule.py --dump-info hamoa-dtb.cap
+PYTHONPATH=debian/capsule python3 -m qcom_capsule_tool.cli \
+    generate-capsule --dump-info hamoa-dtb.cap
+```
+
+Both report the same thing, and the signature verifies:
+
+```
+EFI_CAPSULE_HEADER.CapsuleGuid   = 6DCBD5ED-E82D-4C44-BDA1-7194199AD92A
+...UpdateImageTypeId             = 0F6D58FC-2258-4D27-9E23-D77219B0897C
+FMP_PAYLOAD_HEADER.Signature     = 3153534D (MSS1)
+FMP_PAYLOAD_HEADER.FwVersion     = 000203F9
+openssl smime -verify ... -> Verification successful
+```
+
+### Gotchas found while running it
+
+- `--capflag` accepts only `PersistAcrossReset` and `InitiateReset`.
+  `PopulateSystemTable` is *not* offered by edk2's CLI, though the header
+  class supports it. Our capsules use `PersistAcrossReset`, so this does not
+  bite us, but a platform needing the other flag would have to go through JSON
+  or patch the choices list.
+- In JSON mode, `HardwareInstance`, `MonotonicCount` and `UpdateImageIndex`
+  must be hex *strings* (`"0x0"`); plain JSON integers fail with
+  "invalid syntax". The CLI flags accept `0x`-prefixed values directly.
+- `--signer-private-cert` wanting key+cert in one file is undocumented in
+  `--help`; passing just the certificate fails with
+  "Could not read signing key".
+
+### The variant Launchpad would actually need
+
+The command above signs in-process with the private key on disk, which an
+archive signing service cannot do. The split that matches our existing
+`--emit-signable` / `--assemble` handoff is:
+
+- the builder produces `MSS1 || firmware.fv || monotonic_count` (what
+  `FmpPayloadHeader.py` plus an 8-byte append gives);
+- the signing service returns a detached PKCS#7 (DER) over exactly those bytes;
+- the service then wraps it with `FmpAuthHeader.py`, `FmpCapsuleHeader.py` and
+  `UefiCapsuleHeader.py`.
+
+Those three header classes are 28 KB of dependency-free Python and are the only
+part of edk2 that is strictly required; `GenerateCapsule.py` itself is just a
+driver around them whose signing step would be replaced by the HSM call.
