@@ -565,3 +565,136 @@ than a product condition, but worth confirming before relying on `/boot/efi`.
     `grub.cfg` was restored afterwards.
   - Capsules still signed with the interim test keys.
   - `--soc` stays `hamoa,purwa`; widening needs a `dtb_a` layout change.
+
+# Part 4 — capsule2 PPA (`~kuba-t-pawlak/capsule2`), meta `Depends` rebuild
+
+Published 2026-10-06. All five sources (`kgsl`, `linux-qcom`, `linux-generate-qcom`,
+`linux-signed-qcom`, `linux-meta-qcom`) at `7.0.0-1017.20`; the meta binaries were
+republished at 11:10 UTC, after the rest at 08:42.
+
+## Scope of change — confirmed
+
+Diffing the two PPAs' `Packages` indices by SHA256:
+
+- 16 binaries differ, **all of them from `linux-meta-qcom`**.
+- 17 binaries are byte-identical, including the kernel, `linux-signed-qcom`'s
+  `dtb-capsule-7.0.0-1017-qcom`, and `kgsl`.
+- `capsule` additionally still carries the 1016 set, which `capsule2` does not.
+
+So "only meta is different" holds exactly.
+
+## The `Depends` fix is present
+
+```
+Package: linux-image-qcom
+Version: 7.0.0-1017.20
+Depends: linux-image-7.0.0-1017-qcom, linux-firmware, dtb-capsule-7.0.0-1017-qcom
+```
+
+No `Recommends` field at all. Verified three ways.
+
+**Sandbox, fresh install, `--no-install-recommends`** (only a hard dependency can
+pull the capsule):
+
+```
+Inst dtb-capsule-7.0.0-1017-qcom (7.0.0-1017.20 capsule2:26.04/resolute [arm64])
+```
+
+**Sandbox, the original defect** — 1016 capsule installed, install the 1017 meta.
+This is the case that previously failed, because APT will not perform a *removal*
+to satisfy a `Recommends`, and the two capsules conflict through the virtual
+`dtb-capsule-qcom`:
+
+```
+Remv dtb-capsule-7.0.0-1016-qcom [7.0.0-1016.19]
+Inst dtb-capsule-7.0.0-1017-qcom (7.0.0-1017.20 capsule2:...)
+```
+
+APT now does the removal. Defect closed.
+
+**On the Hamoa board.** Removing only the capsule correctly drags the meta out,
+which is the signature of a hard dependency:
+
+```
+Remv linux-image-qcom [7.0.0-1017.20]
+Remv dtb-capsule-7.0.0-1017-qcom [7.0.0-1017.20]
+```
+
+After purging both and reinstalling with `--no-install-recommends`:
+
+```
+Unpacking dtb-capsule-7.0.0-1017-qcom (7.0.0-1017.20) ...
+Unpacking linux-image-qcom (7.0.0-1017.20) ...
+/usr/share/dtb-capsule/hamoa/hamoa-dtb.cap   4198306
+/usr/share/dtb-capsule/purwa/purwa-dtb.cap   4198306
+```
+
+Provenance chain still agrees end to end:
+
+```
+linux-modules dtb-provenance-sha256 : 7020845700e1162666a879991ea781068b9f0730fdef6eb6a6072bcb2dd6ab84
+capsule expected-dtb-sha256         : 7020845700e1162666a879991ea781068b9f0730fdef6eb6a6072bcb2dd6ab84
+```
+
+## Two problems found
+
+### 1. The meta version went backwards, and a published version was reused
+
+`capsule` ships the meta as `7.0.0-1017.20+1`; `capsule2` ships it as
+`7.0.0-1017.20`. The `+1` upload in `capsule` **already contained the `Depends`
+fix** — identical `Depends` line. So `capsule2` is not introducing the fix, it is
+re-releasing it under a *lower* version.
+
+Two consequences:
+
+- With both PPAs enabled, `capsule` wins. Confirmed:
+
+  ```
+  linux-image-qcom:
+    Candidate: 7.0.0-1017.20+1
+       7.0.0-1017.20+1 500 .../capsule/ubuntu
+       7.0.0-1017.20   500 .../capsule2/ubuntu
+  ```
+
+- More importantly, `7.0.0-1017.20` was **already published with different
+  content** — the original `Recommends` meta, which is what the board had
+  installed:
+
+  ```
+  Version: 7.0.0-1017.20
+  Depends: linux-image-7.0.0-1017-qcom, linux-firmware
+  Recommends: dtb-capsule-7.0.0-1017-qcom
+  ```
+
+  The upgrade happened to work here only because APT keeps the archive copy and
+  the `/var/lib/dpkg/status` copy as distinct entries when their hashes differ,
+  and prefers the archive at pin 500 over status at 100. That is an implementation
+  detail, not a guarantee: anyone who already has `7.0.0-1017.20` and does not
+  re-run an upgrade against this archive keeps the broken meta forever, and any
+  tooling that compares version strings alone will see nothing to do.
+
+  **Reusing a published version with different contents should be avoided.** The
+  `+1` in `capsule` was the correct instinct; `capsule2` should carry `+2` (or a
+  higher `.21`) rather than reverting to `.20`.
+
+### 2. The `fwver` fix is still not built
+
+`linux-signed-qcom`'s binaries are byte-identical between the two PPAs, so commit
+`8cae83b` (derive the capsule version from the kernel ABI) is **not** in this
+build. Both shipped capsules still carry the hardcoded value:
+
+```
+hamoa-dtb.cap   FwVersion=0x20000 (131072)  LSV=0x0
+purwa-dtb.cap   FwVersion=0x20000 (131072)  LSV=0x0
+```
+
+The ESRT `fw_version` will therefore still read `131072` after a successful
+update, exactly as in Part 3, and anti-rollback remains inert. This needs a
+`linux-signed` version bump and a rebuild — it cannot go out as `7.0.0-1017.20`
+since that is published.
+
+## Verdict
+
+The thing `capsule2` set out to change is correct and verified on hardware. It is
+not yet a shippable build: the meta needs a version above `7.0.0-1017.20+1`, and
+`linux-signed` needs the `fwver` fix rebuilt under a new version.
