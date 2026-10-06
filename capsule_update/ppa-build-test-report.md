@@ -440,3 +440,128 @@ Healthy, 7.0.0-1016-qcom, `dtb_a` now written at version 0x20000,
 `grub.cfg` restored to its original form (backup left at
 `/boot/grub/grub.cfg.capsule-test-bak`). The fixed `verify-capsule-result.sh`
 is installed by hand at `/usr/share/dtb-capsule/`.
+
+---
+
+# Part 3 — 7.0.0-1017.20 PPA test (full ABI-upgrade path)
+
+First test of a complete, freshly published ABI (`1017.20`) including the
+`linux-meta` capsule dependency added after Part 2. Tested by upgrading the
+Hamoa IQ-X7181 EVK in place from `1016` rather than flashing, so the upgrade
+path itself was exercised.
+
+## Result: the capsule chain works end to end
+
+Proved on hardware that the DTB the kernel runs on came from the capsule, and
+that it was built from the exact `linux-modules` package installed on the
+device:
+
+```
+/proc/device-tree/qcom-dtb-capsule-provenance/dtb-provenance-sha256
+  = 7020845700e1162666a879991ea781068b9f0730fdef6eb6a6072bcb2dd6ab84
+/usr/share/dtb-capsule/expected-dtb-sha256
+  = 7020845700e1162666a879991ea781068b9f0730fdef6eb6a6072bcb2dd6ab84
+
+dtb-capsule-verify: CONFIRMED: DTB's provenance sha256 matches the
+  linux-modules-7.0.0-1017-qcom package actually installed on this device
+```
+
+The same hash is reproducible three independent ways — the marker shipped in
+`linux-modules`, the capsule's `expected-dtb-sha256`, and a recomputation
+straight from the shipped `.dtb`/`.dtbo` files — so the `LC_ALL=C` pinning and
+the linux-modules/dtb-capsule handover both hold in a real build. The
+`-signed-` package correctly declined to ship `dtb-provenance-sha256` because
+`linux-modules` recorded it.
+
+Firmware log confirms the write:
+
+```
+Loading mass-storage capsule file 'qcom-dtb-7.0.0-1017-qcom.cap'!
+    PartitionName = dtb_a / BackupType Partition dtb_b
+    Update Success
+  Phase 4: TrialBoot start.
+```
+
+## Defect found and fixed: `Recommends` never installs the capsule
+
+The `linux-meta` change from the previous session used `Recommends`. On target
+that silently does nothing:
+
+```
+# apt-get install -s linux-image-qcom
+Inst linux-modules-7.0.0-1017-qcom ...
+Inst linux-image-qcom [7.0.0-1013.16] (7.0.0-1017.20 ...)
+   <- no dtb-capsule at all
+
+# apt-get install -s dtb-capsule-7.0.0-1017-qcom
+Remv dtb-capsule-7.0.0-1016-qcom [7.0.0-1016.19]
+Inst dtb-capsule-7.0.0-1017-qcom ...
+```
+
+`dtb-capsule-<abi>-qcom` carries `Conflicts/Provides/Replaces` on the virtual
+name `dtb-capsule-qcom` so only one capsule is ever installed, which makes
+installing the new one require *removing* the old one. APT will not perform a
+removal to satisfy a `Recommends`, so the capsule would have stayed pinned to
+whichever ABI it was first installed with while the kernel moved on — exactly
+the staleness the version pinning exists to prevent.
+
+Changed to `Depends`. This costs nothing in availability: `dtb-capsule-<abi>-qcom`
+and `linux-image-<abi>-qcom` are both binaries of `linux-signed-qcom`, published
+in the same event (both `2026-10-06T05:32:39` in this PPA), so the meta already
+becomes uninstallable if that upload is missing.
+
+## Defect found and fixed: capsule version was a constant
+
+`build-capsule-payload.sh` hardcoded `fwver=0.0.2.0`, and
+`SYSFW_VERSION_program.py` packs `a.b.c.d` as `(c << 16) | d`, ignoring `a`
+and `b`. Every capsule ever built therefore declared `FwVersion 0x20000`:
+
+```
+NewImage Version                     - 0x20000
+Current Version (partition)          - 0x20000
+```
+
+This firmware (`BOOT.MXF_UEFI.2.5-00690-HAMOA-1`) applies an equal-version
+capsule anyway, which is why the update still landed, but:
+
+  - a firmware enforcing monotonic versions — the whole point of the
+    `FwVersion`/`LowestSupportedFwVersion` pair — would reject every update
+    after the first;
+  - ESRT `fw_version` never moves (still `131072` after this upgrade), so
+    neither `fwupd` nor an operator can tell which DTB build is live.
+
+Now derived from the ABI: `7.0.0-1017-qcom` -> `0.0.2.1017` = `0x203f9`,
+verified by rebuilding the payload from the PPA's own linux-modules
+(`Firmware Version is 0x203f9`) with `expected-dtb-sha256` unchanged.
+Strictly greater than the `0x20000` already on existing boards, so the next
+capsule is a valid upgrade for them.
+
+## Environment hazard: two ESPs share one label
+
+The EVK has two EFI system partitions, both labelled `system-boot`:
+
+```
+/dev/sda1       BLOCK_SIZE=4096  PARTLABEL=efi  LABEL=system-boot
+/dev/nvme0n1p1  BLOCK_SIZE=512   PARTLABEL=efi  LABEL=system-boot
+/etc/fstab:  LABEL=system-boot  /boot/efi/  vfat  defaults  0 1
+```
+
+`/boot/efi` was `sda1` before the reboot and `nvme0n1p1` after, so the mount is
+not deterministic. The capsule was staged to, and consumed from, `sda1`; the
+stale `1016` capsule left on `nvme0n1p1` then made the verifier warn that the
+capsule had not been consumed, and suppressed its result caching.
+
+The update still worked, but the postinst stages to whatever `/boot/efi`
+happens to be, so on a machine where firmware reads the *other* ESP the capsule
+would never be seen. Probably a flashing artifact of this particular rig rather
+than a product condition, but worth confirming before relying on `/boot/efi`.
+
+## Still open
+
+  - **GRUB discards the capsule's DTB.** Unchanged from Part 2 and confirmed
+    again here: the verifier's diagnosis fires correctly, and commenting out
+    the seven `devicetree` directives in `grub.cfg` is what made the provenance
+    node appear. As shipped, the capsule updates `dtb_a` and Linux ignores it.
+    `grub.cfg` was restored afterwards.
+  - Capsules still signed with the interim test keys.
+  - `--soc` stays `hamoa,purwa`; widening needs a `dtb_a` layout change.
