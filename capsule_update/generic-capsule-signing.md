@@ -246,3 +246,107 @@ archive signing service cannot do. The split that matches our existing
 Those three header classes are 28 KB of dependency-free Python and are the only
 part of edk2 that is strictly required; `GenerateCapsule.py` itself is just a
 driver around them whose signing step would be replaced by the HSM call.
+
+## Appendix 2: what exactly gets signed (a correction worth pinning down)
+
+A natural reading of `encode_payload()` is that the thing handed to openssl is
+`firmware.fv`, which would make the whole archive-side requirement:
+
+```bash
+openssl smime -sign -binary -outform DER -md sha256 \
+    -signer KEY -certfile KEY < firmware.fv        # WRONG
+```
+
+It is not. The signature covers the firmware volume **wrapped in 24 bytes of
+framing**:
+
+```
+FMP_PAYLOAD_HEADER (16 bytes)  ||  firmware.fv  ||  MonotonicCount (8 bytes)
+```
+
+Verified against a real capsule by pulling its PKCS#7 out and checking it
+against both candidates:
+
+```
+A: firmware.fv alone              -> PKCS7_signatureVerify: digest failure
+B: MSS1 || firmware.fv || count   -> Verification successful
+```
+
+The 16-byte leading header is edk2's `FMP_PAYLOAD_HEADER`:
+
+```
+Signature              MSS1       4d535331
+HeaderSize             16         10000000
+FwVersion              0x203f9    f9030200
+LowestSupportedVersion 0x0        00000000
+```
+
+**This is the security-relevant part of the whole question.** `FwVersion`,
+`LowestSupportedVersion` and `MonotonicCount` are the anti-rollback and
+anti-replay fields, and all three live *inside* the signed region. Whoever
+builds that framing decides what the archive's key attests to.
+
+Three further defects in the one-liner above, found by running it:
+
+- `-outform DR` is not a value; it must be `DER`.
+- `-m sha256` is not an option; it must be `-md sha256`.
+- `-signer` and `-certfile` must be *different* files. `-signer` needs a PEM
+  holding the private key **and** its certificate; `-certfile` carries the
+  intermediates between the signer and the provisioned root. Passing the same
+  path to both embeds the signer twice and ships no chain.
+
+The corrected invocation, confirmed to produce a signature the firmware's
+verifier accepts, and confirmed detached (payload not embedded):
+
+```bash
+openssl smime -sign -binary -outform DER -md sha256 \
+    -signer certs/signer.pem -certfile certs/chain.pem \
+    < signable.blob > sig.p7
+```
+
+### We already produce exactly that blob
+
+`generate-capsule --emit-signable` output is **byte-identical** to the content
+the firmware's PKCS#7 covers (65560 bytes in the test above, `cmp` clean). So
+the observation that "all we need is the image_payload and nothing else depends
+on it" is correct, and is already the shape of the pipeline.
+
+## Which interface should we actually ask Launchpad for?
+
+**Not `qcom-capsule-tool`.** Putting a vendor-named tool in the archive's
+signing path makes a generic UEFI operation look Qualcomm-specific, and asks
+Launchpad to adopt and maintain our code. Everything it does to the capsule
+container is plain edk2 (Appendix 1).
+
+**Not "run this openssl command on a blob we give you", either — at least not
+as the end state.** That is what we do today and it works, but it makes the
+archive a *signing oracle*: an endpoint that will sign any byte string with a
+firmware key. Because `FwVersion` and `MonotonicCount` sit inside the signed
+region, the uploader — not the archive — chooses the anti-rollback version that
+the archive's key then blesses. Rollback protection becomes self-asserted.
+
+**Ask for the generic assembly interface.** Launchpad takes
+
+```
+payload blob, GUID, FwVersion, LowestSupportedVersion,
+MonotonicCount, HardwareInstance, UpdateImageIndex, capsule flags
+```
+
+builds `FMP_PAYLOAD_HEADER` itself, signs `header || payload || count`, and
+wraps the result in the FMP and capsule headers, returning a finished `.cap`.
+
+Why this is the right boundary:
+
+- The archive is the only component that sees the whole upload history, so it
+  is the only one that can enforce `FwVersion`/`MonotonicCount` monotonicity.
+  That check is worth little if the uploader supplies those fields pre-framed.
+- It constrains the key to signing *well-formed capsule payloads* instead of
+  arbitrary bytes.
+- It is barely more work than the oracle: four stdlib-only edk2 classes,
+  ~28 KB, already proven byte-compatible with what shipped devices accept.
+- On our side it deletes `generate_capsule.py` **and** the `--assemble` step in
+  `signed-build`, rather than adding anything.
+
+The current `--emit-signable` / detached-signature / local-`--assemble` split
+remains a perfectly good interim, and is strictly better than shipping
+test keys. The argument above is about where to end up, not about blocking.
