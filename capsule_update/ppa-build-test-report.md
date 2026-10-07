@@ -899,7 +899,7 @@ Part 5, still resident in the firmware's DTB slot.
 | `dtb-capsule` package installed | **No** — only `linux-image/modules-7.0.0-1013-qcom` |
 | `/usr/share/dtb-capsule`, `/var/lib/dtb-capsule` | **Absent** |
 | A rootfs DTB carrying the node | **None** — scanned every `*.dtb` under `/usr/lib/firmware`, `/lib/firmware`, `/boot` |
-| GRUB `devicetree` directive | **None** — `grub.cfg` is pristine (dated Aug 26, stock image) and contains no such line |
+| GRUB `devicetree` directive | **None generated** — the 1013 kernel package ships no DTB for one to point at (see Part 6b) |
 | A staged `.cap` on either ESP | **None** |
 | A DTB partition visible to Linux | **None** — `lsblk` shows only `efi`/`writable`/`persist` |
 
@@ -972,3 +972,90 @@ firmware state, not OS state.
    a capsule and later reinstalls an older OS image keeps the newer DTB. Worth
    deciding whether that is acceptable or whether the kernel should check the
    provenance marker against its own expectation and warn.
+
+---
+
+## Part 6b — why GRUB did not override the DTB on the 1013 system
+
+Part 6 raises an obvious objection: if GRUB was never modified after the
+reflash, it should have served a DTB from disk and the firmware's DTB would
+never have been seen. The resolution is that **the 1013 kernel package ships no
+DTB at all**:
+
+```
+$ dpkg -L linux-image-7.0.0-1013-qcom | grep ^/boot
+/boot
+/boot/vmlinuz-7.0.0-1013-qcom
+```
+
+No `/boot/dtb-7.0.0-1013-qcom`, no `/boot/dtbs/7.0.0-1013-qcom/`.
+`/etc/grub.d/10_linux` only emits
+
+```sh
+devicetree	${rel_dirname}/${dtb}
+```
+
+when such a file exists, so on a pure 1013 system `update-grub` produces **no
+`devicetree` directive at all**. GRUB hands the kernel nothing, and the kernel
+uses the DTB UEFI passed it — the capsule-written one in `dtb_a`.
+
+The on-disk DTB machinery (`/boot/dtbs/<kver>/`, the `/boot/dtb` symlink, and
+hence the GRUB directives) arrives with 1016+, alongside the capsule work. So
+the five active `devicetree` lines seen in Part 5b were not stock: they were
+created by `update-grub` when the 1017 packages were installed. There is no
+contradiction between the two observations — they are simply different package
+sets.
+
+### Confirmed by the 1017 install that happened mid-investigation
+
+`apt-get install -y linux-image-qcom` was run on the board at 11:05:20 UTC,
+which installed 1017 plus `dtb-capsule-7.0.0-1017-qcom` and rebooted. After
+that boot:
+
+- `/boot/dtbs/7.0.0-1017-qcom/` exists and `/boot/dtb` points at
+  `hamoa-iot-evk-camera-imx577.dtb`
+- `grub-mkconfig` emits **5 active** `devicetree` lines and 0 commented ones
+- the provenance node is **gone**
+- the running DT contains `soc@0/cci@ac15000/i2c-bus@1/camera@1a` with an
+  `imx577` compatible
+
+That camera node exists only in `hamoa-iot-evk-camera-imx577.dtb` and not in
+`hamoa-iot-evk.dtb`, so the kernel is demonstrably running the **on-disk** DTB,
+not a firmware one. The capsule payload does contain provenance markers and
+imx577 nodes, but a capsule-applied DTB would carry the provenance node — it
+does not. GRUB overrode the firmware DTB, exactly as in Part 5.
+
+(The `#devicetree` comments currently visible in `grub.cfg` were applied by hand
+*after* that boot; `update-grub` generates them active.)
+
+### Incidental but important: the capsule failed on this board
+
+The same investigation surfaced that the 1017 capsule was staged, consumed and
+**rejected**:
+
+```
+/var/lib/dtb-capsule/last-verify-state
+detail="ESRT did not confirm apply (platform=hamoa status=1 [ErrorUnsuccessful]
+         fw_version=131072 vs last_attempt_version=131072); also no DTB
+         provenance node"
+summary="UNKNOWN: cannot confirm capsule result"
+```
+
+This is expected: the reflash restored the stock `uefi_dtbs`, which carries
+Qualcomm's `CN = rootuser` rather than our root. Our test-key-signed capsule
+therefore no longer authenticates. Phase 0 of the runbook has to be redone
+after every reflash — and note the asymmetry that makes this easy to miss:
+
+- the **certificate** in `uefi_dtbs` **is** reset by a reflash → capsules stop verifying
+- the **payload** in `dtb_a`/`dtb_b` is **not** reset → a stale DTB keeps being served
+
+So a reflashed board both loses the ability to apply new capsules and retains
+the result of the last one.
+
+### Summary of DTB precedence observed
+
+| Installed kernel | `/boot/dtb` present | GRUB directive | DTB the kernel uses |
+|---|---|---|---|
+| 1013 (stock x05) | no | none generated | firmware `dtb_a` — capsule DTB, provenance visible |
+| 1016+ | yes | generated active | on-disk DTB, firmware DTB ignored |
+| 1016+ with directives commented | yes | none active | firmware `dtb_a` — capsule DTB (Part 5b) |
