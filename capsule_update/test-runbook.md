@@ -436,6 +436,22 @@ summary="OK: capsule applied and verified"
 If the provenance node is missing entirely, GRUB is still overriding the DTB —
 go back to Phase 3.
 
+> **Before concluding it is missing, check you looked in the right place.**
+> Two mistakes both produce a confident false negative on a board where the
+> capsule worked:
+>
+> - it is a **top-level** DT node, not under `/chosen` — reading
+>   `/proc/device-tree/chosen/dtb-provenance-sha256` always reads as absent
+> - `find /proc/device-tree -name '*provenance*'` finds **nothing even when the
+>   node is there**, because `/proc/device-tree` is a symlink to
+>   `/sys/firmware/devicetree/base` and `find` does not follow symlinks
+>   without `-L`
+>
+> Use the `/sys/firmware/devicetree/base/...` path above verbatim. If in doubt,
+> `ls /sys/firmware/devicetree/base/ | grep qcom-dtb-capsule` settles it.
+> This cost real time during the Part 7 verification, on a board that had in
+> fact applied the capsule perfectly.
+
 ---
 
 ## Phase 9 — optional but recommended: prove authentication is real

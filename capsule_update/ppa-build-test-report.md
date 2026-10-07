@@ -1059,3 +1059,137 @@ the result of the last one.
 | 1013 (stock x05) | no | none generated | firmware `dtb_a` — capsule DTB, provenance visible |
 | 1016+ | yes | generated active | on-disk DTB, firmware DTB ignored |
 | 1016+ with directives commented | yes | none active | firmware `dtb_a` — capsule DTB (Part 5b) |
+
+---
+
+## Part 7 — clean-room end-to-end pass on a freshly flashed board
+
+The first run of the complete procedure from a blank board with no manual
+repair at any step. Performed by the engineer; verified here from the device
+afterwards, in the state the test left it.
+
+Sequence run: reflash → patch the root certificate into `uefi_dtbs` → install
+1017 from the PPA → comment the GRUB `devicetree` directives → reboot.
+
+### Evidence collected from the board
+
+Current boot started 11:51:39 UTC and has not been restarted since
+(`journalctl --list-boots` boot 0, `uptime -s`), so everything below is from
+the one boot that consumed the capsule.
+
+| Check | Value | Meaning |
+|---|---|---|
+| ESRT entry0 `fw_class` | `0f6d58fc-2258-4d27-9e23-d77219b0897c` | our DTB FMP driver |
+| ESRT `last_attempt_status` | **0** | success — contrast Part 5's `1 [ErrorUnsuccessful]` |
+| ESRT `fw_version` / `last_attempt_version` | 131072 / 131072 | agree |
+| `/boot/efi/EFI/UpdateCapsule/` | exists, **empty** | firmware consumed the staged capsule |
+| `OsIndications` | `07000000 0000000000000000` | attrs 0x7, value **0** — firmware cleared the request bit |
+| GRUB `devicetree` lines | 5, all commented | firmware DTB is what the kernel gets |
+| running DT provenance node | `70208457…2dd6ab84` | capsule's DTB is live |
+| `linux-modules-7.0.0-1017-qcom` marker | `70208457…2dd6ab84` | **exact match** |
+| `dtb-capsule-verify.service` | ran 11:52:18, `CONFIRMED` | self-report agrees with manual check |
+
+Verify-service cache (`/var/lib/dtb-capsule/last-verify-state`):
+
+```
+kver_match_state=ok
+dtb_pairing_state=apply_confirmed
+guid_conflict=false
+dtb_kver_content_match=ok
+detail="provenance sha256 match"
+summary="OK: capsule applied and verified"
+```
+
+### Why this one counts
+
+Every earlier run had at least one link proven only in isolation. This run
+closes all of them at once, and each is independently checked rather than
+inferred from the one next to it:
+
+- firmware **authenticated** the capsule against our embedded root
+  certificate — `last_attempt_status 0`, where the same capsule on a stock
+  `uefi_dtbs` gave `1` (Part 5)
+- firmware **consumed** it — staging directory emptied, `OsIndications`
+  cleared back to 0 by firmware rather than by us
+- the capsule's DTB is the one **actually in use** — provenance node present,
+  which can only come from the capsule payload, since the `fdtput` stamp is
+  applied during the capsule build and the on-disk DTB in `linux-modules`
+  does not carry it
+- the DTB is the **right** one — provenance matches the installed
+  `linux-modules` byte-for-byte, so it is not a leftover from an earlier apply
+- the tooling's **own verdict agrees** with the independent manual check,
+  which is what Part 5 could not demonstrate because the service was reporting
+  from a stale cache
+
+### The ESP hazard did not bite — but only by luck
+
+`/boot/efi` is `/dev/sda1`, and `BootCurrent: 0000` resolves to
+`HD(1,GPT,6ee0d619-…)` on the same disk, so the postinst's hardcoded
+`ESP_MOUNT=/boot/efi` happened to be the ESP firmware boots from. That was
+confirmed, not assumed. The defect noted in Part 3 is untouched: nothing in
+the postinst checks this, and on a board where the NVMe ESP wins the postinst
+would report success while writing somewhere firmware never reads.
+
+### Caveat on `fw_version`
+
+`fw_version` was already 131072 before this test — it is firmware-resident and
+survives a reflash (Part 6). It therefore proves nothing on its own here, and
+is listed above only for completeness. The decisive evidence is
+`last_attempt_status` flipping 1 → 0 and the provenance match. This is also a
+reminder that the capsule version is still not derived from the kernel ABI on
+any published PPA: the fix exists in git but has not been built.
+
+### A side effect worth noting: firmware is not version-gating
+
+Because `fw_version` was **already** 131072 and a capsule declaring that same
+version was accepted and applied, this firmware does not require the incoming
+version to exceed the installed one. Two consequences:
+
+- **Good for now.** The hardcoded constant version has not blocked repeated
+  testing, and will not block the next capsule either. Had firmware enforced
+  strict monotonicity, every capsule after the first would have been refused
+  until the ABI-derived version fix shipped.
+- **Bad as a property.** There is no rollback protection from version gating:
+  an older DTB capsule, correctly signed, will be accepted over a newer one.
+  Downgrade resistance currently rests entirely on controlling who holds the
+  signing key.
+
+This is an observation about the firmware's behaviour, not a defect in our
+packaging, but it should be stated explicitly rather than discovered later —
+and it means the ABI-derived version is a correctness and diagnostics
+improvement, not the security control it might look like.
+
+### One measurement trap, recorded because it cost time
+
+The provenance node is a **top-level** DT node,
+`/sys/firmware/devicetree/base/qcom-dtb-capsule-provenance/dtb-provenance-sha256`,
+not something under `/chosen`. Two ways to miss it:
+
+- looking in `/proc/device-tree/chosen/` — wrong node, reads as absent
+- `find /proc/device-tree -name '*provenance*'` — returns nothing even when the
+  node exists, because `/proc/device-tree` is a **symlink** to
+  `/sys/firmware/devicetree/base` and `find` does not follow symlinks without
+  `-L`
+
+Both produce a confident false negative on a board where the capsule worked
+perfectly. Use the `/sys/firmware/devicetree/base/...` path directly, which is
+what `verify-capsule-result.sh` does (`DT_PROVENANCE_DIR`, line 104).
+
+### Verdict
+
+The capsule mechanism is proven end to end on real hardware: signed by us,
+authenticated by firmware against our embedded root certificate, applied,
+and confirmed in the running kernel's device tree by both an independent
+check and the package's own verifier.
+
+What remains before this is shippable is unchanged and none of it is about
+whether the mechanism works:
+
+1. **Launchpad-side signing** — the local test key must be removed
+2. **Production signing key** and its embedding into production `uefi_dtbs`,
+   including the MBN re-signature
+3. **The GRUB `devicetree` override** — still a product decision. The whole
+   chain is defeated by an uncommented directive, and commenting it by hand is
+   not a shipping answer
+4. **The dual-ESP hazard** in the postinst
+5. **A rebuild** carrying the ABI-derived capsule version

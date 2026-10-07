@@ -13,6 +13,21 @@ fixed, and every blocking item below is still open.*
 
 ---
 
+## Update 2026-10-07 — the Launchpad port is proven on hardware
+
+Our own packaging (`linux-main` / `linux-signed` / `linux-meta`) has now
+completed a **clean-room end-to-end run** on a freshly flashed Hamoa EVK:
+capsule authenticated by firmware against our embedded root certificate,
+applied, and confirmed live in the running kernel's device tree. Full evidence
+in `ppa-build-test-report.md` Part 7.
+
+This retires the question of whether the mechanism works. It does **not**
+retire the blockers below — signing is still a local test key, and items 1, 3
+and 4 in "Missing / blocked" are untouched. Read the sections below as
+"what still has to change before this ships", not as "what is unproven".
+
+---
+
 ## Usable as-is
 
 | Piece | Note |
