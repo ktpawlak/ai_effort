@@ -140,6 +140,16 @@ loudly on mismatch. `efibootmgr` is already present; this is a few lines of
 shell. Fixing the duplicate label in `fstab` (mount by UUID) is worth doing
 too, but the packaging should not depend on the environment getting it right.
 
+**Worse than it first looks, and now fixed.** EFI variables on this platform
+are backed by `VolatileVars.bin` *on the ESP*, which exists only on the boot
+ESP — so with the wrong one mounted, `OsIndications` is not persisted either,
+while `efivar -w` and the postinst's read-back check both still report
+success. Neither existing safeguard can detect it. Implemented in `linux-signed`
+as *"dtb-capsule: stage to the ESP firmware actually boots from"*: the ESP is
+resolved from `BootCurrent`, staging is retargeted when the boot ESP is mounted
+elsewhere, refused when it is not, and left unchanged when detection is
+impossible. `efibootmgr` added to `Depends`.
+
 ---
 
 ## Security item — needs attention now

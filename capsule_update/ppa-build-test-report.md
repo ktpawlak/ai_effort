@@ -1333,3 +1333,60 @@ install that stops and says why.
 Separately, the duplicate `system-boot` label is itself worth fixing on these
 boards — mounting the ESP by UUID or PARTUUID in `fstab` would remove the
 non-determinism at the source, independently of any packaging change.
+
+### It is worse than a misplaced file: EFI variables live on the ESP too
+
+Found while clearing `OsIndications` during cleanup, with the *wrong* ESP
+mounted:
+
+```
+Error: 'VolatileVars.bin' file not found in ESP partition.
+       EFI variable changes won't persist reboots
+```
+
+Checking both partitions:
+
+| ESP | `VolatileVars.bin` | `Persisted_Capsules.bin` |
+|---|---|---|
+| `sda1` (firmware boots this) | **present**, 160 bytes, mtime `13:21` | 70 MB |
+| `nvme0n1p1` | **absent** | 70 MB |
+
+That mtime is exactly when the postinst set `OsIndications` during this run.
+So on this platform EFI variable writes are **backed by a file on the ESP**,
+and both halves of arming a capsule depend on the right ESP being mounted:
+
+1. the capsule is staged where firmware never reads, **and**
+2. `OsIndications` is never persisted across the reboot
+
+Critically, **neither existing safeguard can see this**. `efivar -w` returns
+success, and the postinst's read-back verification passes, because both
+operate on the kernel's efivarfs view rather than on what will survive a power
+cycle. A check that reads back what it just wrote cannot detect a backing
+store that was never updated.
+
+This removes any argument for treating the ESP mismatch as a warning-only
+condition. It is the one failure mode where everything the package can
+currently observe reports success and nothing happens.
+
+### Fix implemented
+
+`linux-signed` commit *"dtb-capsule: stage to the ESP firmware actually boots
+from"* resolves the ESP instead of assuming it — `BootCurrent` → `Boot####` →
+the `HD(n,GPT,<partuuid>,…)` in its device path, compared against the PARTUUID
+backing `ESP_MOUNT` — then:
+
+- **match** → proceed silently, as before
+- **mismatch, boot ESP mounted elsewhere** → stage there, with a warning
+  naming both PARTUUIDs
+- **mismatch, boot ESP not mounted** → refuse to stage and explain why
+- **detection impossible** (no `efibootmgr`/`findmnt`/`lsblk`, no
+  `BootCurrent`, non-GPT boot device) → proceed exactly as before
+
+`efibootmgr` added to `Depends` (92 KB; the package is EFI-specific anyway).
+`findmnt`/`lsblk` need no declaration — `util-linux` is `Essential: yes`.
+
+All four branches were exercised on the board in the state that exposed the
+bug, including running the real modified postinst: with the boot ESP unmounted
+it refused and left the wrong ESP byte-identical; with it mounted it retargeted
+and staged correctly; a correctly mounted ESP produced no warning; and with
+`efibootmgr` hidden it degraded to the old behaviour.
