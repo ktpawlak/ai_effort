@@ -115,6 +115,33 @@ cannot return a blob to paste into a pre-built capsule. Needs a
 
 ---
 
+## Packaging defect observed live — ESP selection is an unchecked assumption
+
+`dtb-capsule.postinst.in` line 17 does `ESP_MOUNT="${ESP_MOUNT:-/boot/efi}"`
+and never checks that `/boot/efi` is the ESP firmware actually boots from.
+
+This is no longer hypothetical. During the 2026-10-07 reproduction
+(`ppa-build-test-report.md` Part 8) the board had **two partitions labelled
+`system-boot`** on different disks, `fstab` mounts the ESP by label, and the
+label **resolved to a different disk across a single reboot** — `/dev/sda1`
+when the postinst ran, `/dev/nvme0n1p1` afterwards. The capsule applied only
+because `sda1` happened to win the race at install time.
+
+Had the order been reversed, the postinst would have staged the capsule, set
+`OsIndications`, verified its own write by reading it back, and **exited 0** —
+with the capsule written to a partition firmware never reads. No error, no
+warning, nothing applied. It presents as a *flaky* capsule update, and the
+symptom ("no provenance node") is the one operators are told to read as a GRUB
+override, so it actively misdirects the investigation.
+
+Fix: resolve `BootCurrent` → `Boot####` → the `HD(…,GPT,<PARTUUID>,…)` in its
+device path, compare against the PARTUUID backing `$ESP_MOUNT`, and fail
+loudly on mismatch. `efibootmgr` is already present; this is a few lines of
+shell. Fixing the duplicate label in `fstab` (mount by UUID) is worth doing
+too, but the packaging should not depend on the environment getting it right.
+
+---
+
 ## Security item — needs attention now
 
 `premerge-pr.yml` sets `secrets: inherit` on a `pull_request` trigger that

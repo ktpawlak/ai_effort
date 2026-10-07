@@ -504,6 +504,7 @@ and the Phase 7 success proved nothing about the certificate.
 | Hamoa FMP GUID | `0f6d58fc-2258-4d27-9e23-d77219b0897c` |
 | UEFI build | `BOOT.MXF_UEFI.2.5-00690-HAMOA-1` |
 | Boot ESP PARTUUID | `6ee0d619-e579-4707-bc23-63972c9333b7` (`/dev/sda1`) |
+| Non-boot ESP PARTUUID | `9e0cd0e8-b4ad-472f-9ccc-e300de1aaad3` (`/dev/nvme0n1p1`) — **same `system-boot` label**, staging here silently does nothing |
 | Capsule size | 4198306 bytes |
 
 ## Quick failure triage
@@ -513,8 +514,9 @@ and the Phase 7 success proved nothing about the certificate.
 | No `Loading mass-storage capsule` on serial | `OsIndications` not `0x4`, or capsule staged on the wrong ESP |
 | postinst logged `capsule staged` + `verified via read-back`, yet nothing happened | `/boot/efi` was mounted to the ESP firmware does *not* boot from — see Phase 4 |
 | `Pkcs7Verify() failed` with a genuine capsule | `uefi_dtbs` lacks our root, or was flashed to only one slot |
-| `Update Success` but no provenance node | GRUB `devicetree` override still active |
+| `Update Success` but no provenance node | GRUB `devicetree` override still active **— or** the capsule was staged on the ESP firmware does not boot from, which is silent and looks identical (Part 8) |
 | Provenance hash mismatch | capsule and `linux-modules` from different builds |
 | ESP empty, ESRT says success, but nothing changed | capsule was rejected — check serial, not ESRT |
 | `apt` installs no capsule | meta is a `Recommends` build, or an older capsule blocks via `Conflicts` |
 | Provenance node present on a kernel too old to create one | leftover capsule DTB in SPI NOR from a previous test — a reflash does not clear it (Part 6) |
+| Capsule applies some runs and not others, same procedure | **two partitions share the `system-boot` label** and `fstab` mounts by label, so `/boot/efi` resolves non-deterministically across boots (Part 8). Check `findmnt -no SOURCE /boot/efi` against the `BootCurrent` PARTUUID *at the moment the postinst runs*, not afterwards |

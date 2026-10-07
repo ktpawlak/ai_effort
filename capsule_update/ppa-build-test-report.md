@@ -1193,3 +1193,143 @@ whether the mechanism works:
    not a shipping answer
 4. **The dual-ESP hazard** in the postinst
 5. **A rebuild** carrying the ABI-derived capsule version
+
+---
+
+## Part 8 — independent reproduction from a pristine 1013 board
+
+Part 7 was verified after the fact, in the state the engineer's run left behind.
+This part is the same procedure driven end to end here, from a board flashed
+back to 1013 with a patched `uefi_dtbs` and nothing else prepared, using
+`ppa:kuba-t-pawlak/capsule3`.
+
+It reproduces Part 7's result **and** catches a hazard firing that previous
+parts had only described in theory.
+
+### Why this baseline is stronger than Part 7's
+
+| Baseline check | Value | Why it matters |
+|---|---|---|
+| Kernel | `7.0.0-1013-qcom` | pristine, pre-capsule |
+| Packages | no `dtb-capsule`, no `efivar` | nothing staged, nothing armed |
+| GRUB `devicetree` | **none generated** | 1013 ships no `/boot/dtb` (Part 6b) |
+| Provenance node | **absent** | this flash *did* clear `dtb_a` |
+| ESRT `fw_version` / `last_attempt_status` | 131072 / 0 | firmware-resident leftovers |
+
+The absent provenance node is the important one. In Parts 5–7 a stale
+capsule DTB was already in SPI NOR, so a present node was only weak evidence.
+Here the node starts **absent**, so if it appears it can only have come from
+the capsule applied during *this* run. That removes the main ambiguity.
+
+Conversely `last_attempt_status` was **already 0**, so the 1 → 0 flip that
+carried Part 7 is unavailable here. The two parts therefore have complementary
+blind spots and together leave none.
+
+### Steps, and what each proved
+
+1. **`add-apt-repository ppa:kuba-t-pawlak/capsule3`**, `apt-get update`.
+2. **`apt-get install -s linux-image-qcom`** — dry run. Pulled in
+   `dtb-capsule-7.0.0-1017-qcom` *and* `efivar` automatically, re-confirming
+   the `Depends` fix from Part 4 on a clean system. `linux-modules` is
+   configured before `dtb-capsule`, so the provenance marker is in place when
+   the postinst runs.
+3. **Real install.** No manual staging and no manual arming:
+   - `/boot/efi/EFI/UpdateCapsule/qcom-dtb-7.0.0-1017-qcom.cap`, 4198306 bytes
+   - `OsIndications` = `07000000 0400000000000000` — attrs 0x7, value 0x4
+   - `OsIndicationsSupported` = `0x4`, so firmware does advertise capsule-on-disk
+4. **GRUB.** `update-grub` ran in the kernel postinst and generated **5 active
+   `devicetree` directives**, exactly as expected on 1017. Commented out by
+   hand — still the one unavoidable manual step, and still not a shipping
+   answer.
+5. **Reboot.**
+
+### Result
+
+| Check | Before | After |
+|---|---|---|
+| Provenance node | **absent** | **`70208457…2dd6ab84`** |
+| `linux-modules` marker | `70208457…2dd6ab84` | — (match) |
+| `expected-dtb-sha256` | `70208457…2dd6ab84` | — (match) |
+| `OsIndications` value | `0x4` (armed) | **`0x0`** (firmware cleared it) |
+| Capsule on firmware's ESP | staged | **consumed** |
+| ESRT `last_attempt_status` | 0 | 0 |
+
+`dtb-capsule-verify.service` ran unprompted at 13:24:38 and agreed:
+
+```
+dtb_pairing_state=apply_confirmed
+dtb_kver_content_match=ok
+summary="OK: capsule applied and verified"
+```
+
+**The capsule mechanism reproduces cleanly from a pristine board.**
+
+---
+
+## The dual-ESP hazard is no longer theoretical — it fired during this run
+
+Flagged in Part 3 as a latent risk. It actually happened here, and the test
+passed anyway **only by luck**.
+
+`/etc/fstab` mounts the ESP by label:
+
+```
+LABEL=system-boot	/boot/efi/	vfat	defaults	0	1
+```
+
+and two partitions on two different disks carry that label:
+
+| Device | PARTUUID | FS UUID |
+|---|---|---|
+| `/dev/sda1` | `6ee0d619-e579-4707-bc23-63972c9333b7` | `233B-EEA6` |
+| `/dev/nvme0n1p1` | `9e0cd0e8-b4ad-472f-9ccc-e300de1aaad3` | `F223-A1CB` |
+
+**The label resolved to a different disk across the reboot:**
+
+- *before* reboot `/boot/efi` was `/dev/sda1` — so the postinst staged there
+- *after* reboot `/boot/efi` was `/dev/nvme0n1p1`
+
+Which one does firmware use? `BootCurrent: 0000` →
+`HD(1,GPT,6ee0d619-e579-4707-bc23-63972c9333b7,…)`, which is **`sda1`**.
+Confirmed by mounting it directly: its `EFI/UpdateCapsule/` is now **empty**,
+i.e. firmware consumed what we staged. Meanwhile `nvme0n1p1` still carries an
+**unconsumed** `.cap` dated `Oct 7 11:05` from an earlier run — written to a
+partition firmware never reads, and sitting there indefinitely.
+
+### Why this is serious
+
+The run succeeded purely because `sda1` happened to win the label race at
+install time. Had the ordering been reversed — as it demonstrably *was* one
+boot later — the postinst would have:
+
+- written the capsule to `nvme0n1p1`
+- set `OsIndications` successfully
+- verified its own write by reading it back successfully
+- **exited 0 and reported success**
+
+…and the capsule would simply never have been applied, with no error anywhere.
+The next boot's verifier would report "no provenance node", which operators are
+told to read as *GRUB is still overriding* (runbook Phase 8) — pointing the
+investigation in precisely the wrong direction.
+
+This is non-deterministic, so it will present as a flaky capsule update.
+
+### The fix
+
+`ESP_MOUNT="${ESP_MOUNT:-/boot/efi}"` in `dtb-capsule.postinst.in` line 17 must
+stop being an assumption. The ESP firmware boots from is knowable exactly:
+
+1. read `BootCurrent`, then the matching `Boot####` variable
+2. extract the `HD(…,GPT,<PARTUUID>,…)` partition GUID from its device path
+3. compare against the PARTUUID backing `$ESP_MOUNT`
+   (`lsblk -no PARTUUID "$(findmnt -no SOURCE "$ESP_MOUNT")"`)
+4. on mismatch, **fail loudly** rather than staging into a void
+
+`efibootmgr` is already available at that point, and all of this is a few lines
+of shell. Even a warning would be a large improvement on silence; refusing to
+stage is better, because a capsule that silently does nothing is worse than an
+install that stops and says why.
+
+Separately, the duplicate `system-boot` label is itself worth fixing on these
+boards — mounting the ESP by UUID or PARTUUID in `fstab` would remove the
+non-determinism at the source, independently of any packaging change.
