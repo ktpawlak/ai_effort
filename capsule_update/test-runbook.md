@@ -54,6 +54,15 @@ The rest of the phases are *verification and troubleshooting*, not extra work:
 Only needed once per board image. Without it the firmware trusts only
 Qualcomm's `CN = rootuser` and will reject our capsules.
 
+> **A reflash does not give you a clean capsule baseline.** Flashing an OS image
+> rewrites `sda`/`nvme0n1` only. The DTB a previous capsule applied lives in the
+> firmware's `dtb_a`/`dtb_b` slots in SPI NOR and survives untouched, as does
+> ESRT `fw_version`. A freshly flashed 1013 board was observed still serving the
+> 1017 capsule DTB — see Part 6 of `ppa-build-test-report.md`. If you need a
+> genuine baseline, restore `dtb_a`/`dtb_b` over EDL as well. That is separate
+> from the `uefi_dtbs` patching below: `uefi_dtbs` carries the root certificate,
+> `dtb_a`/`dtb_b` carry the payload.
+
 ```bash
 cd ~/qualcomm/resolute/linux-qcom/linux-signed/debian/capsule
 
@@ -492,3 +501,4 @@ and the Phase 7 success proved nothing about the certificate.
 | Provenance hash mismatch | capsule and `linux-modules` from different builds |
 | ESP empty, ESRT says success, but nothing changed | capsule was rejected — check serial, not ESRT |
 | `apt` installs no capsule | meta is a `Recommends` build, or an older capsule blocks via `Conflicts` |
+| Provenance node present on a kernel too old to create one | leftover capsule DTB in SPI NOR from a previous test — a reflash does not clear it (Part 6) |
