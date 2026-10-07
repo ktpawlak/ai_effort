@@ -21,6 +21,34 @@ chmod +x /tmp/hs.sh
 
 ---
 
+## The short version
+
+Once the board has our root certificate in `uefi_dtbs` (Phase 0, needed once
+per flash), the actual test is three steps:
+
+```bash
+# 1. install — the postinst stages the capsule AND sets OsIndications
+apt-get install -y --no-install-recommends linux-image-qcom
+
+# 2. stop GRUB from overriding the DTB the capsule delivers
+sed -i 's|^\(\s*\)devicetree\(\s.*\)$|\1#devicetree\2|' /boot/grub/grub.cfg
+
+# 3. reboot with serial capture running
+sync; echo b > /proc/sysrq-trigger
+```
+
+Then read the verdict (Phase 7) and confirm the DTB arrived (Phase 8).
+
+The rest of the phases are *verification and troubleshooting*, not extra work:
+
+| Phase | Why it exists |
+|---|---|
+| 4 | Confirms the postinst staged to the ESP firmware actually reads. One real trap lives here. |
+| 5 | Manual staging/arming — only if Phase 4 found a problem, or for the Phase 9 tamper test. |
+| 9 | Negative control. Without it, a successful apply does not prove the certificate was used. |
+
+---
+
 ## Phase 0 — put our root certificate into `uefi_dtbs` (host, before flashing)
 
 Only needed once per board image. Without it the firmware trusts only
@@ -149,11 +177,38 @@ Must print `0`. On the test board there were five.
 
 ---
 
-## Phase 4 — stage the capsule on the ESP the firmware actually reads
+## Phase 4 — confirm the postinst already staged and armed it
 
-**Do not trust `/boot/efi`.** Both `/dev/sda1` and `/dev/nvme0n1p1` are labelled
-`system-boot` and fstab mounts by label, so the mount flips between reboots.
-Resolve by PARTUUID from `BootCurrent` instead:
+**You normally do not stage or arm anything by hand.** The `dtb-capsule`
+postinst does both when the package is configured in Phase 2: it copies the
+capsule to the ESP and sets `OsIndications` bit 2, with a read-back check. If
+Phase 2 printed
+
+```
+dtb-capsule: capsule staged at /boot/efi/EFI/UpdateCapsule/qcom-dtb-<kver>.cap
+dtb-capsule: set OsIndications capsule-delivery bit via efivar (verified via read-back)
+```
+
+then the update is armed and you can go straight to Phase 6 (reboot). These are
+the only two things that have to be true.
+
+So Phase 4 is just a check:
+
+```bash
+/tmp/hs.sh 'ls -l /boot/efi/EFI/UpdateCapsule/
+efivar -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-OsIndications -p 2>/dev/null | tail -3'
+```
+
+### The one thing that can silently defeat it: the wrong ESP
+
+The postinst hardcodes `ESP_MOUNT="${ESP_MOUNT:-/boot/efi}"` and does **not**
+verify that `/boot/efi` is the ESP the firmware actually boots from. On this rig
+both `/dev/sda1` and `/dev/nvme0n1p1` are labelled `system-boot`, fstab mounts
+by label, and the mount flips between reboots. When `/boot/efi` resolves to the
+ESP firmware does *not* read, the postinst reports success, the capsule sits on
+the wrong partition, and nothing happens at reboot — with no error anywhere.
+
+So check that `/boot/efi` is the right ESP:
 
 ```bash
 /tmp/hs.sh 'cur=$(efibootmgr | awk "/^BootCurrent:/{print \$2}")
@@ -163,17 +218,46 @@ echo "firmware boots: $esp"
 echo "/boot/efi is  : $(findmnt -no SOURCE /boot/efi)"'
 ```
 
-On the test board `BootCurrent=0000` → PARTUUID `6ee0d619-e579-4707-bc23-63972c9333b7`
-→ `/dev/sda1`.
+On the test board `BootCurrent=0000` → PARTUUID
+`6ee0d619-e579-4707-bc23-63972c9333b7` → `/dev/sda1`.
 
-Stage to that device explicitly, and clear any stale capsule from the other ESP:
+**If the two lines match, you are done — go to Phase 6.** If they differ, fix
+the mount and let the package redo the work rather than hand-staging:
+
+```bash
+/tmp/hs.sh 'umount /boot/efi; mount /dev/sda1 /boot/efi   # the firmware ESP
+find / -xdev -iname "*.cap" -path "*UpdateCapsule*" -delete 2>/dev/null
+apt-get install -y --reinstall dtb-capsule-$(uname -r | sed "s/-qcom$//")-qcom'
+```
+
+`ESP_MOUNT` is also honourable as an environment variable if you would rather
+not touch the mount, but re-running the postinst against a correct `/boot/efi`
+is the path that matches what a real user gets.
+
+---
+
+## Phase 5 — manual staging and arming (only when you need it)
+
+Skip this in the normal flow. You need it in exactly three situations:
+
+1. **Phase 4 showed the capsule on the wrong ESP** and you want to place it
+   directly instead of fixing the mount.
+2. **Re-testing without reinstalling.** Firmware consumes the `.cap` (deletes
+   it) and clears `OsIndications` bit 2, so a second attempt needs both redone.
+   `apt-get install --reinstall dtb-capsule-…` is usually easier.
+3. **The Phase 9 tamper test**, which by definition stages a hand-modified
+   capsule the package would never produce.
+
+### Stage
+
+Wipe every ESP first so no stale capsule can be picked up, then place it on the
+PARTUUID-resolved one:
 
 ```bash
 /tmp/hs.sh 'cur=$(efibootmgr | awk "/^BootCurrent:/{print \$2}")
 pu=$(efibootmgr -v | grep -i "^Boot${cur}" | grep -oiE "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}" | head -1)
 esp=$(blkid -t PARTUUID="$pu" -o device | head -1)
 
-# wipe every ESP first so no stale capsule can be picked up
 for d in /dev/sda1 /dev/nvme0n1p1; do
     mkdir -p /mnt/chk && mount $d /mnt/chk 2>/dev/null || continue
     find /mnt/chk -iname "*.cap" -delete 2>/dev/null
@@ -191,13 +275,9 @@ umount /mnt/esp; rmdir /mnt/esp'
 
 The two md5s must match.
 
----
-
-## Phase 5 — arm the update
+### Arm — `efivar` (preferred)
 
 `OsIndications` bit 2 (`0x4`) tells the firmware to look for capsules on the ESP.
-
-### Use `efivar` (preferred)
 
 ```bash
 printf '\004\000\000\000\000\000\000\000' > /tmp/osind.bin
@@ -273,11 +353,6 @@ Four things that will bite you on the raw path:
 Note this raw form hardcodes `0x4` rather than doing a read-modify-write, so it
 would clear any other `OsIndications` bit that happened to be set. The postinst
 ORs bit 2 into the current value instead.
-
-In practice you rarely need Phase 5 by hand at all: installing the capsule
-package runs the postinst, which stages the capsule *and* sets the bit, with a
-read-back check. Phase 5 is for re-arming after a reboot consumed the capsule,
-or when staging a hand-built capsule as in Phase 9.
 
 ---
 
@@ -411,6 +486,7 @@ and the Phase 7 success proved nothing about the certificate.
 | Symptom | Cause |
 |---|---|
 | No `Loading mass-storage capsule` on serial | `OsIndications` not `0x4`, or capsule staged on the wrong ESP |
+| postinst logged `capsule staged` + `verified via read-back`, yet nothing happened | `/boot/efi` was mounted to the ESP firmware does *not* boot from — see Phase 4 |
 | `Pkcs7Verify() failed` with a genuine capsule | `uefi_dtbs` lacks our root, or was flashed to only one slot |
 | `Update Success` but no provenance node | GRUB `devicetree` override still active |
 | Provenance hash mismatch | capsule and `linux-modules` from different builds |
