@@ -698,3 +698,120 @@ since that is published.
 The thing `capsule2` set out to change is correct and verified on hardware. It is
 not yet a shippable build: the meta needs a version above `7.0.0-1017.20+1`, and
 `linux-signed` needs the `fwver` fix rebuilt under a new version.
+
+# Part 5 — capsule3 PPA on a board carrying our root certificate
+
+Published 2026-10-06 15:35, all five sources rebuilt together, still at
+`7.0.0-1017.20`. The board had been reflashed to an older image (kernel
+`7.0.0-1013-qcom`, no capsule installed) and had a `uefi_dtbs` carrying **our**
+`QcCapsuleRootCert` written to both `uefi_dtb_a` and `uefi_dtb_b`.
+
+## Headline: the embedded root certificate works, and authentication is real
+
+This is the first run where the capsule was actually *authenticated* rather
+than waved through.
+
+The genuine capsule applied:
+
+```
+Loading mass-storage capsule file 'hamoa-dtb.cap'!
+FmpDxe(...): CheckTheImage() - No dependency associated in image.
+    PartitionName      = dtb_a
+      Update Success
+  Phase 4: TrialBoot start. Time (ms): 30767
+```
+
+On its own that proves little — the previous UEFI build announced `Capsule
+authentication disabled` and accepted anything. So a **negative control** was
+run: the same capsule with a single bit flipped inside the PKCS#7 `CertData`
+(offset 1353 of the 2450-byte signature, `0x98` → `0x99`), confirmed to fail
+`openssl smime -verify` first. Staged and booted:
+
+```
+FmpAuthenticatedHandlerPkcs7: Pkcs7Verify() failed
+FmpDxe(...): CheckTheImage() - Authentication Failed Security Violation.
+FmpDxe(...): SetTheImage() - Check The Image failed with Security Violation.
+Failed to set the firmware payload 0. Status = Security Violation
+Capsule process failed!
+Deleting mass-storage capsule file 'hamoa-dtb.cap'!
+```
+
+One flipped bit is the difference between `Update Success` and `Security
+Violation`, on the same firmware, in the same session. Authentication is
+enforced, and the genuine capsule passes it — which only happens because
+`patch-capsule-cert` put our root into `uefi_dtbs`. The chain resolves as
+intended: the capsule carries Sub CA + Signer, the device supplies the anchor.
+
+Note the UEFI build string is unchanged, `BOOT.MXF_UEFI.2.5-00690-HAMOA-1`, and
+`Secure Boot: Off` throughout — capsule authentication is independent of UEFI
+Secure Boot here.
+
+## The `Depends` fix, re-confirmed from a clean 1013 system
+
+```
+Unpacking linux-modules-7.0.0-1017-qcom (7.0.0-1017.20) ...
+Unpacking dtb-capsule-7.0.0-1017-qcom (7.0.0-1017.20) ...
+Unpacking linux-image-7.0.0-1017-qcom (7.0.0-1017.20) ...
+Unpacking linux-image-qcom (7.0.0-1017.20) over (7.0.0-1013.16) ...
+```
+
+with `--no-install-recommends`, so only a hard dependency could have pulled the
+capsule in. This is a stronger case than Part 4's, since the starting point was
+a freshly flashed machine that had never seen the capsule package.
+
+## Still outstanding
+
+### The `fwver` fix is *still* not built
+
+`8cae83b` is committed locally on top of `f051d4f` (`Ubuntu-qcom-7.0.0-1017.20`)
+but capsule3 was built from the tag, so the capsules still carry:
+
+```
+hamoa-dtb.cap    FwVersion=0x20000 (131072)  LSV=0x0
+purwa-dtb.cap    FwVersion=0x20000 (131072)  LSV=0x0
+```
+
+and the firmware duly logged `NewImage Version - 0x20000` against `Current
+Version (partition) - 0x20000`. ESRT `fw_version` stayed `131072`. Three PPAs in
+a row have now shipped without this.
+
+### GRUB still discards the capsule DTB
+
+No `qcom-dtb-capsule-provenance` node in the running device tree after a
+successful apply, so the capsule remains a no-op for Linux until the `devicetree`
+directives are dropped. Unchanged product decision.
+
+## Two traps worth recording
+
+### ESRT is not a reliable way to detect a rejected capsule
+
+The first tampered run reported `last_attempt_status=0` with the ESP empty,
+which reads exactly like success. It was not: the capsule is rejected *before*
+an update attempt is recorded, so ESRT simply retained the values from the
+previous genuine apply, and the firmware deletes the `.cap` whether it passes or
+fails. Only the run whose firmware phase was captured on serial showed the
+truth, after which ESRT did settle to `last_attempt_status=1`,
+`last_attempt_version=0`.
+
+**A capsule result must be read from the serial log, not from ESRT alone.**
+
+### The dual-ESP label collision bit again
+
+`/dev/sda1` and `/dev/nvme0n1p1` are both labelled `system-boot`, and `/boot/efi`
+flipped from `sda1` to `nvme0n1p1` across a reboot mid-test, leaving a staged
+capsule on the ESP the firmware was not reading. Cleanup had to be done on both
+devices explicitly. Any staging step on this board should resolve the ESP by
+`PARTUUID` against `efibootmgr`'s `BootCurrent` entry
+(`6ee0d619-e579-4707-bc23-63972c9333b7` = `sda1`) rather than trusting
+`/boot/efi`.
+
+Also: `systemctl reboot` stalled for ~8 minutes on `wireplumber`, long enough to
+miss the firmware phase on serial. `echo b > /proc/sysrq-trigger` after a `sync`
+is the reliable way to catch it.
+
+## Verdict
+
+The certificate work is done and proven: Hamoa now validates our capsules
+against our own root, and rejects anything else. The packaging fix is confirmed
+from a clean machine. The build still cannot ship — it carries neither the
+`fwver` fix nor a version above the already-published `7.0.0-1017.20`.
