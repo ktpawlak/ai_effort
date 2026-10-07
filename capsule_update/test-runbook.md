@@ -500,7 +500,8 @@ and the Phase 7 success proved nothing about the certificate.
 | Thing | Value |
 |---|---|
 | DTB provenance sha256 | `7020845700e1162666a879991ea781068b9f0730fdef6eb6a6072bcb2dd6ab84` |
-| Capsule `FwVersion` | `0x20000` (fwver fix not yet built) |
+| Capsule `FwVersion` | `132089` = `0x203f9` = `0x20000 \| 1017` (ABI-derived; capsule4 onwards) |
+| ESRT `fw_version` after apply | `132089` — **moves** now, so it is real evidence (capsule4 onwards; was frozen at `131072`) |
 | Hamoa FMP GUID | `0f6d58fc-2258-4d27-9e23-d77219b0897c` |
 | UEFI build | `BOOT.MXF_UEFI.2.5-00690-HAMOA-1` |
 | Boot ESP PARTUUID | `6ee0d619-e579-4707-bc23-63972c9333b7` (`/dev/sda1`) |

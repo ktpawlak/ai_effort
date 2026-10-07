@@ -21,6 +21,12 @@ capsule authenticated by firmware against our embedded root certificate,
 applied, and confirmed live in the running kernel's device tree. Full evidence
 in `ppa-build-test-report.md` Part 7.
 
+Reproduced independently from a pristine 1013 board (Part 8), and again from
+`capsule4` (Part 9) — the first build carrying both the ABI-derived capsule
+version and the ESP resolution fix. Part 9 closed the last evidence gap:
+ESRT `fw_version` moved `131072` → `132089`, so firmware itself now
+distinguishes *this* capsule applying from *some* capsule having applied once.
+
 This retires the question of whether the mechanism works. It does **not**
 retire the blockers below — signing is still a local test key, and items 1, 3
 and 4 in "Missing / blocked" are untouched. Read the sections below as
@@ -53,7 +59,7 @@ the capsule mechanism itself.
 | Split the three concerns into separate directories | Provenance stays in the kernel; payload build moves to `-generate-`; runtime package moves to `-signed-`. Interleaved today. |
 | Add `Depends: efivar` | Without it `OsIndications` is never set and the staged capsule is **never applied**. |
 | Versioned dependency on `linux-modules-<abi>-qcom` | Capsule and the DTBs it came from can currently be installed out of step. |
-| Derive `fwver` from the kernel version | Currently the constant `0.0.2.0`; risks `ErrorIncorrectVersion` on the next update. |
+| Derive `fwver` from the kernel version | ~~Currently the constant `0.0.2.0`~~ **Done and verified on hardware (capsule4).** Now `0x20000 \| <ABI>`; firmware reported back `132089` for ABI 1017. |
 | Fix non-reproducible build | `XmlFwEntryValidation.py:395` generates a random `uuid.uuid4()` FFS GUID per build. Fails Ubuntu reproducible-build policy; every rebuild yields a different capsule. |
 | Drop the GitHub Actions plumbing | CI cert injection, `secrets: inherit`, workflow changes — none of it applies to Launchpad. |
 

@@ -1390,3 +1390,96 @@ bug, including running the real modified postinst: with the boot ESP unmounted
 it refused and left the wrong ESP byte-identical; with it mounted it retargeted
 and staged correctly; a correctly mounted ESP produced no warning; and with
 `efibootmgr` hidden it degraded to the old behaviour.
+
+---
+
+## Part 9 — capsule4: the ABI-derived version lands, and firmware confirms the apply
+
+Same procedure as Part 8, on a board reflashed again with a patched
+`uefi_dtbs`, using `ppa:kuba-t-pawlak/capsule4` — the first PPA built from a
+`linux-signed` carrying both the ABI-derived capsule version and the ESP
+resolution fix. Package versions are still `7.0.0-1017.20` for compatibility
+despite the changelog skipping versions; that only matters when comparing
+builds by version string, which nothing here does.
+
+### The evidence gap from Parts 7 and 8 is now closed
+
+Every previous run was missing a firmware-side statement that *this* capsule
+had been applied. `fw_version` sat at `131072` because the version was a
+constant, so it could never move. It moved this time:
+
+| | Before | After |
+|---|---|---|
+| ESRT `fw_version` | `131072` | **`132089`** |
+| ESRT `last_attempt_version` | `131072` | **`132089`** |
+| ESRT `last_attempt_status` | 0 | 0 |
+
+The staged capsule declares `FwVersion = 132089` in its FMP payload header,
+read directly from the `.cap`:
+
+```
+offset        = 2578          # "MSS1"
+HeaderSize    = 16
+FwVersion     = 132089  (0x203f9)
+LowestSupport = 0
+```
+
+`0x203f9` is `0x20000 | 1017` — major 2, low half the kernel ABI. So the fix
+in *"capsule: derive the capsule version from the kernel ABI"* is live and
+behaving: the version now increments with the ABI instead of being frozen, and
+firmware reports back the exact value the capsule declared.
+
+This is the first run in which the firmware itself distinguishes "this capsule
+applied" from "some capsule applied at some point". Combined with the
+provenance node going absent → present, the result no longer rests on any
+single indicator.
+
+### Full result
+
+| Check | Before | After |
+|---|---|---|
+| Provenance node | **absent** | **`70208457…2dd6ab84`** |
+| `linux-modules` marker | `70208457…2dd6ab84` | match |
+| ESRT `fw_version` | `131072` | **`132089`** |
+| `OsIndications` | `0x4` (armed) | **`0x0`** (firmware cleared) |
+| Capsule on ESP | staged | **consumed** |
+| `/boot/efi` | `/dev/sda1` | `/dev/sda1` (correct ESP both times) |
+
+```
+dtb_pairing_state=apply_confirmed
+dtb_kver_content_match=ok
+summary="OK: capsule applied and verified"
+```
+
+### The ESP fix is shipped, and correctly silent
+
+`dtb-capsule-7.0.0-1017-qcom` now declares
+`Depends: linux-modules-… , efivar, efibootmgr`, and the installed postinst
+contains the resolution helpers. On this board `/boot/efi` was `/dev/sda1`,
+matching the `BootCurrent` PARTUUID, so the check **took the match branch and
+said nothing** — which is the behaviour that matters in production. A guard
+that fires on healthy systems would be worse than no guard, and this run is
+the evidence it does not.
+
+The mismatch branches were exercised separately in Part 8 against a live fault.
+
+### One observation, not a conclusion
+
+This boot took materially longer than the ~90 s of earlier runs — several
+minutes before SSH returned. That is consistent with firmware actually writing
+the DTB partitions rather than skipping a capsule whose version it already had,
+which is what every previous run presented it with. It is only circumstantial;
+nothing was instrumented to measure it, and it is recorded so a future slow
+boot after staging is not mistaken for a hang.
+
+### What this run does and does not settle
+
+Settled: the mechanism works end to end, reproducibly, from a pristine board,
+with the version now derived from the ABI and confirmed by firmware.
+
+Not settled, and unchanged: the capsule is still signed with a local test key,
+so this proves the *plumbing*, not the trust model. Launchpad-side signing,
+the production key and its embedding into production `uefi_dtbs` with an MBN
+re-signature, and the GRUB `devicetree` override all remain open. The override
+in particular is still being worked around by hand on every test, and that is
+not a shipping answer.
