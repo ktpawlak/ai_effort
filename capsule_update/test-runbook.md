@@ -197,16 +197,65 @@ The two md5s must match.
 
 `OsIndications` bit 2 (`0x4`) tells the firmware to look for capsules on the ESP.
 
+No Python needed — efivarfs takes a plain 12-byte write: a 4-byte attribute
+word followed by the 8-byte value, both little-endian.
+
 ```bash
 /tmp/hs.sh 'V=/sys/firmware/efi/efivars/OsIndications-8be4df61-93ca-11d2-aa0d-00e098032b8c
-chattr -i $V 2>/dev/null || true
-python3 -c "import struct; open(\"$V\",\"wb\").write(struct.pack(\"<IQ\",0x7,0x4))" 2>/dev/null
-python3 -c "
-import struct;d=open(\"$V\",\"rb\").read();print(\"OsIndications=\",hex(struct.unpack(\"<IQ\",d[:12])[1]))"'
+chattr -i "$V" 2>/dev/null || true
+printf "\007\000\000\000\004\000\000\000\000\000\000\000" > "$V"
+xxd "$V"'
 ```
 
-Must print `0x4`. An `OSError: [Errno 5]` on close is harmless provided the
-readback is right.
+Must read back `0700 0000 0400 0000 0000 0000`. A `write error: Input/output
+error` is harmless provided the readback is right.
+
+Byte layout:
+
+| Offset | Len | Value | Meaning |
+|---|---|---|---|
+| 0 | 4 | `07 00 00 00` | attributes `NON_VOLATILE\|BOOTSERVICE_ACCESS\|RUNTIME_ACCESS` |
+| 4 | 8 | `04 00 00 00 00 00 00 00` | bit 2, `EFI_OS_INDICATIONS_FILE_CAPSULE_DELIVERY_SUPPORTED` — "process capsule on next boot" |
+
+Four things that will bite you:
+
+- **Use octal escapes, not `\xHH`.** `printf` is a shell builtin and dash's does
+  not understand `\x` — it passes the characters through literally, so you get
+  48 bytes of ASCII instead of 12 bytes of binary. `\NNN` octal works in both
+  bash and dash. The shipped postinst has a comment about exactly this.
+- **The 4-byte attribute prefix is mandatory**, and it must match the variable's
+  existing attributes. Write only the 8-byte value and the kernel returns
+  `EINVAL`. Write `0x6` (dropping `NON_VOLATILE`) and it also fails, because you
+  cannot change the attributes of an existing variable.
+- **It must be a single `write()`.** `printf … > "$V"` is one write of 12 bytes,
+  so it is fine. Building the value up across several commands is not.
+- **`chattr -i` first.** efivarfs sets the immutable flag on every variable file,
+  so without it you get `Operation not permitted` even as root.
+
+### This clobbers other bits — the package does not
+
+The line above hardcodes `0x4`. That is safe on this board only because
+`OsIndications` reads back `0` at rest. It is **not** a read-modify-write: if
+anything else had set bit 0 (`BOOT_TO_FW_UI`), this would silently clear it.
+
+The shipped `dtb-capsule` postinst does it properly — it reads the current
+value, ORs in bit 2, and uses `efivar -w` rather than a raw efivarfs write so it
+can also create the variable if NVRAM has no entry yet. If you want to match
+shipped behaviour rather than force a known value:
+
+```bash
+printf '\004\000\000\000\000\000\000\000' > /tmp/osind.bin
+efivar -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-OsIndications -f /tmp/osind.bin -w
+efivar -n 8be4df61-93ca-11d2-aa0d-00e098032b8c-OsIndications -p
+```
+
+Note the data file holds **only** the 8-byte value — `efivar` supplies the
+attribute word itself.
+
+In practice you rarely need Phase 5 by hand at all: installing the capsule
+package runs the postinst, which stages the capsule *and* sets the bit, with a
+read-back check. Phase 5 is for re-arming after a reboot consumed the capsule,
+or when staging a hand-built capsule as in Phase 9.
 
 ---
 
