@@ -27,6 +27,16 @@ version and the ESP resolution fix. Part 9 closed the last evidence gap:
 ESRT `fw_version` moved `131072` → `132089`, so firmware itself now
 distinguishes *this* capsule applying from *some* capsule having applied once.
 
+`capsule5` (1018, Part 10) added the one case the earlier runs could not
+cover: an upgrade on a board that had **already** applied a capsule. The
+provenance node went present→*changed* (`70208457…` → `c7087de0…`) and
+`fw_version` incremented again (`132089` → `132090`), so firmware will
+re-apply over capsule-delivered DTB partitions, not merely populate empty
+ones. In the same run the ESP guard **fired for real during an `apt`
+upgrade** — the label had resolved to the wrong partition again — and
+converted what would have been a completely silent non-update into a clear,
+actionable error.
+
 This retires the question of whether the mechanism works. It does **not**
 retire the blockers below — signing is still a local test key, and items 1, 3
 and 4 in "Missing / blocked" are untouched. Read the sections below as
@@ -59,7 +69,7 @@ the capsule mechanism itself.
 | Split the three concerns into separate directories | Provenance stays in the kernel; payload build moves to `-generate-`; runtime package moves to `-signed-`. Interleaved today. |
 | Add `Depends: efivar` | Without it `OsIndications` is never set and the staged capsule is **never applied**. |
 | Versioned dependency on `linux-modules-<abi>-qcom` | Capsule and the DTBs it came from can currently be installed out of step. |
-| Derive `fwver` from the kernel version | ~~Currently the constant `0.0.2.0`~~ **Done and verified on hardware (capsule4).** Now `0x20000 \| <ABI>`; firmware reported back `132089` for ABI 1017. |
+| Derive `fwver` from the kernel version | ~~Currently the constant `0.0.2.0`~~ **Done and verified on hardware (capsule4, re-confirmed capsule5).** Now `0x20000 \| <ABI>`; firmware reported back `132089` for ABI 1017 and `132090` for ABI 1018. |
 | Fix non-reproducible build | `XmlFwEntryValidation.py:395` generates a random `uuid.uuid4()` FFS GUID per build. Fails Ubuntu reproducible-build policy; every rebuild yields a different capsule. |
 | Drop the GitHub Actions plumbing | CI cert injection, `secrets: inherit`, workflow changes — none of it applies to Launchpad. |
 
@@ -155,6 +165,47 @@ as *"dtb-capsule: stage to the ESP firmware actually boots from"*: the ESP is
 resolved from `BootCurrent`, staging is retargeted when the boot ESP is mounted
 elsewhere, refused when it is not, and left unchanged when detection is
 impossible. `efibootmgr` added to `Depends`.
+
+**Confirmed in production conditions (Part 10).** During the 1017 → 1018
+upgrade the label had again resolved to the wrong partition, and the guard
+fired inside a normal `apt` install — naming both PARTUUIDs, explaining that
+staging there would never be applied, and declining to stage while letting the
+install complete. After the reboot the label flipped back again, so this is
+not settling down on its own: the image-side fix (mount the ESP by UUID, or
+stop duplicating the `system-boot` label) is still worth doing independently.
+
+---
+
+## Worth knowing — a version-only rebuild changes every DTB hash
+
+Comparing the 1017 and 1018 capsule payloads: same size, and only **476 of
+4,198,306 bytes differ (0.01%)** — yet all **468** entries in
+`dtb-provenance-content-sha256sums.txt` change. The cause is that every DTB
+embeds the package version string:
+
+```
+1017: b'om 7.0.0-1017.20\x00om,...'
+1018: b'om 7.0.0-1018.21\x00om,...'
+```
+
+~4 bytes × 468 files accounts for essentially all of the difference. The rest
+is the RSA signature over the changed content, the `MSS1` `FwVersion` field,
+and a FAT directory timestamp in the embedded image.
+
+Two consequences:
+
+- **The provenance hash is a build identifier, not a content identifier.** It
+  changes on every rebuild by construction, so it cannot answer "did the
+  hardware description actually change?". That is a reasonable design, but it
+  should not be relied on for change detection.
+- **Every ABI bump ships a full 4 MB capsule and triggers a firmware write**,
+  even when the hardware description is unchanged. Across a fleet that is
+  flash wear and added boot time for no functional gain. If that matters, the
+  capsule should only be emitted when content hashes *excluding* the version
+  string actually differ.
+
+The FAT timestamp also means the payload is not byte-reproducible even at a
+fixed version — minor, but it would defeat a rebuild-and-compare check.
 
 ---
 

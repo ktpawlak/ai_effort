@@ -499,9 +499,9 @@ and the Phase 7 success proved nothing about the certificate.
 
 | Thing | Value |
 |---|---|
-| DTB provenance sha256 | `7020845700e1162666a879991ea781068b9f0730fdef6eb6a6072bcb2dd6ab84` |
-| Capsule `FwVersion` | `132089` = `0x203f9` = `0x20000 \| 1017` (ABI-derived; capsule4 onwards) |
-| ESRT `fw_version` after apply | `132089` — **moves** now, so it is real evidence (capsule4 onwards; was frozen at `131072`) |
+| DTB provenance sha256 | per-build; `70208457…2dd6ab84` for 1017, `c7087de0…445f2ef9` for 1018. Always compare against `/usr/share/dtb-capsule/expected-dtb-sha256` from the installed package rather than a literal |
+| Capsule `FwVersion` | `0x20000 \| <ABI>`: `132089` (`0x203f9`) for 1017, `132090` (`0x203fa`) for 1018 (ABI-derived; capsule4 onwards) |
+| ESRT `fw_version` after apply | equals the capsule's `FwVersion`; observed `131072`→`132089`→`132090` across capsule4/capsule5. **Moves on every version**, so it is real evidence (was frozen at `131072` before capsule4) |
 | Hamoa FMP GUID | `0f6d58fc-2258-4d27-9e23-d77219b0897c` |
 | UEFI build | `BOOT.MXF_UEFI.2.5-00690-HAMOA-1` |
 | Boot ESP PARTUUID | `6ee0d619-e579-4707-bc23-63972c9333b7` (`/dev/sda1`) |

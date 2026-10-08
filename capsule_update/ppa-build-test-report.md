@@ -1483,3 +1483,116 @@ the production key and its embedding into production `uefi_dtbs` with an MBN
 re-signature, and the GRUB `devicetree` override all remain open. The override
 in particular is still being worked around by hand on every test, and that is
 not a shipping answer.
+
+---
+
+## Part 10 — capsule5 (1018): upgrading a board that *already* applied a capsule
+
+PPA `ppa:kuba-t-pawlak/capsule5`, version `7.0.0-1018.21`, described as
+"nothing new, just bumped version". The board was left by Part 9 at 1017 with
+the capsule applied, so for the first time the starting state was *not* a
+never-updated device. Three things came out of this that earlier runs could
+not have shown.
+
+### Result: pass, and the first re-application over an applied state
+
+| Check | Before | After |
+|---|---|---|
+| Kernel | `7.0.0-1017-qcom` | `7.0.0-1018-qcom` |
+| Provenance node | `70208457…2dd6ab84` | **`c7087de0…445f2ef9`** |
+| `expected-dtb-sha256` (1018 pkg) | — | `c7087de0…445f2ef9` — matches |
+| ESRT `fw_version` | `132089` | **`132090`** (`0x203fa` = `0x20000 \| 1018`) |
+| ESRT `last_attempt_status` | 0 | 0, `last_attempt_version` 132090 |
+| `OsIndications` | `0x4` (armed) | `0x0` (firmware cleared) |
+| Capsule on boot ESP | staged | consumed |
+| Verifier | — | `CONFIRMED … matches linux-modules-7.0.0-1018-qcom` |
+
+Every previous run went absent→present on the provenance node. This one went
+present→**changed**, from a known old value to a known new one. That is a
+strictly stronger statement: it rules out "the node was already there from a
+previous flash" as an explanation, and it proves the firmware will *re-apply*
+a capsule over DTB partitions that already hold a capsule-delivered payload —
+not just populate empty ones. `fw_version` incrementing a second time
+(132089 → 132090) confirms Part 9's reading was not a one-off.
+
+### The ESP guard fired for real, during a real `apt` install
+
+This is the first time the fix from `df73135` ran outside a hand-constructed
+test. At install time the `system-boot` label had resolved to the *wrong*
+partition, and the postinst said:
+
+```
+dtb-capsule: ERROR: /boot/efi is PARTUUID 9e0cd0e8-b4ad-472f-9ccc-e300de1aaad3,
+but firmware boots from PARTUUID 6ee0d619-e579-4707-bc23-63972c9333b7, which is
+not mounted. Staging here would write the capsule where firmware never looks and
+it would never be applied, with no error reported. Not staging. Mount the correct
+ESP at /boot/efi and reinstall this package.
+```
+
+The install still completed (exit 0); only the staging step declined. Without
+the guard this upgrade would have: copied the capsule to a partition firmware
+never reads, "armed" `OsIndications` into an efivarfs whose backing store
+(`VolatileVars.bin`, present only on the boot ESP) was not mounted, passed its
+own read-back check, exited 0 — and then rebooted into a GRUB that had just
+regenerated its `devicetree` directives pointing at 1018's on-disk DTB, which
+would have produced a *correct-looking* 1018 DTB from entirely the wrong
+mechanism. The failure would have been invisible from every angle.
+
+Mounting `/dev/sda1` and re-running the postinst staged correctly and the guard
+stayed silent, as it should on a healthy system.
+
+Two side notes worth keeping:
+
+- The 1017 **prerm** cleaned up after itself, removing the stale unconsumed
+  capsule Part 8 had left on the wrong ESP.
+- After the reboot the label flipped **back** to `nvme0n1p1`. So the guard will
+  fire again on the next upgrade. The non-determinism is not settling down, and
+  the image-side fix (mount the ESP by UUID, or stop duplicating the label)
+  is still the right long-term answer.
+
+### "Just a version bump" still changes all 468 DTB hashes
+
+The provenance hash moved, which is expected — but it is worth understanding
+*why*, because it bears on what the hash can and cannot tell you.
+
+Comparing the 1017 and 1018 capsule payloads byte-for-byte: same size, and
+only **476 bytes out of 4,198,306 differ (0.01%)**. Yet all 468 entries in
+`dtb-provenance-content-sha256sums.txt` have different hashes. The reason is
+visible in the bytes:
+
+```
+1017: b'om 7.0.0-1017.20\x00om,\x00\x00\x00\x01'
+1018: b'om 7.0.0-1018.21\x00om,\x00\x00\x00\x01'
+```
+
+Every DTB embeds the package version string, so a version-only rebuild changes
+~4 bytes in each of 468 files — which is almost exactly the 476 bytes observed.
+The remaining differences are the RSA signature over the changed content, the
+`MSS1` `FwVersion` field (`0x203f9` → `0x203fa`), and a FAT directory timestamp
+in the embedded filesystem image.
+
+So the DTB *content* is semantically unchanged between 1017 and 1018. The
+practical consequences:
+
+- **The provenance hash cannot answer "did the hardware description change?"**
+  It changes on every rebuild by construction. It is a build identifier, not a
+  content identifier. That is a defensible design — provenance should pin the
+  build — but it should not be mistaken for change detection.
+- **Every ABI bump ships a full 4 MB capsule and triggers a firmware write**,
+  even when nothing about the hardware description changed. Across a fleet that
+  is flash wear and added boot time for no functional benefit. If that matters,
+  the capsule would need to be emitted only when the content hashes (excluding
+  the version string) actually differ.
+- The FAT timestamp means the payload is **not reproducible** even at a fixed
+  version. Minor, but it would defeat a byte-for-byte rebuild check.
+
+### Unchanged from previous runs
+
+The GRUB `devicetree` override still had to be commented by hand — and this
+time `update-grub` emitted **7** directives rather than 5, because a third
+kernel is now installed. It regenerates on every kernel install, so the
+workaround does not persist. This remains the single biggest gap between what
+has been demonstrated and what could ship.
+
+The boot after staging took 150 s, consistent with Part 9's slower boot and
+with firmware actually writing the DTB partitions.
