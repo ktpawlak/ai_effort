@@ -1596,3 +1596,114 @@ has been demonstrated and what could ship.
 
 The boot after staging took 150 s, consistent with Part 9's slower boot and
 with firmware actually writing the DTB partitions.
+
+---
+
+## Part 11 — two meta dependency defects, and why they were the same bug
+
+Two symptoms were reported, which turn out to be one failure with two
+contributing causes:
+
+1. On the `capsule5` PPA, `linux-meta` built and published while `linux-signed`
+   had not been dispatched yet, even though meta's binaries depend on what
+   signed produces.
+2. On a clean 1013 board, `apt install linux-qcom` from `capsule4` proposed a
+   **mixed-flavour** set: generic headers alongside the *realtime* image and
+   modules.
+
+### Reproducing it
+
+Rather than reason about it, the relationships were rebuilt in a throwaway apt
+archive (`file:` repo, isolated `Dir::State`), with `dtb-capsule` deliberately
+absent to model the publication window:
+
+| # | `-rt` `Provides` | capsule relation | capsule published | Result |
+|---|---|---|---|---|
+| A | present | `Depends` | **no** | **RT image + generic headers** — reproduces the report |
+| B | present | `Depends` | yes | correct generic set |
+| C | removed | `Depends` | no | fails loudly: *"linux-image-qcom : Depends: dtb-capsule-… but it is not installable"* |
+| D | removed | `Recommends` | no | **correct generic set, capsule simply skipped** |
+| E | removed | `Recommends` | yes | correct generic set **+** capsule |
+
+Scenario A produced the reported package list, so the mechanism is settled, not
+inferred.
+
+### Cause 1 — the capsule was a hard dependency, against its own stated design
+
+`linux-image-qcom` carried `Depends: … dtb-capsule-${kernel-abi-version}-qcom`.
+`dtb-capsule` is built by **linux-signed**, so while signed is still pending the
+generic meta is uninstallable.
+
+The commit that introduced it, `7e62ac4` *"meta: recommend the DTB capsule
+package"*, argued explicitly for `Recommends` and gave as its first reason:
+
+> "A missing or withdrawn capsule build must not make `linux-image-qcom`
+> uninstallable and block kernel upgrades."
+
+The change then landed in `Depends`. The package never behaved the way its own
+commit message described, and the exact failure that message predicted is the
+one that occurred.
+
+### Cause 2 — the realtime meta advertised itself as the generic meta
+
+`linux-image-qcom-rt` carried:
+
+```
+Provides: … linux-image-qcom${variant:suffix} (= ${binary:Version})
+```
+
+It is the **only** unsuffixed `qcom` token in `control.d/qcom-rt` — everything
+else was renamed to `-rt` when the flavour was added in `bf08d4f` — and
+`control.d/qcom` does not reciprocate it. Ubuntu does not do this either:
+`linux-image-realtime` and `linux-image-lowlatency` Provide only the DKMS
+module virtuals, never another flavour's image name. It reads as a copy-paste
+leftover.
+
+On its own it looks harmless. Combined with cause 1 it is what converted a
+transient archive state into a *silently wrong install*: with the real
+`linux-image-qcom` unsatisfiable, apt did not report a problem, it simply
+satisfied the dependency from the realtime meta instead. The user asked for the
+generic flavour by name and would have got a realtime kernel with generic
+headers.
+
+That asymmetry is the whole story: the generic meta depends on `dtb-capsule`
+and the realtime meta does not, so the realtime path stayed installable exactly
+when the generic path broke.
+
+### Cause 3 — the build gate did not cover linux-signed
+
+`Build-Depends-Arch` listed only main-build binaries. Nothing in `debian/rules`
+consumes them, so they exist purely as a publication gate. But
+`linux-image-qcom` depends on `linux-image-<abi>-qcom`, which **linux-signed**
+produces — so meta could build and publish before signed had started, which is
+precisely symptom 1.
+
+### Fixes
+
+Three commits in `linux-meta`, one concern each:
+
+| Commit | Change |
+|---|---|
+| `c0168c8` | `dtb-capsule` → `Recommends` in `control.d/qcom`, as `7e62ac4` intended |
+| `74bd86b` | drop the cross-flavour `Provides` from `control.d/qcom-rt` |
+| `6751592` | add `linux-image-<abi>-qcom` to `Build-Depends-Arch` to order meta after signed |
+
+Gating on one signed-produced binary is enough to order meta after the entire
+signed build, which covers `dtb-capsule` from the same source package.
+Deliberately *not* gating on `dtb-capsule` itself — that would re-create at
+build time the hostage situation the `Recommends` change just removed at
+install time.
+
+Verified: `debian/control` regenerates cleanly, the binary package set is
+unchanged at 16, both the `-7.0` and unversioned variants of each flavour
+carry the fix, and the new gate appears in `dpkg-checkbuilddeps` output.
+Note `debian/control` is an untracked build artifact in this tree — only the
+`control.d/*` and `control.common` templates are committed.
+
+### Worth noting
+
+`Recommends` is installed by default by apt but **not** by
+`--no-install-recommends`, which some image builds and CI use. Those will now
+need `dtb-capsule-<abi>-qcom` named explicitly, or the capsule will silently
+not be installed — a weaker guarantee than `Depends` gave, and the deliberate
+price of not letting the capsule block kernel upgrades.

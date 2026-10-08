@@ -209,6 +209,45 @@ fixed version — minor, but it would defeat a rebuild-and-compare check.
 
 ---
 
+## Meta dependency defects — fixed
+
+Two reported symptoms turned out to be one failure with two causes, confirmed
+by rebuilding the relationships in a throwaway apt archive (detail in
+`ppa-build-test-report.md` Part 11).
+
+**Symptom 1** — `linux-meta` published on a PPA before `linux-signed` had been
+dispatched, though meta's binaries depend on signed's output.
+
+**Symptom 2** — `apt install linux-qcom` on a clean board proposed a
+**mixed-flavour** set: generic headers with the *realtime* image and modules.
+
+The link between them:
+
+- `linux-image-qcom` had `Depends: dtb-capsule-<abi>-qcom`, and `dtb-capsule`
+  is built by **linux-signed**. While signed is pending, the generic meta is
+  uninstallable. Commit `7e62ac4` had argued explicitly for `Recommends` —
+  *"a missing or withdrawn capsule build must not make linux-image-qcom
+  uninstallable"* — but landed in `Depends`. The failure it predicted is the
+  one that happened.
+- `linux-image-qcom-rt` declared `Provides: linux-image-qcom`. The realtime
+  meta has no capsule dependency, so it stayed installable exactly when the
+  generic one broke, and apt silently substituted it rather than reporting a
+  problem. Ubuntu's own `linux-image-realtime` / `linux-image-lowlatency`
+  Provide only DKMS virtuals, never another flavour's image name.
+- `Build-Depends-Arch` gated only on main-build binaries, so nothing stopped
+  meta publishing ahead of signed.
+
+Fixed in `linux-meta` as `c0168c8` (Recommends), `74bd86b` (drop the
+cross-flavour Provides) and `6751592` (gate the build on signed's output).
+
+⚠️ **Follow-up for image builds and CI:** `Recommends` is installed by apt by
+default but **not** under `--no-install-recommends`. Anything using that flag
+must now name `dtb-capsule-<abi>-qcom` explicitly or it will silently not get
+the capsule. That is the deliberate price of not letting the capsule block
+kernel upgrades.
+
+---
+
 ## Security item — needs attention now
 
 `premerge-pr.yml` sets `secrets: inherit` on a `pull_request` trigger that
