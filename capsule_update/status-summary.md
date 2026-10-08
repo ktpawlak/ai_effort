@@ -248,6 +248,47 @@ kernel upgrades.
 
 ---
 
+## `kgsl-dkms` retirement — implemented
+
+Since `45aaa1fa5d16` the kernel build ships `msm_kgsl` in-tree, but every
+existing system still carries the `kgsl-dkms` package, so DKMS keeps rebuilding
+the module for each new kernel and then refuses to install it over the in-tree
+copy. `linux-modules-<abi>-<flavour>` now declares:
+
+```
+Provides: kgsl-dkms
+Conflicts: kgsl-dkms (<< 999:0)
+Replaces: kgsl-dkms (<< 999:0)
+```
+
+so installing a new kernel removes `kgsl-dkms` and keeps the Adreno stack.
+
+Three things worth knowing:
+
+1. **The version bound is not decoration.** Every kernel provides `kgsl-dkms`,
+   so an unversioned `Conflicts` makes kernels evict *each other* — the second
+   upgrade would silently remove your fallback kernel. Reproduced in an apt
+   sandbox both ways.
+2. **`kgsl-dkms` shipped more than a module.** A modprobe.d snippet
+   (`options msm skip_gpu=1` + a softdep) and a udev rule for `/dev/kgsl-3d0`
+   are both load-bearing; `linux-modules` now ships them, namespaced per ABI
+   and flavour. Dropping the package without them would have kept the module
+   and broken the GPU. Its initramfs-tools hook is deliberately not carried
+   over — this platform uses dracut.
+3. **Rollback has a cost.** Removing `kgsl-dkms` runs `dkms remove`, deleting
+   `msm_kgsl.ko` from older kernels' `updates/dkms/`. Booting a
+   pre-`45aaa1fa5d16` kernel afterwards comes up without a GPU. This belongs in
+   release notes.
+
+Incidentally fixed: `debian/rules` referenced `$(DROOT)`, which is never
+assigned in this tree, so the `do_dkms_kgsl=false` path never actually
+suppressed the in-tree module.
+
+Commits: `b1382b350f03`, `bbe91dbafa5d` (`linux-main`). Detail in Part 12 of
+`ppa-build-test-report.md`.
+
+---
+
 ## Security item — needs attention now
 
 `premerge-pr.yml` sets `secrets: inherit` on a `pull_request` trigger that

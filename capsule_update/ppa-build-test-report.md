@@ -1707,3 +1707,122 @@ Note `debian/control` is an untracked build artifact in this tree — only the
 need `dtb-capsule-<abi>-qcom` named explicitly, or the capsule will silently
 not be installed — a weaker guarantee than `Depends` gave, and the deliberate
 price of not letting the capsule block kernel upgrades.
+
+---
+
+## Part 12 — retiring `kgsl-dkms` in favour of the in-tree module
+
+`45aaa1fa5d16` made the kernel build compile kgsl and ship `msm_kgsl.ko.zst`
+inside `linux-modules-<abi>-<flavour>`. That half worked: the module is in the
+tree, but every existing system still has the `kgsl-dkms` package, which still
+owns the `kgsl-dkms` name the Adreno userspace depends on. So DKMS rebuilds
+`msm_kgsl` for each new kernel and then declines to install it over the in-tree
+copy ("already installed (unversioned module)"). The rebuild is pure waste.
+
+### The dead end that looked like the answer
+
+The unsigned image stanza already carries `Provides: ... ${linux:rprovides}`,
+and `debian.qcom/dkms-versions` already contains an entry using exactly the
+idiom wanted here — `rprovides=v4l2loopback-dkms`, a DKMS *package* name. This
+looks like the mechanism was already built and just needed an entry.
+
+It is not. `rprovides` is driven by `all_built-in_dkms_modules`, and both that
+variable and `all_dkms_modules` are **never assigned anywhere in the tree**:
+
+```
+$ grep -rn "all_dkms_modules" debian/ debian.qcom/ | grep -v '\$('
+(nothing)
+```
+
+So every `$(foreach _m,$(all_dkms_modules),...)` loop is a no-op,
+`${linux:rprovides}` always expands empty, and `dkms-versions` has no consumer
+at all. The Ubuntu DKMS framework is present as skeleton only — which is why
+`45aaa1fa5d16` bypassed it with a bespoke `do_dkms_kgsl` flag and a direct
+`build_dkms` call. Reviving the framework to ship one `Provides` would have
+been a much larger change than stating the relationship directly.
+
+### Where the relationship belongs
+
+Two candidates:
+
+| Package | For | Against |
+|---|---|---|
+| signed `linux-image-<abi>-<flavour>` | inherits `Provides`/`Conflicts` from the unsigned package automatically — `linux-signed/debian/scripts/generate-depends` runs `apt-cache show` on the unsigned image and re-exports them as `${unsigned:*}` | the module does not live here |
+| `linux-modules-<abi>-<flavour>` | the module *and* the glue live here; lifetimes match exactly | needs a `Provides:` line added, the stanza had none |
+
+Chose `linux-modules`. The claim should sit on the package that actually
+supplies the thing being claimed.
+
+### Versioned Conflicts is load-bearing
+
+Every ABI and flavour of `linux-modules` provides `kgsl-dkms`, so each kernel
+provides the name every other kernel conflicts with. Proven in an apt sandbox:
+
+| Form | second kernel installed alongside the first |
+|---|---|
+| `Conflicts: kgsl-dkms` | ❌ `Remv linux-modules-7.0.0-1019-qcom` — kernels evict each other |
+| `Conflicts: kgsl-dkms (<< 999:0)` | ✅ both installed |
+
+An unversioned `Provides` cannot satisfy a *versioned* relation, so the
+versioned form matches only the real `kgsl-dkms`. The unversioned form would
+have passed a single-upgrade test and destroyed the fallback kernel on the
+*second* upgrade — worth stressing, because that is exactly the shape of bug
+that escapes a quick manual check.
+
+Sandbox results with the implemented fix:
+
+```
+# board-like state: kgsl-dkms + libadreno + linux-modules-1018
+Remv kgsl-dkms [1.0-1] [libadreno:amd64 ]
+Inst linux-modules-7.0.0-1019-qcom
+# libadreno is NOT removed — the Provides satisfies its dependency
+```
+
+### `kgsl-dkms` shipped more than a module
+
+The part that would have broken the GPU silently. `dpkg -L kgsl-dkms` on the
+board, minus `/usr/src`:
+
+| File | Load-bearing? |
+|---|---|
+| `/usr/lib/modprobe.d/kgsl-dkms.conf` — `options msm skip_gpu=1`, `softdep msm post: msm_kgsl` | **yes** — `CONFIG_DRM_MSM=m` and `modinfo msm` shows `parm: skip_gpu:bool`; without it DRM `msm` binds the GPU before KGSL |
+| `/usr/lib/udev/rules.d/60-kgsl-dkms.rules` — `/dev/kgsl-3d0` → `root:video 0660` | **yes** — matches the live node exactly |
+| `/usr/share/initramfs-tools/hooks/kgsl` | **no** — platform uses dracut; `initramfs-tools` is `not-installed` and `lsinitramfs` finds zero kgsl entries |
+
+The first two are now shipped by `linux-modules`, ABI/flavour-namespaced
+(`kgsl-<abi>-<flavour>.conf`, `60-kgsl-<abi>-<flavour>.rules`) so coexisting
+kernels do not file-conflict. Verified that duplicate directives are harmless:
+`modprobe --showconfig` with two identical files parses both without error, and
+`skip_gpu=1 skip_gpu=1` is the same boolean value twice.
+
+### Incidental bug found
+
+`debian/rules` read `$(DROOT)/kgsl-modules.ignore`, but `DROOT` is never
+assigned, so the path was `/kgsl-modules.ignore`, the `cat` always failed, and
+the `do_dkms_kgsl=false` path never actually added `msm_kgsl` to
+`modules.ignore`. Fixed in `b1382b350f03`.
+
+### Commits (`linux-main`)
+
+| Commit | Change |
+|---|---|
+| `b1382b350f03` | fix undefined `DROOT` in the kgsl disable path |
+| `bbe91dbafa5d` | `Provides`/`Conflicts`/`Replaces` on `linux-modules` + ship modprobe.d and udev glue |
+
+### Caveats
+
+- **Rollback cost.** Removing `kgsl-dkms` runs `dkms remove`, which deletes
+  `msm_kgsl.ko` from older kernels' `/lib/modules/*/updates/dkms/`. Booting a
+  pre-`45aaa1fa5d16` kernel afterwards comes up without a GPU. Unavoidable
+  given the package is being retired; needs to be in release notes.
+- **Unversioned Provides.** Adreno's dependencies are currently unversioned
+  (`Depends: ... kgsl-dkms`), so the bare `Provides` satisfies them. If they
+  ever become versioned it will stop working — and making our `Provides`
+  versioned to compensate would re-introduce the inter-kernel conflict.
+- **Control/payload can diverge.** The `Provides` is hard-coded in the stub
+  while the payload is gated on `do_dkms_kgsl`. That is consistent today
+  (`do_dkms_kgsl = true` in `debian.qcom/rules.d/arm64.mk`, and arm64 is the
+  only arch file), but `build_dkms` treats rc 9/77 as "skip", so a kgsl build
+  failure would ship a kernel claiming `kgsl-dkms` without the module. Worth a
+  build-time assertion later; `control-create` has no conditional mechanism to
+  express it today.
