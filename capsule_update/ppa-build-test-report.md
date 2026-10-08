@@ -1795,19 +1795,61 @@ kernels do not file-conflict. Verified that duplicate directives are harmless:
 `modprobe --showconfig` with two identical files parses both without error, and
 `skip_gpu=1 skip_gpu=1` is the same boolean value twice.
 
-### Incidental bug found
+### Incidental dead code — and a lesson
 
-`debian/rules` read `$(DROOT)/kgsl-modules.ignore`, but `DROOT` is never
-assigned, so the path was `/kgsl-modules.ignore`, the `cat` always failed, and
-the `do_dkms_kgsl=false` path never actually added `msm_kgsl` to
-`modules.ignore`. Fixed in `b1382b350f03`.
+`debian/rules` had a `do_dkms_kgsl=false` branch appending `msm_kgsl` to
+`$(prev_abidir)/../modules.ignore`, reading the list from
+`$(DROOT)/kgsl-modules.ignore`. The first instinct was to fix the obviously
+broken `DROOT` reference, and that was done. Dry-running the install target
+then produced a new error — `/bin/bash: /../modules.ignore: Permission denied`
+— which exposed the real situation:
+
+- `DROOT` is never assigned, so the list was read from `/kgsl-modules.ignore`
+  and the `cat` always failed;
+- `prev_abidir` is never assigned *either*, so the destination was `/..`;
+- **nothing in `debian/` or `debian.qcom/` ever reads a `modules.ignore` file**,
+  and no such file exists in the tree.
+
+So the block was entirely vestigial, left over from ABI-check machinery since
+removed. "Fixing" the path made things strictly worse: it revived dead code
+into writing a file nobody reads, and converted a silent failure into a noisy
+one. The block and its orphaned `kgsl-modules.ignore` list were removed
+instead. The makefile now also parses without the `cat` error it used to emit
+on every invocation.
+
+The lesson is the generalisable part: an undefined variable in a conditional
+branch is evidence the *branch* is dead, not just that the path is wrong.
+Repairing the symptom would have shipped revived dead code.
 
 ### Commits (`linux-main`)
 
 | Commit | Change |
 |---|---|
-| `b1382b350f03` | fix undefined `DROOT` in the kgsl disable path |
-| `bbe91dbafa5d` | `Provides`/`Conflicts`/`Replaces` on `linux-modules` + ship modprobe.d and udev glue |
+| `d28f4ca27fb9` | drop the dead `do_kgsl_disable` block and its orphaned list |
+| `d1188bbdf348` | `Provides`/`Conflicts`/`Replaces` on `linux-modules` + ship modprobe.d and udev glue |
+
+### Verification
+
+- `debian/control` regenerates with all three fields on both `qcom` and
+  `qcom-rt`.
+- Payload placement confirmed by expanding the real recipe rather than by
+  reading it — `make -f debian/rules do_dkms_kgsl=true -n .../stamp-install-qcom`
+  yields:
+
+  ```
+  install -m644 debian/kgsl.modprobe.conf \
+      .../debian/linux-modules-7.0.0-1018-qcom/usr/lib/modprobe.d/kgsl-7.0.0-1018-qcom.conf
+  install -m644 debian/kgsl.udev.rules \
+      .../debian/linux-modules-7.0.0-1018-qcom/usr/lib/udev/rules.d/60-kgsl-7.0.0-1018-qcom.rules
+  ```
+
+  i.e. the correct package directory and correctly namespaced filenames. (On
+  an amd64 host the block is correctly excluded, since `do_dkms_kgsl` only
+  defaults to true via `rules.d/arm64.mk` — hence the explicit override above.)
+- Dependency semantics proven in an apt sandbox (scenarios above).
+- **Not** verified: a full kernel build producing the actual `.deb`. Worth
+  confirming on the next PPA build.
+
 
 ### Caveats
 

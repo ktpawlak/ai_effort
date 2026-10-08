@@ -280,12 +280,22 @@ Three things worth knowing:
    pre-`45aaa1fa5d16` kernel afterwards comes up without a GPU. This belongs in
    release notes.
 
-Incidentally fixed: `debian/rules` referenced `$(DROOT)`, which is never
-assigned in this tree, so the `do_dkms_kgsl=false` path never actually
-suppressed the in-tree module.
+Incidentally removed: a `do_dkms_kgsl=false` block in `debian/rules` that was
+entirely dead — it built its paths from two variables (`DROOT`, `prev_abidir`)
+that are never assigned anywhere in the tree, and wrote a `modules.ignore` file
+that nothing reads and which does not exist. It was leftover ABI-check
+machinery. Worth flagging because the first attempt *repaired* the path, which
+only revived dead code and started emitting errors; the undefined variables
+were evidence the whole branch was dead.
 
-Commits: `b1382b350f03`, `bbe91dbafa5d` (`linux-main`). Detail in Part 12 of
+Commits: `d28f4ca27fb9`, `d1188bbdf348` (`linux-main`). Detail in Part 12 of
 `ppa-build-test-report.md`.
+
+Validated by regenerating `debian/control`, expanding the real install recipe
+to confirm the glue lands in `linux-modules-<abi>-<flavour>` under namespaced
+filenames, and an apt sandbox covering upgrade, coexistence and the unversioned
+control case. A full kernel build producing the actual `.deb` has **not** been
+run — worth confirming on the next PPA build.
 
 ---
 
