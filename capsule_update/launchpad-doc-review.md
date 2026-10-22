@@ -188,9 +188,9 @@ private keys on builders. It should instead be framed as what it actually is:
 requirement to install a Python capsule tool into the signing environment,
 which none of the existing modes need.
 
-Worth telling them this is already prototyped — `~/qualcomm/ai_effort/launchpad_signing/`
-holds two patches, both re-verified with `git apply --check` against pristine
-upstream on 2026-10-22:
+Worth telling them this is already prototyped —
+`~/qualcomm/ai_effort/launchpad_signing/` holds two patches, both re-verified
+with `git apply --check` against pristine upstream on 2026-10-22:
 
 | Patch | Repository | Upstream HEAD | Scope |
 |---|---|---|---|
