@@ -120,12 +120,21 @@ requirement to install a Python capsule tool into the signing environment,
 which none of the existing modes need.
 
 Worth telling them this is already prototyped — `~/qualcomm/ai_effort/launchpad_signing/`
-holds two patches that apply cleanly to pristine upstream:
+holds two patches, both re-verified with `git apply --check` against pristine
+upstream on 2026-10-22:
 
-| Patch | Repository | Scope |
-|---|---|---|
-| `0001-add-capsule-signing-mode.patch` | `git.launchpad.net/launchpad` | `SigningKeyType.CAPSULE`, `.capsule` dispatch, `signCapsule()` |
-| `0002-lp-signing-capsule-key-type.patch` | `git.launchpad.net/lp-signing` | key custody and the signing operation |
+| Patch | Repository | Upstream HEAD | Scope |
+|---|---|---|---|
+| `0001-add-capsule-signing-mode.patch` | `git.launchpad.net/launchpad` | `4a0ddb9` | `SigningKeyType.CAPSULE`, `.capsule` dispatch, `signCapsule()` |
+| `0002-lp-signing-capsule-key-type.patch` | `git.launchpad.net/lp-signing` | `89306e8` | key custody and the signing operation |
+
+(`0001` had to be refreshed for upstream drift — `black` reformatting and the
+new `ANDROID_KERNEL` key type. It is `black`-clean at the project's 79-column
+setting. Re-check before circulating.)
+
+Note that `signCapsule()` already passes a **single** `-certfile` pointing at a
+concatenated `capsule-chain.pem`, i.e. the form that works — so the prototype
+and the document disagree, and the prototype is the one that is right.
 
 The patches also record why no existing mode can be reused, which the Launchpad
 team will ask:

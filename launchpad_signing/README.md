@@ -9,7 +9,26 @@ analysis that led to it is in `../capsule_update/`, principally
 `launchpad-port-plan.md`.
 
 Two patches, one per codebase. Both were verified with `git apply --check`
-against pristine upstream.
+against a pristine shallow clone of upstream, last re-checked 2026-10-22:
+
+| Patch | Upstream HEAD checked against | Result |
+|---|---|---|
+| `0001` | `launchpad` `4a0ddb9` "Honour upload_keys for archive keys made by the signing service" | applies cleanly |
+| `0002` | `lp-signing` `89306e8` "Implement UEFI firmware signing with a YubiHSM 2 device" | applies cleanly |
+
+`0001` was **refreshed** on that date. The previous revision no longer
+applied: upstream had been reformatted with `black` and had gained
+`SigningKeyType.ANDROID_KERNEL`, so the context around `setTargetDirectory`
+and `findSigningHandlers` had moved. Re-check before sending it anywhere —
+`git apply --check` is cheap and `patch -F3` is not a safe substitute. Applying
+the stale patch with fuzz produced code that was silently wrong in two places
+(the capsule block landed inside the `fit_cert` assignment, and the
+`SigningKeyType.CAPSULE` handler landed inside the `use_signing_service`
+expression). `ANDROID_KERNEL` took DBItem 8, so `CAPSULE` remains 9 — but that
+is luck, and it is the first thing to check on any future refresh.
+
+The refreshed `0001` is `black`-clean at the project's 79-column setting and
+both touched files byte-compile.
 
 | Patch | Repository | Applies to |
 |---|---|---|
