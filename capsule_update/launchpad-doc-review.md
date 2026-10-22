@@ -7,10 +7,24 @@ and against `openssl` directly, rather than reasoned about; the commands used
 are quoted so they can be re-run.
 
 Overall: the context, the PKI model and the two-option framing are right, and
-Option 2 is the right direction. But three things would stop an implementer:
-the document signs the wrong bytes, the `openssl` command it specifies silently
-drops the intermediate certificate, and Option 1 asks Launchpad to do something
-its build architecture does not permit.
+Option 2 is the right direction. Three things would stop an implementer:
+
+1. **The wrong artefact is sent for signing.** Not a flaw in the tooling or in
+   `firmware.fv`, which is produced correctly — the signature simply covers 24
+   more bytes than that file contains (a 16-byte FMP header before it and the
+   8-byte monotonic count after). Fixed by uploading
+   `generate-capsule --emit-signable` output instead. (finding 1)
+2. **The `openssl` command silently discards the intermediate certificate**,
+   because it passes `-certfile` twice and only the last takes effect. Every
+   capsule built from the command as written would fail chain validation on
+   device. Fixed by concatenating the chain into one file. (finding 2)
+3. **Option 1 asks Launchpad to do something its build architecture does not
+   permit** — run the generator, with keys, on build workers. (finding 3)
+
+None of the three is expensive to fix, and none implies rework of the capsule
+design; items 1 and 2 are a changed artefact and a changed command line. They
+are flagged as blocking only because both would pass every build-time check and
+fail on hardware, which is the most expensive place to discover them.
 
 ---
 
@@ -251,11 +265,12 @@ autogeneration has to be refused rather than merely avoided.
 
 ## 7. MINOR — reproducibility of the signable blob
 
-Covered in §1a above with measurements. Summarised here because the document's
-own structure would put it in §4: capsule assembly draws a random FFS
-`FileGuid`, so the payload — and with it the signable blob — differs between
-otherwise identical builds unless it is pinned. One sentence in the document
-would save the next person the same investigation.
+Covered in finding 1a above with measurements, and repeated here only because
+the reviewed document's own structure would raise it under its §4: capsule
+assembly draws a random FFS `FileGuid`, so the payload — and with it the
+signable blob — differs between otherwise identical builds unless it is pinned.
+One sentence in the document would save the next person the same
+investigation.
 
 ## 8. MINOR — monotonic count ownership
 
