@@ -17,6 +17,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+from collections import Counter
 
 DB_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inventory.db")
 
@@ -573,6 +574,35 @@ def reverse_patch_id(tree, sha):
     return out[0] if out else None
 
 
+# A revert is frequently *not* a byte-exact inverse of its target, because the
+# original was reworked by an intervening rebase conflict resolution: copyright
+# years get bumped instead of restored, whitespace drifts, or the file is renamed
+# underneath it. patch-id is sensitive to all three, so it under-reports
+# cancellation. The content test below compares the four line multisets of the
+# two diffs, which is immune to filename, whitespace and hunk structure.
+COSMETIC_LINE = re.compile(r'copyright|^\s*[/*#]|^\s*$', re.I)
+
+
+def diff_lines(tree, sha, sign):
+    out = Counter()
+    for ln in git(tree, "diff", f"{sha}^", sha).splitlines():
+        if ln.startswith(sign) and not ln.startswith(sign * 3):
+            out[ln[1:].rstrip()] += 1
+    return out
+
+
+def revert_residue(tree, orig, rev):
+    """Lines left over after composing a commit with its revert.
+
+    Empty  -> exact content inverse (any patch-id mismatch was structural).
+    All cosmetic -> functionally net-zero; the drift is a conflict artifact.
+    """
+    oa, od = diff_lines(tree, orig, "+"), diff_lines(tree, orig, "-")
+    ra, rd = diff_lines(tree, rev, "+"), diff_lines(tree, rev, "-")
+    resid = (oa - rd) + (rd - oa) + (od - ra) + (ra - od)
+    return list(resid.elements())
+
+
 def cmd_churn(args):
     con = db_connect(args.db)
     tree = os.path.expanduser(args.tree)
@@ -599,6 +629,8 @@ def cmd_churn(args):
         marks[seq] = (action, reason)
 
     pairs = net_zero = superseded = external = partial = 0
+    structural = cosmetic = 0
+    cosmetic_lines = []
     for sha, seq, subj, clean, pid in rows:
         m = RE_REVERT.match(subj)
         if not m:
@@ -613,12 +645,27 @@ def cmd_churn(args):
         orig = max(cands)
         pairs += 1
         o_pid = by_seq[orig][4]
-        # Proof obligation: the revert must be the exact inverse of the original.
-        # A partial / modified revert does NOT net to zero and must be kept.
-        if o_pid and reverse_patch_id(tree, sha) != o_pid:
+        # Proof obligation: the pair must compose to nothing. Try the cheap
+        # patch-id identity first, then fall back to the content test, which
+        # tolerates conflict-resolution drift (renames, whitespace, copyright).
+        cancels, why = True, "exact inverse"
+        if not o_pid or reverse_patch_id(tree, sha) != o_pid:
+            resid = revert_residue(tree, by_seq[orig][0], sha)
+            functional = [l for l in resid if not COSMETIC_LINE.search(l)]
+            if not resid:
+                structural += 1
+                why = "exact content inverse (rename/whitespace only)"
+            elif not functional and not args.strict_revert:
+                cosmetic += 1
+                cosmetic_lines.extend(resid)
+                why = f"cosmetic residue only ({len(resid)} lines)"
+            else:
+                cancels = False
+                functional = functional or resid
+        if not cancels:
             partial += 1
             mark(seq, "KEEP_PARTIAL_REVERT",
-                 f"not an exact inverse of seq {orig}; carries its own delta")
+                 f"functional residue vs seq {orig}: {functional[0].strip()[:40]}")
             continue
         # was it re-added after the revert?
         readd = [s for s in subj_idx.get(target, []) + clean_idx.get(target, [])
@@ -632,8 +679,8 @@ def cmd_churn(args):
             mark(seq, "DROP_SUPERSEDED", f"revert of seq {orig}; re-added later")
         else:
             net_zero += 1
-            mark(orig, "DROP_NET_ZERO", f"reverted at seq {seq}, never re-added")
-            mark(seq, "DROP_NET_ZERO", f"revert of seq {orig}; nets to zero")
+            mark(orig, "DROP_NET_ZERO", f"reverted at seq {seq} ({why})")
+            mark(seq, "DROP_NET_ZERO", f"revert of seq {orig}; {why}")
 
     # duplicate patch content (e.g. a FROMLIST + FROMGIT pair of the same change)
     dup_groups = con.execute(
@@ -658,9 +705,19 @@ def cmd_churn(args):
     print(f"  revert pairs found inside the OEM stack : {pairs}")
     print(f"    -> net-zero (add+revert, never re-added): {net_zero} pairs")
     print(f"    -> superseded (add+revert+re-add)       : {superseded} pairs")
-    print(f"    -> partial/modified revert (KEPT)       : {partial}")
+    print(f"       of which proven by content, not patch-id:")
+    print(f"         exact inverse modulo rename/whitespace: {structural}")
+    print(f"         cosmetic residue only (copyright etc.) : {cosmetic}")
+    print(f"    -> partial revert, real residue (KEPT)   : {partial}")
     print(f"  reverts of generic-base commits (kept)   : {external}")
     print(f"  duplicate patch-id applications dropped  : {dups}")
+    if cosmetic_lines:
+        print(f"\n  NOTE: {cosmetic} pair(s) cancelled with {len(cosmetic_lines)} lines of "
+              f"cosmetic residue.\n  The rebuilt tree will differ from D by exactly "
+              f"these lines (conflict-resolution\n  drift such as copyright bumps). "
+              f"Use --strict-revert to keep those pairs instead.")
+        for l in cosmetic_lines[:3]:
+            print(f"    | {l.strip()[:66]}")
     total = con.execute("SELECT COUNT(*) FROM commits WHERE churn_action "
                         "LIKE 'DROP%'").fetchone()[0]
     print(f"\n  {total} commits removed from the replay set as pure churn")
@@ -1145,6 +1202,8 @@ def main():
     ch.add_argument("--base", required=True, help="generic base ref or subject substring")
     ch.add_argument("--head", default="HEAD")
     ch.add_argument("--refresh-patch-ids", action="store_true")
+    ch.add_argument("--strict-revert", action="store_true",
+                    help="require a byte-exact inverse; do not tolerate cosmetic drift")
     ch.set_defaults(func=cmd_churn)
 
     rc = sub.add_parser("reconstruct", help="Phase 5: replay clusters as independent topic branches")

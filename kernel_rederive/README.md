@@ -73,24 +73,39 @@ python3 rederive.py verify   --tree $T --base "$B"      # Phase 6 gate
 python3 rederive.py churn --tree $T --base "$B"
 ```
 
-Collapses add/revert/re-add chains and duplicate applications. A revert is only
-treated as cancelling when it is the **exact inverse** of its target, proven by
-comparing the reversed patch-id — subject matching alone is not enough.
+Collapses add/revert/re-add chains and duplicate applications. A pair only
+cancels if it is proven to compose to nothing — first by patch-id identity, then
+by a **content composition test** over the four line multisets of the two diffs,
+which is immune to filenames, whitespace and hunk structure.
 
 | outcome | count |
 |---|---|
 | revert pairs inside the OEM stack | 42 |
-| → `DROP_NET_ZERO` (add + exact revert) | 26 pairs (52 commits) |
+| → `DROP_NET_ZERO` | 33 pairs (66 commits) |
 | → `DROP_SUPERSEDED` (add + revert + re-add) | 5 pairs (9 commits) |
-| → `KEEP_PARTIAL_REVERT` (**not** an exact inverse) | 11 |
+| → `KEEP_PARTIAL_REVERT` (real functional residue) | 4 |
 | `DROP_DUPLICATE` (same patch-id applied twice) | 5 |
 | reverts of *generic-base* commits (always kept) | 25 |
-| **total removed as pure churn** | **66** |
+| **total removed as pure churn** | **80** |
 
-The inverse-patch-id proof rejected **11 of 42** apparent revert pairs; naive
-subject matching would have wrongly dropped 22 commits. Example: the revert of
-`PENDING: Bluetooth: hci_sync: Fix disconnect complete event` removes 8 lines
-from `hci_conn.c` where the original added 9 — it leaves residue.
+### Why a revert is usually not a byte-exact inverse
+
+11 of the 42 pairs failed the patch-id test. All but 4 still cancel — the
+asymmetry is a **leftover from a previous conflict resolution**, in three forms:
+
+- **file renamed in between** — `13502a6dacb4` removes the exact nodes
+  `dbdbda09c0c3` added, but from `qcs6490-rb3gen2.dts` instead of `qcm6490-rb3.dts`.
+- **cosmetic drift** — `914d474ae3ea` bumps copyright `2023`→`2023-2024` and sets
+  `DMA_RX_BUF_SIZE 4096`; its revert restores `2048` exactly but bumps the
+  copyright to `2023-2025` instead of back to `2023`.
+- **whitespace / hunk restructuring** — identical content, different patch-id.
+
+Only the remaining **4** are genuine partial reverts, where the revert removes
+lines the original never added because the original was *reworked* in between.
+
+Cancelling a cosmetic-residue pair makes the rebuilt tree differ from `D` by
+exactly those comment lines. `churn` prints them; `--strict-revert` disables the
+tolerance and keeps those pairs instead.
 
 ## Phase 5 reconstruction (implemented)
 
@@ -122,7 +137,7 @@ python3 rederive.py verify --tree $T --base "$B"
 
 | check | result |
 |---|---|
-| partition complete (2998 kept + 66 churn + 1 semantic + 559 packaging + 14 upstreamed = 3638) | PASS |
+| partition complete (2984 kept + 80 churn + 1 semantic + 559 packaging + 14 upstreamed = 3638) | PASS |
 | all drops sound against the replay base | PASS |
 | file coverage (no file loses all OEM content) | PASS |
 
@@ -143,7 +158,7 @@ python3 rederive.py cluster
 python3 rederive.py verify --tree $T --base "$B"     # -> ACCEPTED
 ```
 
-After revocation the keep set grows 2973 → 2998, non-hub conflicts fall 3 → 1,
+After revocation the keep set grows, non-hub conflicts fall 3 → 1,
 and the gate passes. **No AI verdict is trusted without mechanical proof.**
 
 ## Phase 4 feature clustering (implemented)
@@ -165,13 +180,13 @@ them collapses everything into one blob, so files touched by `>= --hub-threshold
 commits are excluded from the relation and reported as the *integration surface*
 to be merged once, centrally.
 
-Result on the 2,998 keep-set commits (80 hub files at threshold 15):
+Result on the 2,984 keep-set commits (79 hub files at threshold 15):
 
-- **1,627 independently-mergeable clusters** (1,472 standalone commits)
+- **1,613 independently-mergeable clusters** (1,458 standalone commits)
 - largest cluster only **217 commits (7%)** — no giant blob
 - clusters are semantically coherent, e.g. cluster 16 is entirely `Bluetooth: qca:`
 
-**Verified invariant** (asserted by `cluster` on every run): 0 of 2,004 non-hub
+**Verified invariant** (asserted by `cluster` on every run): 0 of 2,005 non-hub
 files span more than one cluster — i.e. every cluster provably merges without
 touching another cluster's files. Phase 5 then confirms this empirically: 29 of
 30 replay conflicts land on hub files.
@@ -181,11 +196,11 @@ work, but larger / less independent clusters):
 
 | `--hub-threshold` | hub files | clusters | largest cluster |
 |---|---|---|---|
-| 5  | 287 | 2423 | 20   |
-| 10 | 132 | 1926 | 109  |
-| 15 (default) | 80 | 1627 | 217 |
-| 25 | 32  | 1215 | 451  |
-| 40 | 10  | 750  | 1037 |
+| 5  | 287 | 2412 | 20   |
+| 10 | 132 | 1919 | 109  |
+| 15 (default) | 79 | 1613 | 217 |
+| 25 | 31  | 1189 | 451  |
+| 40 | 10  | 750  | 1034 |
 
 Cluster assignment is stored in `commits.cluster_id`:
 

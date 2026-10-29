@@ -64,24 +64,41 @@ Patch-ids for the whole stack come from one pipeline
 (`git log -p … | git patch-id --stable`, ~15 s for 3.6 k commits).
 
 A `Revert "<subject>"` is matched to the newest earlier commit with that subject
-(SAUCE prefixes stripped). **Subject matching alone is not sufficient proof** — a
-revert is only treated as cancelling if it is the *exact inverse* of its target:
+(SAUCE prefixes stripped). **Subject matching alone is not sufficient proof** — the
+pair must be shown to compose to nothing. Two tests, cheapest first:
 
-```
-patch-id(git diff REV REV^)  ==  patch-id(git diff ORIG^ ORIG)
-```
+1. **patch-id identity** — `patch-id(REV→REV^) == patch-id(ORIG^→ORIG)`.
+2. **content composition** — if (1) fails, compare the four line multisets of the
+   two diffs:
+   `(A⁺−R⁻) ∪ (R⁻−A⁺) ∪ (A⁻−R⁺) ∪ (R⁺−A⁻)`.
 
-On the pilot this obligation rejected **11 of 42** apparent revert pairs. Those
-are partial/modified reverts that leave residue (one removes 8 lines where the
-original added 9) — precisely the conflict-mutated patches that motivate the
-project. They are marked `KEEP_PARTIAL_REVERT` and replayed.
+Test (2) exists because **a revert is usually not a byte-exact inverse of its
+target, and the reason is almost always a previous conflict resolution.** On the
+pilot, 11 of 42 pairs failed test (1); inspecting them showed three distinct
+mechanisms, none of which mean the pair fails to cancel:
+
+| mechanism | example |
+|---|---|
+| file renamed between add and revert | nodes added to `qcm6490-rb3.dts`, removed from `qcs6490-rb3gen2.dts` |
+| cosmetic drift during rebase | original bumps copyright `2023`→`2023-2024`; the revert bumps it to `2023-2025` instead of restoring `2023`, while reverting `DMA_RX_BUF_SIZE` exactly |
+| whitespace / hunk restructuring | identical content, different patch-id |
+| **genuine partial revert** | revert removes lines the original never added — the original was *reworked* in between |
+
+Test (2) is immune to filenames, whitespace and hunk structure, so it separates
+these cleanly. Result: 7 of the 11 do cancel (2 structurally, 5 with cosmetic
+residue only); just **4** carry a real functional delta and are kept.
+
+Cancelling a pair whose residue is cosmetic means the rebuilt tree differs from
+`D` by exactly those comment lines. That is a deliberate, *bounded and reported*
+deviation from the net-tree invariant — `churn` prints the residual lines, and
+`--strict-revert` disables the tolerance.
 
 | outcome | meaning |
 |---|---|
-| `DROP_NET_ZERO` | add + exact revert, never re-added — both vanish |
+| `DROP_NET_ZERO` | add + revert compose to nothing (exact, structural, or cosmetic-only) |
 | `DROP_SUPERSEDED` | add + revert + re-add — only the re-add survives |
 | `DROP_DUPLICATE` | identical patch-id applied twice (FROMLIST + FROMGIT pair) |
-| `KEEP_PARTIAL_REVERT` | revert is not an exact inverse; carries its own delta |
+| `KEEP_PARTIAL_REVERT` | functional residue — the original was reworked in between |
 
 Reverts whose target is **not** in the OEM stack revert a *generic-base* commit.
 These are genuine OEM changes and are always kept (25 on the pilot).
