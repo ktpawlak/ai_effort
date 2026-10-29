@@ -208,8 +208,9 @@ is trusted.
 | subcommand | phase | role |
 |---|---|---|
 | `extract` | 0 | OEM commits + file lists + provenance → SQLite |
-| `churn` | 1 | collapse revert/re-add chains and duplicates (inverse-patch-id proof) |
+| `churn` | 1 | collapse revert/re-add chains and duplicates (three-tier proof: patch-id, line composition, blob equality) |
 | `classify` | 2 | deterministic cross-match against the generic tree |
+| `graduate` | 2a | detect patches that landed in the *new* generic base (identical, modified, or reverted) |
 | `packets` / `ingest` | 2 | build per-commit analysis packets, fan out to lightweight agents, load verdicts |
 | `reconcile` | 3 | hunk transplant onto the upstream form + subsumption test |
 | `cluster` | 4 | connected components → independently-mergeable feature sets |
@@ -219,3 +220,32 @@ is trusted.
 
 The pilot ends `ACCEPTED` only after the gate forced 26 unsound AI drops to be
 revoked — which is the intended behaviour, not a workaround.
+
+## Phase 1 addendum: proving cancellation against the tree, not the diff
+
+Real-world validation (README, 1090.95 → 1091.96) falsified the diff-level
+proof. Patch-id identity and line-composition both answer "do these two
+*patches* compose to nothing?". The question that actually matters is "did this
+pair leave anything in the *tree*?".
+
+`pair_leaves_no_trace` compares `blob(A^, f)` with `blob(R, f)` for every file
+the pair touches. It subsumes the earlier tests, needs no tolerance for
+whitespace, renames or copyright drift, and rejected 21 of 42 pairs that both
+diff-level tests had accepted. The ordering in `cmd_churn` is therefore:
+
+1. patch-id identity — cheap, exact, rare
+2. line composition — tolerates conflict-resolution scar tissue
+3. **blob equality at the endpoints** — the authoritative test
+4. straddle guard — a conflict-cost heuristic, not a correctness test
+
+Steps 1–3 are correctness; step 4 only avoids stranding commits that were
+authored against the intermediate state.
+
+### A limit worth stating plainly
+
+Blob equality proves a pair is inert *on the base it lived on*. Replaying onto
+a **different** base makes every cherry-pick a fresh three-way merge, so
+removing an inert pair can change whether a later commit merges cleanly — in
+either direction. Measured effect on the pilot cycle: 30 conflicts → 29.
+Dropping inert pairs is semantically safe but not conflict-monotonic.
+

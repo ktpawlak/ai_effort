@@ -89,7 +89,8 @@ CREATE TABLE IF NOT EXISTS reconcile_files(
 
 SEM_COLS = {"sem_verdict": "TEXT", "sem_action": "TEXT",
             "sem_reason": "TEXT", "sem_upstream": "TEXT", "cluster_id": "INTEGER",
-            "churn_action": "TEXT", "churn_reason": "TEXT"}
+            "churn_action": "TEXT", "churn_reason": "TEXT",
+            "grad_action": "TEXT", "grad_reason": "TEXT"}
 
 
 def db_connect(path):
@@ -625,10 +626,18 @@ def cmd_churn(args):
     con.execute("UPDATE commits SET churn_action=NULL, churn_reason=NULL")
     marks = {}
 
+    _fcache = {}
+
+    def files_of(sha):
+        if sha not in _fcache:
+            _fcache[sha] = {p for (p,) in con.execute(
+                "SELECT path FROM commit_files WHERE sha=?", (sha,))}
+        return _fcache[sha]
+
     def mark(seq, action, reason):
         marks[seq] = (action, reason)
 
-    pairs = net_zero = superseded = external = partial = 0
+    pairs = net_zero = superseded = external = partial = straddled = traced = 0
     structural = cosmetic = 0
     cosmetic_lines = []
     for sha, seq, subj, clean, pid in rows:
@@ -666,6 +675,35 @@ def cmd_churn(args):
             partial += 1
             mark(seq, "KEEP_PARTIAL_REVERT",
                  f"functional residue vs seq {orig}: {functional[0].strip()[:40]}")
+            continue
+        # Tree proof. The diff-level tests above say the pair composes to
+        # nothing in isolation; this says the pair left no trace in the tree it
+        # actually lived in. It subsumes the straddle question for correctness:
+        # if an intervening commit built on the add and R did not undo that,
+        # the blobs differ and the pair is kept.
+        pair_files = files_of(by_seq[orig][0]) | files_of(sha)
+        ok, offender = pair_leaves_no_trace(tree, by_seq[orig][0], sha, pair_files)
+        if not ok:
+            traced += 1
+            mark(orig, "KEEP_LEAVES_TRACE",
+                 f"reverted at seq {seq} but {offender} differs at the endpoints")
+            mark(seq, "KEEP_LEAVES_TRACE",
+                 f"revert of seq {orig}; {offender} not restored")
+            continue
+        # Straddle guard. Even a provably net-zero pair can cost conflicts:
+        # commits landing between A and R were authored against the post-A
+        # tree, so removing A makes them rebase against content that never
+        # existed. Correctness is already assured above; this is about churn.
+        straddlers = [s for s in range(orig + 1, seq)
+                      if s in by_seq and files_of(by_seq[s][0]) & pair_files]
+        if straddlers:
+            straddled += 1
+            victim = by_seq[straddlers[0]]
+            mark(orig, "KEEP_STRADDLED",
+                 f"reverted at seq {seq} but seq {straddlers[0]} builds on it")
+            mark(seq, "KEEP_STRADDLED",
+                 f"revert of seq {orig}; {len(straddlers)} commit(s) depend on it, "
+                 f"e.g. {victim[0][:12]}")
             continue
         # was it re-added after the revert?
         readd = [s for s in subj_idx.get(target, []) + clean_idx.get(target, [])
@@ -709,6 +747,10 @@ def cmd_churn(args):
     print(f"         exact inverse modulo rename/whitespace: {structural}")
     print(f"         cosmetic residue only (copyright etc.) : {cosmetic}")
     print(f"    -> partial revert, real residue (KEPT)   : {partial}")
+    print(f"    -> leaves a trace in the tree (KEPT)     : {traced}")
+    print(f"    -> straddled by dependent commits (KEPT) : {straddled}")
+    print(f"       (net-zero at the endpoints, but commits in between were")
+    print(f"        authored against the post-add tree -- dropping strands them)")
     print(f"  reverts of generic-base commits (kept)   : {external}")
     print(f"  duplicate patch-id applications dropped  : {dups}")
     if cosmetic_lines:
@@ -731,10 +773,108 @@ def cmd_churn(args):
         print(f"    {sha[:12]} {subj[:48]:<48} [{r}]")
 
 
+def blob_at(tree, rev, path):
+    """Blob sha of `path` at `rev`, or None when absent."""
+    p = subprocess.run(["git", "-C", tree, "rev-parse", f"{rev}:{path}"],
+                       capture_output=True, text=True)
+    return p.stdout.strip() if p.returncode == 0 else None
+
+
+def pair_leaves_no_trace(tree, orig_sha, rev_sha, paths):
+    """Direct tree proof that an add/revert pair is net-zero.
+
+    patch-id and line-composition tests compare the two *diffs*; this compares
+    the two *trees*. If every file the pair touches has an identical blob
+    immediately before the add and immediately after the revert, the pair
+    provably contributed nothing, whatever happened in between.
+    Returns (True, "") or (False, offending_path).
+    """
+    for path in sorted(paths):
+        if blob_at(tree, f"{orig_sha}^", path) != blob_at(tree, rev_sha, path):
+            return False, path
+    return True, ""
+
+
+# ---- graduate (did the patch land in the NEW generic base?) -----------------
+def cmd_graduate(args):
+    """Compare the OEM stack against the generic delta G_old..G_new.
+
+    This is the case that makes derivative rebases painful: a patch supplied to
+    the OEM in preliminary form later lands upstream in a *different* form under
+    the same subject. git rebase skips only byte-identical patches, so the
+    modified ones collide instead of being dropped.
+    """
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    base = resolve_base(tree, args.base)
+    onto = resolve_base(tree, args.onto)
+
+    print(f"indexing generic delta {base[:12]}..{onto[:12]} ...")
+    pid_gen, subj_gen = {}, {}
+    proc = subprocess.run(
+        f"git -C {tree} log -p --no-merges {base}..{onto} | git -C {tree} patch-id --stable",
+        shell=True, capture_output=True, text=True, errors="replace")
+    for line in proc.stdout.splitlines():
+        p = line.split()
+        if len(p) == 2:
+            pid_gen[p[0]] = p[1]
+    for line in git(tree, "log", "--no-merges", "--format=%H\t%s",
+                    f"{base}..{onto}").splitlines():
+        h, _, s = line.partition("\t")
+        subj_gen.setdefault(parse_prefixes(s)[1], []).append(h)
+    # a patch generic *reverted* is now contrary to the new base, not merely
+    # redundant -- carrying it forward re-applies something generic rejected.
+    rev_gen = {}
+    for clean, hs in subj_gen.items():
+        m = RE_REVERT.match(clean)
+        if m:
+            rev_gen.setdefault(m.group(1).strip(), []).append(hs[0])
+    print(f"  {len(pid_gen)} patch-ids, {len(subj_gen)} distinct subjects, "
+          f"{len(rev_gen)} reverts in the generic delta")
+
+    con.execute("UPDATE commits SET grad_action=NULL, grad_reason=NULL")
+    ident = modified = reverted = 0
+    for sha, pid, clean in con.execute(
+            "SELECT sha,patch_id,clean_subject FROM commits "
+            "WHERE category != 'PACKAGING' ORDER BY seq").fetchall():
+        if pid and pid in pid_gen:
+            ident += 1
+            con.execute("UPDATE commits SET grad_action='DROP_GRADUATED',"
+                        "grad_reason=? WHERE sha=?",
+                        (f"identical patch-id to generic {pid_gen[pid][:12]}", sha))
+        elif clean and clean in rev_gen:
+            reverted += 1
+            con.execute("UPDATE commits SET grad_action='REVIEW_REVERTED_IN_GENERIC',"
+                        "grad_reason=? WHERE sha=?",
+                        (f"generic {rev_gen[clean][0][:12]} reverts this subject", sha))
+        elif clean and clean in subj_gen:
+            modified += 1
+            con.execute("UPDATE commits SET grad_action='REVIEW_GRADUATED_MODIFIED',"
+                        "grad_reason=? WHERE sha=?",
+                        (f"same subject as generic {subj_gen[clean][0][:12]}, "
+                         f"different content", sha))
+    con.commit()
+
+    print(f"\n=== Phase 2a: graduation into the new generic base ===")
+    print(f"  DROP_GRADUATED (identical patch-id)        : {ident}")
+    print(f"    -> git rebase would skip these by itself")
+    print(f"  REVIEW_GRADUATED_MODIFIED (same subject,   : {modified}")
+    print(f"     different content)                        ")
+    print(f"    -> these are the ones that COLLIDE; git rebase cannot skip them")
+    print(f"  REVIEW_REVERTED_IN_GENERIC                 : {reverted}")
+    print(f"    -> generic rejected this change; carrying it forward re-applies it")
+    for sha, subj, act in con.execute(
+            "SELECT sha,subject,grad_action FROM commits "
+            "WHERE grad_action LIKE 'REVIEW%' ORDER BY seq LIMIT 12"):
+        print(f"       {act[7:]:<26} {sha[:12]} {subj[:50]}")
+    return ident, modified
+
+
 # ---- cluster (Phase 4: independently-mergeable feature sets) ----------------
 KEEP_SET_SQL = ("category NOT IN ('PACKAGING','UPSTREAMED') "
                 "AND (sem_action IS NULL OR sem_action != 'DROP') "
-                "AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%')")
+                "AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%') "
+                "AND (grad_action IS NULL OR grad_action NOT LIKE 'DROP%')")
 
 
 class UnionFind:
@@ -1189,6 +1329,12 @@ def main():
     rc.add_argument("--out", default="reconcile", help="output dir for merged files + delta patches")
     rc.add_argument("--limit", type=int, default=0)
     rc.set_defaults(func=cmd_reconcile)
+
+    gr = sub.add_parser("graduate", help="Phase 2a: detect patches that landed in the NEW generic base")
+    gr.add_argument("--tree", required=True, help="tree containing both generic bases")
+    gr.add_argument("--base", required=True, help="old generic base G_old")
+    gr.add_argument("--onto", required=True, help="new generic base G_new (rebase target)")
+    gr.set_defaults(func=cmd_graduate)
 
     cl = sub.add_parser("cluster", help="Phase 4: group keep-set commits into independently-mergeable feature sets")
     cl.add_argument("--hub-threshold", type=int, default=15,

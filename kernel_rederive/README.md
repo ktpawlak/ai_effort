@@ -302,3 +302,83 @@ rebase conflicts today; dropping them removes those conflict points outright.
 
 **Robustness.** `ingest` matches verdicts on the 12-char sha prefix — lightweight
 models occasionally mis-transcribe the full 40-char sha (observed once in 52).
+
+## Real-world validation: the 1090.95 → 1091.96 qcom cycle
+
+The pipeline was tested end-to-end against a rebase Canonical actually
+performed, so every number below has a ground truth to be checked against.
+
+| role | ref | sha |
+|---|---|---|
+| `D_old` | `Ubuntu-qcom-6.8.0-1090.95` | `f834b833dffa` |
+| `G_old` | `Ubuntu-6.8.0-146.146` | `bd915784e717` |
+| `G_new` | `Ubuntu-6.8.0-148.148` | `70e5091c210e` |
+| target  | `D_new^^` — 1090.95 as the maintainer rebased it | `cf64eb717498` |
+
+All work ran in `git clone --shared` copies. A `git worktree` would have
+written refs into the OEM repository; `--shared` writes nothing to it.
+
+### What the maintainer did
+
+The cycle is nearly a pure rebase: 2 packaging commits added, **11 OEM patches
+dropped** because they reached the generic base. Of 3,647 OEM commits, **only 4
+share a patch-id with a generic 146→148 commit** — so `git rebase` can skip 4
+and must collide with the rest. That ratio is the whole problem in one number.
+
+### Detection (`graduate`, Phase 2a)
+
+| mechanism | n | notes |
+|---|---|---|
+| identical patch-id → `DROP_GRADUATED` | 4 | git rebase already skips these |
+| same clean subject, different content → `REVIEW_GRADUATED_MODIFIED` | 2 | both `FROMLIST:` — the exact failure mode this project targets |
+| generic *reverted* the subject → `REVIEW_REVERTED_IN_GENERIC` | 1 | carrying it forward re-applies something generic rejected |
+
+**7 of the 11** maintainer drops are recovered mechanically. The other 4 were
+renamed on their way upstream (`fix duplicate debugfs entries for bt-sco-pcm-wb`
+landed as `fix duplicate DAPM widget names for wideband DAI`; `ARM: dt: add
+extended SPI specifier` landed as `dt-bindings: ... add ESPI and EPPI
+specifiers`). No subject or patch-id test can see those — they are precisely
+the residue the Phase 2 semantic fan-out exists for.
+
+### Measured rebase onto `G_new`
+
+Four arms, identical replay harness (cherry-pick, `--theirs` auto-resolution):
+
+| arm | drops | commits | conflicts |
+|---|---|---|---|
+| A control | none | 3,647 | **30** |
+| B | graduated + upstreamed only | 3,629 | 30 |
+| C | + churn, no straddle/tree guard | 3,549 | **33** ✗ |
+| D | + straddle guard | 3,588 | 29 |
+| E | + tree proof | 3,592 | **29** |
+
+### The negative result that mattered
+
+Arm C made things **worse**. All 5 of its introduced conflicts were attributable
+to dropped churn commits touching the same files: an add/revert pair is net-zero
+*at its endpoints*, but commits landing in between were authored against the
+post-add tree, so removing the add strands them.
+
+This produced the strongest check in the tool, `pair_leaves_no_trace`: compare
+the **blobs**, not the diffs. If every file the pair touches has an identical
+blob at `A^` and at `R`, the pair provably contributed nothing — whatever
+happened in between. It rejected **21 of 42** pairs that the patch-id and
+line-composition tests had both accepted.
+
+### Honest limits
+
+Arm E leaves 39 files differing from the target; **27 are conflict sites**,
+where `--theirs` simply isn't the human's resolution. Of the 12 remaining, 5 are
+shared with the control (the 4 undetected maintainer drops) and 7 cascade from a
+single differently-resolved stmmac conflict.
+
+An exact tree match is not attainable here, and the experiment was never capable
+of producing one: the control — which replays *every* original commit — already
+differs from the target in 33 files for the same reason. What is measurable is
+the conflict count, and on that the pipeline is a modest win (30 → 29) while
+removing 55 commits.
+
+The subtler finding: a pair that is provably inert *on its original base* can
+still perturb a downstream three-way merge when replayed onto a **different**
+base, in either direction. Dropping inert pairs is semantically safe; it is not
+guaranteed to be conflict-monotonic.
