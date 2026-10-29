@@ -1,0 +1,6 @@
+inventory.db
+__pycache__/
+packets/
+batches/
+results/
+reconcile/
