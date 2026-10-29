@@ -382,3 +382,44 @@ The subtler finding: a pair that is provably inert *on its original base* can
 still perturb a downstream three-way merge when replayed onto a **different**
 base, in either direction. Dropping inert pairs is semantically safe; it is not
 guaranteed to be conflict-monotonic.
+
+## Corroboration: the 146 → 148 rebase that broke Monza
+
+A previous session (`a0b0e9da-f6bd-4946-a92c-25f5add7d703`, 2026-10-12 → 10-19)
+performed this exact base bump by hand. Its artefacts are still in the tree and
+confirm the `graduate` rule the hard way.
+
+| commit | release | generic base | `arch/arm64/mm/mmu.c` |
+|---|---|---|---|
+| `f834b833dffa` | 1090.95 (published) | 146.146 | differs from base — correct, 146 has no revert |
+| `55063e907cf4` | 1090.95 (that session's rebase) | 148.148 | **differs from base — did not boot** |
+| `b4d222f7e299` | `master-next-rebase-backup`, after the fix | 148.148 | matches base ✓ |
+| `820e9992e752` | 1091.96 (published) | 148.148 | matches base ✓ |
+
+Generic landed `88bdf35f09e2 Revert "arm64: mm: Don't remap pgtables for
+allocate vs populate"` inside the 146→148 window. The derivative carried its own
+`UPSTREAM:` copy of the reverted patch, which **applied cleanly** — no conflict,
+no empty commit, nothing for `git rebase` to flag. The result silently dropped
+two `*_set_fixmap_offset()` assignments and the kernel died in early assembly,
+emitting zero bytes on serial.
+
+Diagnosis took seven days of serial-console work on Monza (firmware traces,
+`earlycon`, `nokaslr`, `efi=novamap`, no-initrd, config diffs, pstore — all
+negative, because the failure precedes any console). The fix was two lines.
+
+`graduate`'s `REVIEW_REVERTED_IN_GENERIC` rule flags that commit mechanically,
+from metadata alone, before a single cherry-pick runs. Both the human fix and
+the published 1091.96 reached the same resolution the rule points at.
+
+This is the case for the whole approach: a clean apply is not evidence of
+correctness. The dangerous commits are the ones that *don't* conflict.
+
+### Known gap, from the same evidence
+
+Of the 8 commits that session dropped, `graduate` detects 4, git's own empty
+detection handles 1, 2 were renamed upstream (semantic fan-out territory), and
+one — `arm64: mm: Don't remap pgtables per-cont(pte|pmd) block` — is invisible
+because its generic counterpart `7c79ff71c122` was **already in `G_old`**, not
+in the `G_old..G_new` window `graduate` scans. Duplicates already present in the
+current base belong to Phase 2 `classify`, which does not yet patch-id match
+against the base. That is the next thing to build.
