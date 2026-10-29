@@ -49,6 +49,12 @@ def parse_prefixes(subject):
     return found, s.strip()
 
 
+def run(cmd, check=True):
+    """Run a command, returning the CompletedProcess (never raises unless check)."""
+    return subprocess.run(cmd, capture_output=True, text=True,
+                          errors="replace", check=check)
+
+
 def resolve_base(tree, base):
     """Resolve a ref or a subject substring to a commit SHA."""
     sha = git(tree, "rev-parse", "-q", "--verify", f"{base}^{{commit}}").strip()
@@ -81,7 +87,8 @@ CREATE TABLE IF NOT EXISTS reconcile_files(
 """
 
 SEM_COLS = {"sem_verdict": "TEXT", "sem_action": "TEXT",
-            "sem_reason": "TEXT", "sem_upstream": "TEXT", "cluster_id": "INTEGER"}
+            "sem_reason": "TEXT", "sem_upstream": "TEXT", "cluster_id": "INTEGER",
+            "churn_action": "TEXT", "churn_reason": "TEXT"}
 
 
 def db_connect(path):
@@ -536,9 +543,141 @@ def cmd_reconcile(args):
     print(f"\nMerged files + markers written under {args.out}/<sha>/")
 
 
+# ---- churn (Phase 1: collapse add/revert/re-add chains) ---------------------
+RE_REVERT = re.compile(r'^\s*(?:[A-Z][A-Z0-9_]+:\s*)*Revert\s+"(.+)"\s*$')
+
+
+def fill_patch_ids(con, tree, base, head):
+    """Bulk-compute git patch-id for every OEM commit (cheap: one pipeline)."""
+    proc = subprocess.run(
+        f"git -C {tree} log -p --no-merges {base}..{head} | git -C {tree} patch-id --stable",
+        shell=True, capture_output=True, text=True, errors="replace")
+    n = 0
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 2:
+            pid, sha = parts
+            con.execute("UPDATE commits SET patch_id=? WHERE sha=?", (pid, sha))
+            n += 1
+    con.commit()
+    return n
+
+
+def reverse_patch_id(tree, sha):
+    """patch-id of a commit's diff applied backwards; used to prove a revert
+    is the exact inverse of its target."""
+    proc = subprocess.run(
+        f"git -C {tree} diff {sha} {sha}^ | git -C {tree} patch-id --stable",
+        shell=True, capture_output=True, text=True, errors="replace")
+    out = proc.stdout.split()
+    return out[0] if out else None
+
+
+def cmd_churn(args):
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    if args.refresh_patch_ids or not con.execute(
+            "SELECT COUNT(*) FROM commits WHERE patch_id IS NOT NULL").fetchone()[0]:
+        base = resolve_base(tree, args.base)
+        print("computing patch-ids ...")
+        print(f"  {fill_patch_ids(con, tree, base, args.head)} patch-ids recorded")
+
+    rows = con.execute(
+        "SELECT sha,seq,subject,clean_subject,patch_id FROM commits ORDER BY seq").fetchall()
+    by_seq = {r[1]: r for r in rows}
+    # index by subject (both raw and SAUCE-stripped) for revert matching
+    subj_idx, clean_idx = {}, {}
+    for sha, seq, subj, clean, pid in rows:
+        subj_idx.setdefault(subj.strip(), []).append(seq)
+        if clean:
+            clean_idx.setdefault(clean.strip(), []).append(seq)
+
+    con.execute("UPDATE commits SET churn_action=NULL, churn_reason=NULL")
+    marks = {}
+
+    def mark(seq, action, reason):
+        marks[seq] = (action, reason)
+
+    pairs = net_zero = superseded = external = partial = 0
+    for sha, seq, subj, clean, pid in rows:
+        m = RE_REVERT.match(subj)
+        if not m:
+            continue
+        target = m.group(1).strip()
+        cands = [s for s in subj_idx.get(target, []) if s < seq]
+        if not cands:
+            cands = [s for s in clean_idx.get(target, []) if s < seq]
+        if not cands:
+            external += 1  # reverts something in the generic base, not OEM churn
+            continue
+        orig = max(cands)
+        pairs += 1
+        o_pid = by_seq[orig][4]
+        # Proof obligation: the revert must be the exact inverse of the original.
+        # A partial / modified revert does NOT net to zero and must be kept.
+        if o_pid and reverse_patch_id(tree, sha) != o_pid:
+            partial += 1
+            mark(seq, "KEEP_PARTIAL_REVERT",
+                 f"not an exact inverse of seq {orig}; carries its own delta")
+            continue
+        # was it re-added after the revert?
+        readd = [s for s in subj_idx.get(target, []) + clean_idx.get(target, [])
+                 if s > seq]
+        if not readd and o_pid:
+            readd = [r[1] for r in rows if r[1] > seq and r[4] == o_pid]
+        if readd:
+            superseded += 1
+            mark(orig, "DROP_SUPERSEDED",
+                 f"reverted at seq {seq}, re-added at seq {min(readd)}")
+            mark(seq, "DROP_SUPERSEDED", f"revert of seq {orig}; re-added later")
+        else:
+            net_zero += 1
+            mark(orig, "DROP_NET_ZERO", f"reverted at seq {seq}, never re-added")
+            mark(seq, "DROP_NET_ZERO", f"revert of seq {orig}; nets to zero")
+
+    # duplicate patch content (e.g. a FROMLIST + FROMGIT pair of the same change)
+    dup_groups = con.execute(
+        "SELECT patch_id, COUNT(*) FROM commits WHERE patch_id IS NOT NULL "
+        "AND patch_id != '' GROUP BY patch_id HAVING COUNT(*) > 1").fetchall()
+    dups = 0
+    for pid, _ in dup_groups:
+        seqs = [r[0] for r in con.execute(
+            "SELECT seq FROM commits WHERE patch_id=? ORDER BY seq", (pid,))]
+        for s in seqs[:-1]:  # keep the last application
+            if s not in marks:
+                mark(s, "DROP_DUPLICATE",
+                     f"identical patch-id re-applied at seq {seqs[-1]}")
+                dups += 1
+
+    for seq, (action, reason) in marks.items():
+        con.execute("UPDATE commits SET churn_action=?,churn_reason=? WHERE seq=?",
+                    (action, reason, seq))
+    con.commit()
+
+    print(f"\n=== Phase 1: churn cancellation ===")
+    print(f"  revert pairs found inside the OEM stack : {pairs}")
+    print(f"    -> net-zero (add+revert, never re-added): {net_zero} pairs")
+    print(f"    -> superseded (add+revert+re-add)       : {superseded} pairs")
+    print(f"    -> partial/modified revert (KEPT)       : {partial}")
+    print(f"  reverts of generic-base commits (kept)   : {external}")
+    print(f"  duplicate patch-id applications dropped  : {dups}")
+    total = con.execute("SELECT COUNT(*) FROM commits WHERE churn_action "
+                        "LIKE 'DROP%'").fetchone()[0]
+    print(f"\n  {total} commits removed from the replay set as pure churn")
+    for a, n in con.execute("SELECT churn_action,COUNT(*) FROM commits "
+                            "WHERE churn_action IS NOT NULL GROUP BY churn_action"):
+        print(f"    {a:<20} {n}")
+    print("\n  sample:")
+    for sha, subj, r in con.execute(
+            "SELECT sha,subject,churn_reason FROM commits "
+            "WHERE churn_action LIKE 'DROP%' ORDER BY seq LIMIT 6"):
+        print(f"    {sha[:12]} {subj[:48]:<48} [{r}]")
+
+
 # ---- cluster (Phase 4: independently-mergeable feature sets) ----------------
 KEEP_SET_SQL = ("category NOT IN ('PACKAGING','UPSTREAMED') "
-                "AND (sem_action IS NULL OR sem_action != 'DROP')")
+                "AND (sem_action IS NULL OR sem_action != 'DROP') "
+                "AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%')")
 
 
 class UnionFind:
@@ -576,7 +715,7 @@ def cmd_cluster(args):
         f"SELECT sha FROM commits WHERE {KEEP_SET_SQL} ORDER BY seq")]
     keep = set(shas)
     print(f"clustering {len(keep)} keep-set commits "
-          f"(excludes PACKAGING, UPSTREAMED, and DROP verdicts)")
+          f"(excludes PACKAGING, UPSTREAMED, DROP verdicts, and churn)")
 
     # file -> commits, restricted to the keep set
     f2c = {}
@@ -620,7 +759,7 @@ def cmd_cluster(args):
         comps.setdefault(uf.find(sha), []).append(sha)
     ordered = sorted(comps.values(), key=len, reverse=True)
 
-    con.execute(f"UPDATE commits SET cluster_id=NULL WHERE {KEEP_SET_SQL}")
+    con.execute("UPDATE commits SET cluster_id=NULL")
     for cid, members in enumerate(ordered):
         for sha in members:
             con.execute("UPDATE commits SET cluster_id=? WHERE sha=?", (cid, sha))
@@ -651,7 +790,273 @@ def cmd_cluster(args):
     print(f"Clusters with >1 commit hold {big} commits; {singles} are standalone.")
     print(f"\nIntegration surface: {len(hubs)} hub files must be merged once, "
           f"centrally (e.g. defconfig, Makefile, changelog).")
+
+    # Independence invariant: if a non-hub file were touched by two clusters,
+    # those clusters could not be developed/merged in isolation.
+    owner, violations = {}, []
+    for cid, members in enumerate(ordered):
+        for sha in members:
+            for p in c2f.get(sha, []):
+                if p in hubs:
+                    continue
+                prev = owner.setdefault(p, cid)
+                if prev != cid:
+                    violations.append((p, prev, cid))
+    if violations:
+        print(f"\n!! INVARIANT VIOLATED: {len(violations)} non-hub files span "
+              f"two clusters; clusters are NOT independent")
+        for p, a, b in violations[:5]:
+            print(f"   {p} in clusters {a} and {b}")
+    else:
+        print(f"\nInvariant verified: 0 of {len(owner)} non-hub files span two "
+              f"clusters -- every cluster provably merges in isolation.")
     print("Query a cluster:  SELECT sha,subject FROM commits WHERE cluster_id=<id>;")
+
+
+# ---- reconstruct (Phase 5: build independent topic branches) ----------------
+def worktree_setup(tree, path, base):
+    if os.path.exists(path):
+        run(["git", "-C", tree, "worktree", "remove", "--force", path], check=False)
+    run(["git", "-C", tree, "worktree", "add", "--detach", path, base])
+
+
+def worktree_teardown(tree, path):
+    run(["git", "-C", tree, "worktree", "remove", "--force", path], check=False)
+
+
+def cmd_reconstruct(args):
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    con.execute("CREATE TABLE IF NOT EXISTS reconstruct ("
+                "cluster_id INTEGER, sha TEXT, status TEXT, conflicts TEXT)")
+    base = resolve_base(tree, args.onto or args.base)
+    hubs = {r[0] for r in con.execute(
+        "SELECT path FROM commit_files GROUP BY path HAVING COUNT(DISTINCT sha) >= ?",
+        (args.hub_threshold,))}
+
+    clusters = [r[0] for r in con.execute(
+        "SELECT cluster_id FROM commits WHERE cluster_id IS NOT NULL "
+        "GROUP BY cluster_id ORDER BY COUNT(*) DESC")]
+    if args.cluster is not None:
+        clusters = [args.cluster]
+    elif args.top:
+        clusters = clusters[:args.top]
+
+    wt = os.path.abspath(os.path.expanduser(args.worktree))
+    print(f"reconstructing {len(clusters)} cluster(s) onto {base[:12]} in {wt}")
+    worktree_setup(tree, wt, base)
+    con.execute("DELETE FROM reconstruct")
+
+    tot = {"clean": 0, "conflict": 0, "empty": 0}
+    hub_only = non_hub = 0
+    try:
+        for cid in clusters:
+            members = [r for r in con.execute(
+                "SELECT sha,subject FROM commits WHERE cluster_id=? ORDER BY seq",
+                (cid,))]
+            run(["git", "-C", wt, "checkout", "--detach", base], check=False)
+            run(["git", "-C", wt, "checkout", "-B", f"rederive/c{cid:04d}"],
+                check=False)
+            c_clean = c_conf = 0
+            for sha, subj in members:
+                r = run(["git", "-C", wt, "cherry-pick", "-x",
+                         "--allow-empty", "--keep-redundant-commits", sha],
+                        check=False)
+                if r.returncode == 0:
+                    status, conf = "clean", ""
+                    c_clean += 1
+                    tot["clean"] += 1
+                else:
+                    files = [l[3:].strip() for l in run(
+                        ["git", "-C", wt, "status", "--porcelain"],
+                        check=False).stdout.splitlines()
+                        if l.startswith(("UU", "AA", "DU", "UD", "AU", "UA"))]
+                    status, conf = "conflict", ";".join(files)
+                    c_conf += 1
+                    tot["conflict"] += 1
+                    if files and all(f in hubs for f in files):
+                        hub_only += 1
+                    elif files:
+                        non_hub += 1
+                    # take the derivative's version so replay can continue
+                    run(["git", "-C", wt, "checkout", "--theirs", "--"] + files,
+                        check=False)
+                    run(["git", "-C", wt, "add", "-A"], check=False)
+                    r2 = run(["git", "-C", wt, "-c", "core.editor=true",
+                              "cherry-pick", "--continue"], check=False)
+                    if r2.returncode != 0:
+                        run(["git", "-C", wt, "cherry-pick", "--skip"], check=False)
+                con.execute("INSERT INTO reconstruct VALUES (?,?,?,?)",
+                            (cid, sha, status, conf))
+            con.commit()
+            if args.verbose or c_conf:
+                print(f"  cluster {cid:<5} {len(members):>4} commits  "
+                      f"clean={c_clean:<4} conflict={c_conf}")
+    finally:
+        if not args.keep_worktree:
+            worktree_teardown(tree, wt)
+        if not args.keep_branches:
+            for cid in clusters:
+                run(["git", "-C", tree, "branch", "-D", f"rederive/c{cid:04d}"],
+                    check=False)
+        else:
+            print(f"\n  kept {len(clusters)} topic branches as rederive/c*")
+
+    done = tot["clean"] + tot["conflict"]
+    print(f"\n=== Phase 5: replayed {done} commits across {len(clusters)} clusters ===")
+    print(f"  clean cherry-picks   : {tot['clean']} "
+          f"({100*tot['clean']//max(1,done)}%)")
+    print(f"  conflicted           : {tot['conflict']}")
+    print(f"\n  Conflict locality (the Phase 4 independence prediction):")
+    print(f"    conflicts confined to hub files : {hub_only}")
+    print(f"    conflicts touching non-hub files: {non_hub}")
+    if not non_hub:
+        print("    -> every conflict is on the shared integration surface, "
+              "as predicted by the clustering invariant.")
+        return
+
+    # A non-hub conflict means a predecessor was missing. The usual culprit is
+    # a Phase 2/3 DROP verdict that removed a commit the successor built on --
+    # valid only if the replay base already contains the upstream version.
+    print("\n  Attributing non-hub conflicts:")
+    regressions = 0
+    for sha, conf in con.execute(
+            "SELECT sha,conflicts FROM reconstruct WHERE status='conflict'"):
+        files = [f for f in conf.split(";") if f and f not in hubs]
+        if not files:
+            continue
+        seq = con.execute("SELECT seq FROM commits WHERE sha=?", (sha,)).fetchone()[0]
+        culprits = []
+        for f in files:
+            culprits += con.execute(
+                "SELECT c.sha,c.category,c.churn_action,c.sem_action,c.seq "
+                "FROM commit_files cf JOIN commits c ON c.sha=cf.sha "
+                "WHERE cf.path=? AND c.seq<? AND c.cluster_id IS NULL",
+                (f, seq)).fetchall()
+        print(f"    {sha[:12]}  non-hub: {', '.join(f.split('/')[-1] for f in files)}")
+        if culprits:
+            regressions += 1
+            for csha, cat, ch, sem, cseq in culprits[:3]:
+                why = sem or ch or cat
+                print(f"        caused by dropped predecessor {csha[:12]} "
+                      f"(seq {cseq}, dropped as {why})")
+        else:
+            print("        no dropped predecessor; genuine ordering dependency")
+    if regressions:
+        print(f"\n  {regressions} of {non_hub} non-hub conflicts are DROP "
+              f"regressions, not clustering errors.")
+        print("  A DROP is only sound if the replay base already contains the "
+              "upstream commit.\n  Re-run `reconstruct --onto <new-generic>` to "
+              "confirm, or revoke the drop.")
+
+
+# ---- verify (Phase 6: acceptance gate) --------------------------------------
+DISPOSITIONS = [
+    ("kept (clustered)",      "cluster_id IS NOT NULL"),
+    ("dropped: churn",        "cluster_id IS NULL AND churn_action LIKE 'DROP%'"),
+    ("dropped: semantic",     "cluster_id IS NULL AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%') AND sem_action='DROP'"),
+    ("dropped: packaging",    "cluster_id IS NULL AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%') AND (sem_action IS NULL OR sem_action!='DROP') AND category='PACKAGING'"),
+    ("dropped: upstreamed",   "cluster_id IS NULL AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%') AND (sem_action IS NULL OR sem_action!='DROP') AND category='UPSTREAMED'"),
+]
+
+
+def cmd_verify(args):
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    base = resolve_base(tree, args.base)
+    total = con.execute("SELECT COUNT(*) FROM commits").fetchone()[0]
+
+    print(f"=== Phase 6: acceptance gate (base {base[:12]}) ===\n")
+    print("1. Disposition partition -- every OEM commit accounted for exactly once")
+    seen = 0
+    for label, where in DISPOSITIONS:
+        n = con.execute(f"SELECT COUNT(*) FROM commits WHERE {where}").fetchone()[0]
+        seen += n
+        print(f"   {label:<24} {n:>6}")
+    print(f"   {'TOTAL':<24} {seen:>6} of {total}")
+    if seen != total:
+        orphan = con.execute(
+            "SELECT sha,subject,category FROM commits WHERE cluster_id IS NULL "
+            "AND (churn_action IS NULL OR churn_action NOT LIKE 'DROP%') "
+            "AND (sem_action IS NULL OR sem_action!='DROP') "
+            "AND category NOT IN ('PACKAGING','UPSTREAMED') LIMIT 5").fetchall()
+        print(f"   FAIL: {total-seen} commits unaccounted for")
+        for s, subj, c in orphan:
+            print(f"      {s[:12]} [{c}] {subj[:56]}")
+    else:
+        print("   PASS: partition is complete and disjoint.")
+
+    # 2. Every dropped commit's content must already exist in the replay base,
+    #    otherwise dropping it changes the resulting tree.
+    print("\n2. Drop soundness -- is each dropped change already in the base?")
+    drops = con.execute(
+        "SELECT sha,subject FROM commits WHERE cluster_id IS NULL "
+        "AND sem_action='DROP' ORDER BY seq").fetchall()
+    sound = unsound = 0
+    bad = []
+    for sha, subj in drops:
+        paths = [r[0] for r in con.execute(
+            "SELECT path FROM commit_files WHERE sha=?", (sha,))]
+        ok = True
+        for path in paths:
+            patch = git(tree, "diff", f"{sha}^", sha, "--", path)
+            _, hunks = split_hunks(patch)
+            if not hunks:
+                continue
+            blob = git(tree, "show", f"{base}:{path}")
+            if not blob:
+                ok = False
+                break
+            up = {l.strip() for l in blob.splitlines()}
+            if not all(hunk_subsumed(h, up) for h in hunks):
+                ok = False
+                break
+        if ok:
+            sound += 1
+        else:
+            unsound += 1
+            bad.append((sha, subj))
+    print(f"   sound   (content already in base, safe to drop) : {sound}")
+    print(f"   UNSOUND (content absent from base, must be kept): {unsound}")
+    for sha, subj in bad[:8]:
+        print(f"      {sha[:12]} {subj[:64]}")
+    if unsound:
+        print(f"\n   These drops are only valid against a base that already "
+              f"carries the upstream\n   version. Against {base[:12]} they would "
+              f"silently change the tree.")
+        if args.revoke_unsound:
+            for sha, _ in bad:
+                con.execute(
+                    "UPDATE commits SET sem_action='KEEP', sem_reason="
+                    "'revoked: content absent from replay base' WHERE sha=?", (sha,))
+            con.commit()
+            print(f"   REVOKED {len(bad)} unsound drops -> re-run `cluster`, "
+                  f"then `verify` again.")
+
+    # 3. No file may lose all of its OEM content to drops. Files whose only
+    #    commits were churn-cancelled are *correctly* empty (proven net-zero);
+    #    anything else means the rebuilt tree would differ from D.
+    print("\n3. File coverage -- no file loses every OEM change")
+    rows = con.execute(
+        "SELECT cf.path, "
+        " SUM(CASE WHEN c.churn_action LIKE 'DROP%' THEN 1 ELSE 0 END), COUNT(*) "
+        "FROM commit_files cf JOIN commits c ON c.sha=cf.sha GROUP BY cf.path "
+        "HAVING SUM(CASE WHEN c.cluster_id IS NOT NULL THEN 1 ELSE 0 END)=0 "
+        "AND SUM(CASE WHEN c.category IN ('PACKAGING','UPSTREAMED') THEN 1 ELSE 0 END)=0"
+    ).fetchall()
+    churn_only = [r for r in rows if r[1] == r[2]]
+    lost = [r for r in rows if r[1] != r[2]]
+    print(f"   churn-cancelled files (correctly empty) : {len(churn_only)}")
+    print(f"   AT RISK (all OEM content would be lost) : {len(lost)}")
+    for p, _, n in lost[:8]:
+        print(f"      {p} ({n} commits)")
+
+    print("\n=== gate summary ===")
+    fails = (seen != total) + (unsound > 0) + (len(lost) > 0)
+    print(f"   partition complete : {'PASS' if seen==total else 'FAIL'}")
+    print(f"   all drops sound    : {'PASS' if not unsound else 'FAIL'}")
+    print(f"   file coverage      : {'PASS' if not lost else 'FAIL'}")
+    print(f"\n   {'ACCEPTED' if not fails else 'NOT ACCEPTED -- ' + str(fails) + ' check(s) failed'}")
 
 
 # ---- report -----------------------------------------------------------------
@@ -734,6 +1139,34 @@ def main():
     cl.add_argument("--no-changeid", action="store_true", help="do not couple commits sharing a Change-Id")
     cl.add_argument("--top", type=int, default=25, help="how many clusters to print")
     cl.set_defaults(func=cmd_cluster)
+
+    ch = sub.add_parser("churn", help="Phase 1: collapse add/revert/re-add chains and duplicate patches")
+    ch.add_argument("--tree", required=True, help="derivative git tree")
+    ch.add_argument("--base", required=True, help="generic base ref or subject substring")
+    ch.add_argument("--head", default="HEAD")
+    ch.add_argument("--refresh-patch-ids", action="store_true")
+    ch.set_defaults(func=cmd_churn)
+
+    rc = sub.add_parser("reconstruct", help="Phase 5: replay clusters as independent topic branches")
+    rc.add_argument("--tree", required=True, help="derivative git tree")
+    rc.add_argument("--base", required=True, help="generic base ref or subject substring")
+    rc.add_argument("--onto", help="replay onto this ref instead (e.g. the new generic)")
+    rc.add_argument("--cluster", type=int, help="single cluster id")
+    rc.add_argument("--top", type=int, help="N largest clusters")
+    rc.add_argument("--hub-threshold", type=int, default=15)
+    rc.add_argument("--worktree", default="/tmp/rederive-wt")
+    rc.add_argument("--keep-worktree", action="store_true")
+    rc.add_argument("--keep-branches", action="store_true",
+                    help="retain the rederive/c* topic branches (the deliverable)")
+    rc.add_argument("--verbose", action="store_true")
+    rc.set_defaults(func=cmd_reconstruct)
+
+    vf = sub.add_parser("verify", help="Phase 6: acceptance gate (partition, drop soundness, coverage)")
+    vf.add_argument("--tree", required=True, help="derivative git tree")
+    vf.add_argument("--base", required=True, help="replay base ref or subject substring")
+    vf.add_argument("--revoke-unsound", action="store_true",
+                    help="flip drops whose content is absent from the base back to KEEP")
+    vf.set_defaults(func=cmd_verify)
 
     args = p.parse_args()
     args.func(args)

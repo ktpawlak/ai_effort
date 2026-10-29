@@ -50,10 +50,101 @@ SELECT category, COUNT(*) FROM commits GROUP BY category;
 SELECT sha, subject FROM commits WHERE category='MODIFIED_UPSTREAM_CANDIDATE';
 ```
 
-## Not yet implemented (see DESIGN.md)
+## Pipeline status
 
-- Phase 1 churn cancellation (patch-id revert-pair collapse)
-- Phases 5-6 reconstruction and tree-equivalence gate
+All six phases are implemented. Run them in order:
+
+```bash
+T=~/canonical/kernel/ubuntu/noble/linux-qcom/linux-main
+B="UBUNTU: Ubuntu-6.8.0-148.148"
+
+python3 rederive.py extract  --tree $T --base "$B"
+python3 rederive.py churn    --tree $T --base "$B"      # Phase 1
+python3 rederive.py classify --tree $T --generic ~/canonical/linux--noble
+#   ... Phase 2 semantic fan-out (packets / ingest), Phase 3 reconcile ...
+python3 rederive.py cluster                             # Phase 4
+python3 rederive.py reconstruct --tree $T --base "$B" --top 3   # Phase 5
+python3 rederive.py verify   --tree $T --base "$B"      # Phase 6 gate
+```
+
+## Phase 1 churn cancellation (implemented)
+
+```bash
+python3 rederive.py churn --tree $T --base "$B"
+```
+
+Collapses add/revert/re-add chains and duplicate applications. A revert is only
+treated as cancelling when it is the **exact inverse** of its target, proven by
+comparing the reversed patch-id — subject matching alone is not enough.
+
+| outcome | count |
+|---|---|
+| revert pairs inside the OEM stack | 42 |
+| → `DROP_NET_ZERO` (add + exact revert) | 26 pairs (52 commits) |
+| → `DROP_SUPERSEDED` (add + revert + re-add) | 5 pairs (9 commits) |
+| → `KEEP_PARTIAL_REVERT` (**not** an exact inverse) | 11 |
+| `DROP_DUPLICATE` (same patch-id applied twice) | 5 |
+| reverts of *generic-base* commits (always kept) | 25 |
+| **total removed as pure churn** | **66** |
+
+The inverse-patch-id proof rejected **11 of 42** apparent revert pairs; naive
+subject matching would have wrongly dropped 22 commits. Example: the revert of
+`PENDING: Bluetooth: hci_sync: Fix disconnect complete event` removes 8 lines
+from `hci_conn.c` where the original added 9 — it leaves residue.
+
+## Phase 5 reconstruction (implemented)
+
+```bash
+python3 rederive.py reconstruct --tree $T --base "$B" --top 3
+```
+
+Builds one topic branch per cluster in a scratch `git worktree` (the derivative
+checkout and its branches are never touched; branches are deleted afterwards
+unless `--keep-branches`).
+
+Replaying the 3 largest clusters (457 commits) onto the 6.8 base:
+
+| | |
+|---|---|
+| clean cherry-picks | 427 (93%) |
+| conflicted | 30 |
+| conflicts confined to **hub** files | 29 |
+| conflicts touching **non-hub** files | 1 |
+
+29/30 conflicts land on the shared integration surface, as Phase 4 predicts.
+Non-hub conflicts are auto-attributed to the dropped commit that caused them.
+
+## Phase 6 acceptance gate (implemented)
+
+```bash
+python3 rederive.py verify --tree $T --base "$B"
+```
+
+| check | result |
+|---|---|
+| partition complete (2998 kept + 66 churn + 1 semantic + 559 packaging + 14 upstreamed = 3638) | PASS |
+| all drops sound against the replay base | PASS |
+| file coverage (no file loses all OEM content) | PASS |
+
+### What the gate caught
+
+The first run **failed**: 26 of 27 semantic DROP verdicts were unsound. The
+lightweight agents judged "already upstream" against *linux-next*, but the drop
+is only legal against the *replay base* (6.8), which does not carry those
+patches. Ten of them would have deleted whole new files (`dispcc-qcs615.c`, the
+`qcs615-*` bindings).
+
+Phase 5 had independently flagged the same defect from the other direction: two
+non-hub conflicts were traced to dropped predecessors.
+
+```bash
+python3 rederive.py verify --tree $T --base "$B" --revoke-unsound
+python3 rederive.py cluster
+python3 rederive.py verify --tree $T --base "$B"     # -> ACCEPTED
+```
+
+After revocation the keep set grows 2973 → 2998, non-hub conflicts fall 3 → 1,
+and the gate passes. **No AI verdict is trusted without mechanical proof.**
 
 ## Phase 4 feature clustering (implemented)
 
@@ -74,25 +165,27 @@ them collapses everything into one blob, so files touched by `>= --hub-threshold
 commits are excluded from the relation and reported as the *integration surface*
 to be merged once, centrally.
 
-Result on the 3,032 keep-set commits (79 hub files at threshold 15):
+Result on the 2,998 keep-set commits (80 hub files at threshold 15):
 
-- **1,634 independently-mergeable clusters** (1,474 standalone commits)
-- largest cluster only **223 commits (7%)** — no giant blob
+- **1,627 independently-mergeable clusters** (1,472 standalone commits)
+- largest cluster only **217 commits (7%)** — no giant blob
 - clusters are semantically coherent, e.g. cluster 16 is entirely `Bluetooth: qca:`
 
-**Verified invariant:** 0 non-hub files span more than one cluster — i.e. every
-cluster provably merges without touching another cluster's files.
+**Verified invariant** (asserted by `cluster` on every run): 0 of 2,004 non-hub
+files span more than one cluster — i.e. every cluster provably merges without
+touching another cluster's files. Phase 5 then confirms this empirically: 29 of
+30 replay conflicts land on hub files.
 
 The threshold is the central tuning knob (fewer hubs = less central integration
 work, but larger / less independent clusters):
 
 | `--hub-threshold` | hub files | clusters | largest cluster |
 |---|---|---|---|
-| 5  | 297 | 2454 | 20   |
-| 10 | 134 | 1941 | 115  |
-| 15 (default) | 79 | 1634 | 223 |
-| 25 | 32  | 1221 | 466  |
-| 40 | 10  | 750  | 1054 |
+| 5  | 287 | 2423 | 20   |
+| 10 | 132 | 1926 | 109  |
+| 15 (default) | 80 | 1627 | 217 |
+| 25 | 32  | 1215 | 451  |
+| 40 | 10  | 750  | 1037 |
 
 Cluster assignment is stored in `commits.cluster_id`:
 

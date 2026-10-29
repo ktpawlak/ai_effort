@@ -57,9 +57,34 @@ touched files, diffstat, and `git patch-id`. Persist to SQLite — the working D
 | `UBUNTU:`            | packaging / config / ABI / SAUCE          | separate packaging track         |
 
 ### Phase 1 — Churn cancellation
-Detect commit↔revert↔re-add chains (equal-and-opposite `patch-id`, or
-`Revert "<subj>"`). Collapse to net effect. Removes conflict points that net to
-zero before any matching work.
+Detect commit↔revert↔re-add chains and duplicate applications, then collapse to
+net effect. Removes conflict points that net to zero before any matching work.
+
+Patch-ids for the whole stack come from one pipeline
+(`git log -p … | git patch-id --stable`, ~15 s for 3.6 k commits).
+
+A `Revert "<subject>"` is matched to the newest earlier commit with that subject
+(SAUCE prefixes stripped). **Subject matching alone is not sufficient proof** — a
+revert is only treated as cancelling if it is the *exact inverse* of its target:
+
+```
+patch-id(git diff REV REV^)  ==  patch-id(git diff ORIG^ ORIG)
+```
+
+On the pilot this obligation rejected **11 of 42** apparent revert pairs. Those
+are partial/modified reverts that leave residue (one removes 8 lines where the
+original added 9) — precisely the conflict-mutated patches that motivate the
+project. They are marked `KEEP_PARTIAL_REVERT` and replayed.
+
+| outcome | meaning |
+|---|---|
+| `DROP_NET_ZERO` | add + exact revert, never re-added — both vanish |
+| `DROP_SUPERSEDED` | add + revert + re-add — only the re-add survives |
+| `DROP_DUPLICATE` | identical patch-id applied twice (FROMLIST + FROMGIT pair) |
+| `KEEP_PARTIAL_REVERT` | revert is not an exact inverse; carries its own delta |
+
+Reverts whose target is **not** in the OEM stack revert a *generic-base* commit.
+These are genuine OEM changes and are always kept (25 on the pilot).
 
 ### Phase 2 — Upstream matching & classification
 For each surviving commit, decide its relation to `G_new`, highest confidence first:
@@ -111,14 +136,42 @@ The correctness invariant to assert is that **no non-hub file spans two clusters
 if it holds, each cluster is provably mergeable in isolation.
 
 ### Phase 5 — Reconstruction
-Each cluster → a topic branch off `G_new`; merge all → candidate `D'`. Redundant
-patches are gone, modified ones are deltas-on-top ⇒ conflict surface collapses.
+Each cluster becomes a topic branch (`rederive/cNNNN`) cut from the replay base and
+cherry-picked in original order, in a **scratch `git worktree`** so the derivative's
+checkout and branches are never disturbed. Clean/conflicted status is recorded per
+commit.
+
+This is also where Phase 4's claim becomes falsifiable. If clusters really are
+independent, then replaying one in isolation can only conflict on the shared
+integration surface:
+
+> **Prediction:** every conflict lands on a hub file.
+
+A conflict on a *non-hub* file means a predecessor was missing, and the tool
+attributes it automatically by looking for a dropped commit that touched the same
+file earlier. On the pilot this immediately exposed a real defect — see below.
 
 ### Phase 6 — Equivalence verification (acceptance gate)
-`git diff G_new..D'` must equal the intended residual of `git diff G_old..D` not
-already in `G_new`. Strengthen with `git write-tree` comparison vs. a naive rebase,
-and ideally a build + boot of both kernels. Uncertain items are reported, never
-dropped silently.
+Three mechanical checks; the run is `ACCEPTED` only if all pass.
+
+1. **Disposition partition.** Every OEM commit is kept-and-clustered or dropped with
+   exactly one recorded reason. The counts must sum to the corpus size.
+2. **Drop soundness.** *A drop is sound only if the replay base already contains the
+   content.* Each dropped commit's hunks are tested for subsumption (Phase 3's test)
+   against the **base** blob. Anything not subsumed would silently change the tree.
+3. **File coverage.** No file may lose all of its OEM content. Files whose only
+   commits were churn-cancelled are *correctly* empty (proven net-zero); any other
+   fully-dropped file is a regression.
+
+Check 2 is the one that matters, because it is what disciplines the AI. A model
+asked "is this already upstream?" answers against the *reference* tree, but the
+drop is only legal against the *replay base*. On the pilot, **26 of 27** semantic
+drops were sound against linux-next yet unsound against the 6.8 base. The gate
+caught all 26; `verify --revoke-unsound` flips them back to KEEP, and re-running
+`cluster` + `verify` converges to `ACCEPTED`.
+
+This is the net-tree invariant doing its job: the classifier is allowed to be
+wrong, because nothing it says is trusted without mechanical proof.
 
 ## Why this is tractable
 - Phases 0,1,2(det),6 are plain scripting over git + SQLite.
@@ -133,5 +186,19 @@ pass/fail. Layer semantic reconciliation in only after the deterministic invento
 is trusted.
 
 ## Prototype
-`rederive.py` implements Phase 0 + deterministic Phase 2 and produces the
-**classified inventory** (the first deliverable). See `README.md`.
+`rederive.py` implements all six phases. See `README.md` for measured results.
+
+| subcommand | phase | role |
+|---|---|---|
+| `extract` | 0 | OEM commits + file lists + provenance → SQLite |
+| `churn` | 1 | collapse revert/re-add chains and duplicates (inverse-patch-id proof) |
+| `classify` | 2 | deterministic cross-match against the generic tree |
+| `packets` / `ingest` | 2 | build per-commit analysis packets, fan out to lightweight agents, load verdicts |
+| `reconcile` | 3 | hunk transplant onto the upstream form + subsumption test |
+| `cluster` | 4 | connected components → independently-mergeable feature sets |
+| `reconstruct` | 5 | replay clusters as topic branches in a scratch worktree |
+| `verify` | 6 | acceptance gate: partition, drop soundness, file coverage |
+| `report` | — | inventory summary |
+
+The pilot ends `ACCEPTED` only after the gate forced 26 unsound AI drops to be
+revoked — which is the intended behaviour, not a workaround.
