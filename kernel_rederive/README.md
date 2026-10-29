@@ -421,5 +421,140 @@ detection handles 1, 2 were renamed upstream (semantic fan-out territory), and
 one — `arm64: mm: Don't remap pgtables per-cont(pte|pmd) block` — is invisible
 because its generic counterpart `7c79ff71c122` was **already in `G_old`**, not
 in the `G_old..G_new` window `graduate` scans. Duplicates already present in the
-current base belong to Phase 2 `classify`, which does not yet patch-id match
-against the base. That is the next thing to build.
+current base are now found by `basedup` (see *Blind mode* below).
+
+## Blind mode: rederive at release time, rebase later
+
+Everything above used `graduate`, which reads `G_old..G_new` — it knows what the
+next base contains. At release time nobody does. Blind mode rederives against
+the **current** base only, and leaves all knowledge of the next base to a
+separate `rebase` step.
+
+**Fairness rule (enforced by the CLI):** `anchor`, `similar`, `basedup` and
+`build` take only `G_old`, `D_old` and the upstream reference tree. `rebase` is
+the only subcommand that accepts `--onto G_new`. `graduate` is relabelled
+*audit only*.
+
+```bash
+T=/tmp/rd-blind            # git clone --shared of the OEM repo; HEAD gets moved
+REF=~/canonical/linux      # upstream: origin/master + linux-next
+DB="--db /tmp/blind.db"
+G_OLD=bd915784e717; D_OLD=f834b833dffa
+
+python3 rederive.py $DB extract  --tree $T --base $G_OLD --head $D_OLD --reset
+python3 rederive.py $DB churn    --tree $T --base $G_OLD --head $D_OLD
+python3 rederive.py $DB classify --generic $T --generic-ref $G_OLD
+python3 rederive.py $DB anchor   --tree $T --base $G_OLD --head $D_OLD --ref-tree $REF  # upstream identities
+python3 rederive.py $DB basedup  --tree $T --base $G_OLD --since e8f897f4afef  # v6.8; dupes already in base
+python3 rederive.py $DB similar  --tree $T --ref-tree $REF --out /tmp/similar   # content match
+#   fan-out: one lightweight agent per ~12 packets -> JSON lines
+python3 rederive.py $DB ingest-similar /tmp/verdicts_*.jsonl
+python3 rederive.py $DB build    --tree $T --base $G_OLD --head $D_OLD --branch rederived
+
+# later, when the next base exists
+python3 rederive.py $DB rebase --tree $T --base $G_OLD --onto $G_NEW --branch rederived \
+        --ref-tree $REF --log rebase.log            # add --plain for a pure git replay
+```
+
+### The blind phases
+
+| command | what it finds | can it drop? |
+|---|---|---|
+| `anchor` | per OEM commit, the identities a future base could carry it under: body-cited upstream SHA (existing upstream), Change-Id, exact subject | no — metadata |
+| `similar` | upstream form of *unanchored* commits by content: fingerprints the diff's significant lines, inverted-index against `v6.8..linux-next` on the same paths. ≥60 % line coverage auto-anchors; 25–60 % becomes a fan-out packet | no — metadata |
+| `ingest-similar` | lightweight-agent verdicts (`SAME_CHANGE`/`RELATED`/`UNRELATED`) → `up` anchors | no — metadata |
+| `basedup` | OEM commits duplicating something **already in `G_old`** (by cited SHA, subject, patch-id) — the gap the Monza post-mortem exposed | candidate only |
+| `build` | replays the keep-set onto `G_old`; every drop is a candidate until the replay **proves** it (below) | yes, proven |
+| `rebase` | the only step that sees `G_new`; uses anchors to skip/flag | skip, with backtracking |
+
+**`build` = proof by replay.** Drop candidates are churn `DROP*`, `basedup`
+and `UPSTREAMED`. The keep-set is replayed onto `G_old` with `cherry-pick -n`.
+On a conflict, every dropped candidate that touches a conflicted file (and
+precedes the conflict) is restored and the replay restarts from the first unit
+whose content changed (units are compared, so the restart is exact). At the
+end the tree is compared with `D_old`; dropped candidates touching any
+non-cosmetic differing file are restored the same way. Fixpoint = **zero
+conflicts on `G_old` and tree == `D_old`**. Every commit gets a
+`Rederived-from: <orig sha>` trailer, so anchors survive the rewrite.
+
+**Fix-on-fix squash.** An OEM-only commit (no anchor, no `UPSTREAM`/`BACKPORT`/
+`FROMGIT`/`FROMLIST` tag, not basedup, not a revert, not packaging) joins its
+predecessor's group when (a) every file it touches was last touched by that
+group — so it commutes back across file-disjoint commits exactly — and (b) at
+least half its removed lines are lines the group itself added. Members are
+recorded as `Squashed-in:` trailers. A squash that conflicts on replay is
+undone automatically.
+
+**`rebase` rules (assisted mode).** Indexes `G_old..G_new` for cited upstream
+SHAs, clean subjects (packaging subjects excluded), patch-ids and reverts, and
+resolves each rederived commit's anchors through its `Rederived-from` trailers:
+
+- anchor or subject **reverted** in the new base → drop + flag (the Monza rule);
+- patch-id present in the new base → skip;
+- anchor cited / subject present in the new base → *TRY*: clean apply is kept
+  and flagged, a conflict means "graduated in another form" → provisional skip.
+- **Backtracking:** a provisional skip stands only while no later commit
+  conflicts on a file the skipped commit touched. If one does, the skip broke a
+  series: rewind to just before it, apply it (flagged for review), replay on.
+
+Remaining conflicts use the same `--theirs` harness as the control, so arms are
+directly comparable.
+
+### Result: 146 → 148, blind
+
+`D_old` = 1090.95 on 146; rederived with no knowledge of 148; then rebased onto
+148 (`70e5091c210e`) and compared with the maintainer's rebase (`cf64eb717498`).
+
+Rederive at 146: 3,647 → **3,607** commits (39 proven drops: 34 churn, 5
+basedup; 20 drop candidates restored by the proof; 1 emptied). With squash:
+**3,452** (148 commits in 102 fix-on-fix groups). Tree == `D_old` except one
+copyright-year line in `ath11k/hal_rx.c`. `similar`: 38 auto-anchors, 92
+packets → 8 lightweight agents → 51 `SAME_CHANGE`.
+
+| arm | commits | conflicts | files ≠ target | `mmu.c` == 148 | maintainer drops recovered |
+|---|---|---|---|---|---|
+| control (original stack, plain) | 3,647 | 30 | 33 | **no — Monza boot-breaker** | 2/11 |
+| lookahead arm E (previous section) | 3,592 | 29 | 39 | — | 7/11 |
+| blind, plain git | 3,607 | 29 | 33 | **yes** | 3/11 |
+| blind + squash, plain git | 3,452 | 29 | 33 | **yes** | 3/11 |
+| blind, assisted `rebase` | 3,607 | **27** | 31 | **yes** | **7/11** |
+| blind + squash, assisted `rebase` | 3,452 | **27** | 31 | **yes** | **7/11** |
+
+What made the difference:
+
+- **The Monza boot-breaker is gone without lookahead.** `basedup` found both
+  `arm64: mm` commits duplicating generic commits already in 146; `build`
+  proved them droppable (tree unchanged at 146). When 148's revert arrives,
+  nothing re-applies the reverted code. The control replays it cleanly and
+  silently produces a non-booting `mmu.c`.
+- **Content matching found a renamed graduation.** bt-sco
+  (`fix duplicate debugfs entries for bt-sco-pcm-wb`) has no shared subject,
+  SHA or patch-id with its upstream form; `similar` + a lightweight agent
+  anchored it to `0b604e886ece`, and `rebase` skipped it when 148 cited it.
+- **Backtracking matters.** Without it, the assisted arm skipped two FROMLIST
+  commits (`qcom_scm: Rename peripheral as pas_id`, `remoteproc: pas: Replace
+  metadata context`) whose series then conflicted 4 times — net 29. With it: 27.
+  The maintainer did drop the `pas_id` one; the tool applies it and **flags**
+  it rather than guess.
+
+Honest findings:
+
+- **Squash has no effect on conflicts** (identical conflict sets, 29/29 and
+  27/27). This is expected: a squash only joins commits that commute across
+  file-disjoint neighbours, and commuting file-disjoint patches cannot change
+  any per-file three-way merge. It reduces the stack by 148 commits and
+  removes intermediate states a maintainer would otherwise resolve; that is
+  the whole benefit. **Layered reordering was therefore not built** — for a
+  plain rebase it is cosmetic by the same argument.
+- **Still missed blind:** `ARM: dt: add extended SPI specifier` (a few
+  `#define` lines — below the fingerprint threshold; landed renamed as ESPI/EPPI),
+  `replace WLAN_EN pinctrl with gpio-hog`, and `stmmac 10GBASER` (the
+  maintainer found it empty after resolving earlier conflicts by hand).
+- **The proof is conservative on hub files.** Six differing
+  `Documentation/devicetree/bindings/arm/qcom.yaml`-style files restored 15
+  candidates at once; finer restoration (bisecting the candidate set) would
+  keep more drops.
+- Remaining 27 conflicts are real collisions between OEM work and 148's
+  backports. Files differing from the target are almost all conflict sites
+  (26 of 31), where `--theirs` is not the maintainer's resolution.
+- Cost: `similar` ~4 min; `build` ~25 min (4 replay rounds); each `rebase` ~7 min.

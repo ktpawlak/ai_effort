@@ -12,6 +12,7 @@ Example:
     ./rederive.py report
 """
 import argparse
+import json
 import os
 import re
 import sqlite3
@@ -85,12 +86,25 @@ CREATE TABLE IF NOT EXISTS reconcile_files(
     sha TEXT, path TEXT, up_path TEXT, status TEXT, conflicts INTEGER,
     PRIMARY KEY(sha, path)
 );
+-- Identity keys recorded at rederive time, consumed at rebase time. kind:
+--   up   upstream (mainline/linux-next) commit sha this OEM commit carries
+--   subj SAUCE-stripped subject
+--   pid  stable patch-id
+--   base generic commit (already in G_old) this OEM commit duplicates
+CREATE TABLE IF NOT EXISTS anchors(sha TEXT, kind TEXT, value TEXT, how TEXT);
+CREATE INDEX IF NOT EXISTS idx_anchors_sha ON anchors(sha);
 """
 
 SEM_COLS = {"sem_verdict": "TEXT", "sem_action": "TEXT",
             "sem_reason": "TEXT", "sem_upstream": "TEXT", "cluster_id": "INTEGER",
             "churn_action": "TEXT", "churn_reason": "TEXT",
-            "grad_action": "TEXT", "grad_reason": "TEXT"}
+            "grad_action": "TEXT", "grad_reason": "TEXT",
+            "basedup_action": "TEXT", "basedup_reason": "TEXT",
+            "squash_into": "TEXT"}
+
+# any 40-hex sha introduced as a commit reference in a body: "commit X upstream",
+# "(cherry picked from commit X)", "(backported from commit X ...)", "[ Upstream commit X ]"
+RE_CITED = re.compile(r"commit\s+([0-9a-f]{40})", re.I)
 
 
 def db_connect(path):
@@ -870,6 +884,675 @@ def cmd_graduate(args):
     return ident, modified
 
 
+# ---- anchor (blind: record upstream identity of every OEM commit) -----------
+def git_records(tree, fmt, *rev):
+    """`git log` with \\x1e-separated records and \\x1f-separated fields."""
+    out = git(tree, "log", "--no-merges", f"--format={fmt}%x1e", *rev)
+    return [r.strip("\n").split("\x1f") for r in out.split("\x1e") if r.strip()]
+
+
+def stream_patch_ids(tree, *rev):
+    proc = subprocess.run(
+        f"git -C {tree} log -p --no-merges {' '.join(rev)} | git -C {tree} patch-id --stable",
+        shell=True, capture_output=True, text=True, errors="replace")
+    out = {}
+    for line in proc.stdout.splitlines():
+        p = line.split()
+        if len(p) == 2:
+            out.setdefault(p[1], p[0])  # sha -> pid
+    return out
+
+
+def cmd_anchor(args):
+    """Record, for every OEM commit, the identities a FUTURE base could carry it
+    under. Uses only the derivative and the upstream reference -- never a future
+    generic base -- so it is legal at rederive time."""
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    ref = os.path.expanduser(args.ref_tree)
+    base = resolve_base(tree, args.base)
+    con.execute("DELETE FROM anchors WHERE kind IN ('up','subj','pid')")
+
+    print(f"indexing upstream {args.since}..{args.ref_rev} in {ref} ...")
+    up_subj, up_cid, up_all = {}, {}, set()
+    for p in git_records(ref, "%H%x1f%s%x1f%(trailers:key=Change-Id,valueonly)",
+                         f"{args.since}..{args.ref_rev}"):
+        h = p[0]
+        up_all.add(h)
+        if len(p) > 1:
+            up_subj.setdefault(p[1].strip(), h)
+        if len(p) > 2 and p[2].strip():
+            up_cid.setdefault(p[2].strip().split()[0], h)
+    print(f"  {len(up_all)} upstream commits indexed")
+
+    bodies = {p[0]: (p[1] if len(p) > 1 else "")
+              for p in git_records(tree, "%H%x1f%B", f"{base}..{args.head}")}
+    rows = con.execute("SELECT sha,sauce,clean_subject,change_id,patch_id,category "
+                       "FROM commits ORDER BY seq").fetchall()
+    stats = Counter()
+    for sha, sauce, clean, cid, pid, cat in rows:
+        if clean:
+            con.execute("INSERT INTO anchors VALUES(?,?,?,?)", (sha, "subj", clean, "subject"))
+        if pid:
+            con.execute("INSERT INTO anchors VALUES(?,?,?,?)", (sha, "pid", pid, "patch-id"))
+        if cat == "PACKAGING":
+            continue
+        ups = []
+        for c in dict.fromkeys(RE_CITED.findall(bodies.get(sha, ""))):
+            if c in up_all or commit_exists(ref, c):
+                ups.append((c, "body"))
+        if not ups and cid and cid in up_cid:
+            ups.append((up_cid[cid], "change-id"))
+        if not ups and clean and clean in up_subj:
+            ups.append((up_subj[clean], "subject"))
+        for u, how in ups:
+            con.execute("INSERT INTO anchors VALUES(?,?,?,?)", (sha, "up", u, how))
+        tag = (sauce.split(",")[0] if sauce else "(none)") or "(none)"
+        stats[(tag, ups[0][1] if ups else "UNANCHORED")] += 1
+    con.commit()
+
+    print("\n=== anchors: upstream identity per OEM commit (non-packaging) ===")
+    tags = sorted({t for t, _ in stats}, key=lambda t: -sum(v for (x, _), v in stats.items() if x == t))
+    print(f"  {'prefix':<12}{'body':>7}{'chg-id':>8}{'subject':>9}{'NONE':>7}")
+    for t in tags:
+        print(f"  {t:<12}{stats[(t,'body')]:>7}{stats[(t,'change-id')]:>8}"
+              f"{stats[(t,'subject')]:>9}{stats[(t,'UNANCHORED')]:>7}")
+    tot_un = sum(v for (t, h), v in stats.items() if h == "UNANCHORED")
+    print(f"  unanchored: {tot_un} (candidates for `similar` + fan-out)")
+
+
+# ---- similar (blind: find upstream forms that landed under another subject) --
+SIG_MIN = 10
+
+
+def sig_line(line):
+    """Normalise a diff body line to a fingerprint, or None if too generic."""
+    t = re.sub(r"\s+", " ", line[1:].strip())
+    if len(t) < SIG_MIN or t.startswith(("/*", "*", "//", "#include")):
+        return None
+    if not re.search(r"[A-Za-z0-9_]{4}", t):
+        return None
+    return line[0] + t
+
+
+def diff_sigs(text):
+    """{path: set(sig)} for a unified diff (possibly multi-commit)."""
+    out, path = {}, None
+    for ln in text.splitlines():
+        if ln.startswith("+++ "):
+            path = ln[6:] if ln.startswith("+++ b/") else None
+        elif ln.startswith("--- "):
+            continue
+        elif path and ln[:1] in "+-" and not ln.startswith(("+++", "---")):
+            s = sig_line(ln)
+            if s:
+                out.setdefault(path, set()).add(s)
+    return out
+
+
+SIMILAR_PACKET = """\
+You are matching ONE kernel derivative commit to its upstream form.
+The derivative patch was carried before upstream accepted it; upstream may
+have reworded the subject, reworked the code, or split/merged patches.
+
+Decide whether UPSTREAM CANDIDATE is the same change as DERIVATIVE PATCH:
+- SAME_CHANGE : upstream lands the same fix/feature (possibly reworked, renamed,
+                split). When this upstream commit reaches the generic kernel,
+                the derivative patch becomes redundant or conflicts.
+- RELATED     : touches the same code but is a different change.
+- UNRELATED   : no meaningful relation.
+
+Output ONE line of JSON ONLY:
+{"sha":"<derivative sha>","up":"<upstream sha>","verdict":"SAME_CHANGE|RELATED|UNRELATED","reason":"<=20 words"}
+"""
+
+
+def cmd_similar(args):
+    """Content-fingerprint match of unanchored OEM commits against upstream.
+
+    Subject matching misses patches renamed on the way upstream (bt-sco
+    'debugfs entries' landed as 'DAPM widget names'; 'extended SPI specifier'
+    as 'ESPI and EPPI specifiers'). Their *lines* survive renaming.
+    """
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    ref = os.path.expanduser(args.ref_tree)
+    con.execute("DELETE FROM anchors WHERE kind='up' AND how IN ('similar','fanout')")
+    rows = con.execute(
+        "SELECT c.sha FROM commits c WHERE c.category!='PACKAGING' "
+        "AND (c.churn_action IS NULL OR c.churn_action NOT LIKE 'DROP%') "
+        "AND (c.sauce IS NULL OR c.sauce NOT LIKE 'QCLINUX%') "
+        "AND NOT EXISTS (SELECT 1 FROM anchors a WHERE a.sha=c.sha AND a.kind='up') "
+        "ORDER BY c.seq").fetchall()
+    hubs = {p for (p,) in con.execute(
+        "SELECT path FROM commit_files GROUP BY path HAVING COUNT(*) >= ?", (args.hub_threshold,))}
+    oem = {}
+    paths = set()
+    for (sha,) in rows:
+        sg = {p: s for p, s in diff_sigs(git(tree, "show", "--format=", sha)).items()
+              if p not in hubs and not os.path.basename(p) in ("Makefile", "Kconfig")
+              and not p.endswith("defconfig")}
+        if sg:
+            oem[sha] = sg
+            paths |= set(sg)
+    want = set()
+    for sg in oem.values():
+        for p, s in sg.items():
+            want |= {(p, x) for x in s}
+    print(f"{len(oem)} unanchored non-vendor commits with fingerprintable lines, "
+          f"{len(paths)} paths")
+
+    print(f"streaming upstream diffs {args.since}..{args.ref_rev} on those paths ...")
+    inv = {}       # (path, sig) -> set(up sha)
+    up_size = Counter()
+    up_subj = {}
+    cmd = ["git", "-C", ref, "log", "-p", "--no-merges", "--no-renames",
+           "--format=@@@COMMIT %H%x1f%s", f"{args.since}..{args.ref_rev}", "--"] + sorted(paths)
+    proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, text=True, errors="replace")
+    cur, path = None, None
+    for ln in proc.stdout:
+        ln = ln.rstrip("\n")
+        if ln.startswith("@@@COMMIT "):
+            cur, _, s = ln[10:].partition("\x1f")
+            up_subj[cur] = s
+            path = None
+        elif ln.startswith("+++ "):
+            path = ln[6:] if ln.startswith("+++ b/") else None
+        elif ln.startswith("--- ") or not cur or not path:
+            continue
+        elif ln[:1] in "+-":
+            s = sig_line(ln)
+            if s:
+                up_size[cur] += 1
+                if (path, s) in want:
+                    inv.setdefault((path, s), set()).add(cur)
+    proc.wait()
+    print(f"  {len(up_subj)} upstream commits scanned")
+
+    auto = review = 0
+    packets = []
+    for sha, sg in oem.items():
+        mine = [(p, s) for p, ss in sg.items() for s in ss]
+        hits = Counter()
+        for k in mine:
+            ups = inv.get(k, ())
+            if len(ups) > args.max_df:   # line too common to be evidence
+                continue
+            for u in ups:
+                hits[u] += 1
+        if not hits:
+            continue
+        u, n = hits.most_common(1)[0]
+        cover = n / len(mine)
+        back = n / max(up_size[u], 1)
+        if n >= 3 and cover >= args.auto and back >= 0.3:
+            auto += 1
+            con.execute("INSERT INTO anchors VALUES(?,?,?,?)", (sha, "up", u, "similar"))
+        elif n >= 2 and cover >= args.review:
+            review += 1
+            packets.append((sha, u, n, cover, back))
+    con.commit()
+
+    os.makedirs(args.out, exist_ok=True)
+    manifest = []
+    for sha, u, n, cover, back in packets:
+        path = os.path.join(args.out, f"{sha[:12]}.txt")
+        with open(path, "w") as f:
+            f.write(SIMILAR_PACKET)
+            f.write(f"\n=== DERIVATIVE {sha} ===\n")
+            f.write(git(tree, "show", "--stat", "-p", sha)[:args.max_chars])
+            f.write(f"\n\n=== UPSTREAM CANDIDATE {u} "
+                    f"(shared lines {n}, covers {cover:.0%} of derivative) ===\n")
+            f.write(git(ref, "show", "--stat", "-p", u)[:args.max_chars])
+        manifest.append(path)
+    with open(os.path.join(args.out, "manifest.txt"), "w") as f:
+        f.write("\n".join(manifest) + "\n")
+    print(f"\n=== similar: content match against upstream ===")
+    print(f"  auto-anchored (>= {args.auto:.0%} of lines, >=3 lines): {auto}")
+    print(f"  ambiguous -> fan-out packets           : {review}  ({args.out})")
+    print(f"  no upstream form found                 : {len(oem) - auto - review}")
+
+
+def cmd_ingest_similar(args):
+    con = db_connect(args.db)
+    n = Counter()
+    full = {s for (s,) in con.execute("SELECT sha FROM commits")}
+    for fn in args.verdicts:
+        for line in open(fn):
+            line = line.strip()
+            if not line.startswith("{"):
+                continue
+            try:
+                v = json.loads(line)
+            except ValueError:
+                continue
+            sha = next((s for s in full if s.startswith(v.get("sha", "")[:12])), None)
+            if not sha:
+                continue
+            n[v.get("verdict")] += 1
+            if v.get("verdict") == "SAME_CHANGE" and re.fullmatch(r"[0-9a-f]{40}", v.get("up", "")):
+                con.execute("DELETE FROM anchors WHERE sha=? AND kind='up' AND how='fanout'", (sha,))
+                con.execute("INSERT INTO anchors VALUES(?,?,?,?)", (sha, "up", v["up"], "fanout"))
+    con.commit()
+    print("ingested:", dict(n))
+
+
+# ---- basedup (blind: OEM copies of commits already in the current base) -----
+def cmd_basedup(args):
+    """Find OEM commits that duplicate a generic commit ALREADY in G_old.
+
+    These apply on top of their own base copy and leave only a residue -- often
+    conflict-resolution scar tissue. The Monza boot failure was one: an OEM
+    copy of a patch generic already had, which applied cleanly after generic
+    reverted its own copy. Only candidates are marked here; `build` decides by
+    proof (replay + tree equality) which can actually go.
+    """
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    base = resolve_base(tree, args.base)
+    since = resolve_base(tree, args.since)
+    print(f"indexing generic {since[:12]}..{base[:12]} ...")
+    g_subj, g_cited = {}, {}
+    for p in git_records(tree, "%H%x1f%s%x1f%b", f"{since}..{base}"):
+        h, s, b = p[0], p[1] if len(p) > 1 else "", p[2] if len(p) > 2 else ""
+        g_subj.setdefault(parse_prefixes(s)[1], h)
+        for c in RE_CITED.findall(b):
+            g_cited.setdefault(c, h)
+    g_pid = {pid: sha for sha, pid in stream_patch_ids(tree, f"{since}..{base}").items()}
+    print(f"  {len(g_subj)} subjects, {len(g_cited)} cited upstream shas, "
+          f"{len(g_pid)} patch-ids")
+
+    con.execute("UPDATE commits SET basedup_action=NULL, basedup_reason=NULL")
+    con.execute("DELETE FROM anchors WHERE kind='base'")
+    ups = {}
+    for sha, v in con.execute("SELECT sha,value FROM anchors WHERE kind='up'"):
+        ups.setdefault(sha, []).append(v)
+    n = Counter()
+    for sha, clean, pid, cat, ch in con.execute(
+            "SELECT sha,clean_subject,patch_id,category,churn_action FROM commits "
+            "ORDER BY seq").fetchall():
+        if cat == "PACKAGING" or (ch or "").startswith("DROP"):
+            continue
+        hit = None
+        if pid and pid in g_pid:
+            hit = (g_pid[pid], "patch-id")
+        if not hit:
+            for u in ups.get(sha, []):
+                if u in g_cited:
+                    hit = (g_cited[u], "upstream sha")
+                    break
+        if not hit and clean and clean in g_subj and not RE_REVERT.match(clean):
+            hit = (g_subj[clean], "subject")
+        if hit:
+            n[hit[1]] += 1
+            con.execute("UPDATE commits SET basedup_action='CAND_DUP_OF_BASE',"
+                        "basedup_reason=? WHERE sha=?",
+                        (f"duplicates base {hit[0][:12]} by {hit[1]}", sha))
+            con.execute("INSERT INTO anchors VALUES(?,?,?,?)", (sha, "base", hit[0], hit[1]))
+    con.commit()
+    print(f"\n=== basedup: OEM duplicates of commits already in the base ===")
+    for k in ("patch-id", "upstream sha", "subject"):
+        print(f"  by {k:<13}: {n[k]}")
+    for sha, subj, r in con.execute(
+            "SELECT sha,subject,basedup_reason FROM commits WHERE basedup_action IS NOT NULL "
+            "ORDER BY seq LIMIT 20"):
+        print(f"    {sha[:12]} {subj[:52]:<52} {r}")
+    print("  (candidates only -- `build` drops each one only if the tree proves it)")
+
+
+# ---- build (blind: produce the rederived branch, proven by replay) ----------
+UPSTREAM_ID_PREFIXES = ("UPSTREAM", "BACKPORT", "FROMGIT", "FROMLIST")
+
+
+def stream_diff_lines(tree, rev_range):
+    """{sha: (added_lines_list, removed_lines_list)} over a range, one git call."""
+    out, cur = {}, None
+    proc = subprocess.Popen(["git", "-C", tree, "log", "-p", "--no-merges",
+                             "--format=@@@COMMIT %H", rev_range],
+                            stdout=subprocess.PIPE, text=True, errors="replace")
+    for ln in proc.stdout:
+        if ln.startswith("@@@COMMIT "):
+            cur = ln[10:].strip()
+            out[cur] = ([], [])
+        elif cur and ln[:1] in "+-" and not ln.startswith(("+++", "---")):
+            t = ln[1:].strip()
+            if len(t) >= 4:
+                out[cur][0 if ln[0] == "+" else 1].append(t)
+    proc.wait()
+    return out
+
+
+def plan_squash(con, tree, base, head, keep):
+    """Group OEM-only fix-on-fix chains. B joins A's group when B mostly edits
+    lines the group itself added, and B commutes back to the group (no other
+    kept commit in between touches B's files). Commuting file-disjoint patches
+    is exact, so the per-file patch sequence -- and hence the tree -- is
+    unchanged; only intermediate states disappear."""
+    meta = {r[0]: r[1:] for r in con.execute(
+        "SELECT sha,seq,sauce,subject,category,basedup_action FROM commits")}
+    up = {s for (s,) in con.execute("SELECT DISTINCT sha FROM anchors WHERE kind='up'")}
+
+    def oem_only(sha):
+        seq, sauce, subj, cat, bd = meta[sha]
+        tags = (sauce or "").split(",")
+        return (sha not in up and cat != "PACKAGING" and not bd
+                and not any(t in UPSTREAM_ID_PREFIXES for t in tags)
+                and not RE_REVERT.match(subj) and not subj.startswith("UBUNTU"))
+
+    files = {}
+    for sha, p in con.execute("SELECT sha,path FROM commit_files"):
+        files.setdefault(sha, set()).add(p)
+    lines = stream_diff_lines(tree, f"{base}..{head}")
+    last_toucher = {}            # path -> group head of the latest kept commit touching it
+    group_of, added = {}, {}     # sha -> group head ; group head -> Counter(added lines)
+    for sha in keep:             # keep is in seq order
+        fs = files.get(sha, set())
+        joined = None
+        if oem_only(sha) and fs:
+            prev = {last_toucher.get(p) for p in fs}
+            if len(prev) == 1 and None not in prev:
+                g = prev.pop()
+                if oem_only(g):
+                    rem = lines.get(sha, ([], []))[1]
+                    if rem:
+                        hit = sum(1 for t in rem if added[g][t] > 0)
+                        if hit >= max(1, len(rem) / 2):
+                            joined = g
+        g = joined or sha
+        group_of[sha] = g
+        added.setdefault(g, Counter()).update(lines.get(sha, ([], []))[0])
+        for p in fs:
+            last_toucher[p] = g
+    return group_of
+
+
+def cmd_build(args):
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    base = resolve_base(tree, args.base)
+    head = git(tree, "rev-parse", args.head).strip()
+    con.execute("CREATE TABLE IF NOT EXISTS build_map(sha TEXT PRIMARY KEY, seq INTEGER, "
+                "status TEXT, new_sha TEXT, group_head TEXT, note TEXT)")
+    rows = con.execute("SELECT sha,seq,churn_action,basedup_action,category "
+                       "FROM commits ORDER BY seq").fetchall()
+    seq_of = {r[0]: r[1] for r in rows}
+    cand = {}
+    for sha, seq, ch, bd, cat in rows:
+        if (ch or "").startswith("DROP"):
+            cand[sha] = "churn:" + ch
+        elif bd:
+            cand[sha] = "basedup"
+        elif cat == "UPSTREAMED":
+            cand[sha] = "upstreamed"
+    restored = {}
+    files = {}
+    for sha, p in con.execute("SELECT sha,path FROM commit_files"):
+        files.setdefault(sha, set()).add(p)
+
+    def keep_list():
+        return [r[0] for r in rows if r[0] not in cand or r[0] in restored]
+
+    def units_for(keep, group_of):
+        units, idx = [], {}
+        for sha in keep:
+            g = group_of.get(sha, sha) if not args.no_squash else sha
+            if g in idx:
+                units[idx[g]].append(sha)
+            else:
+                idx[g] = len(units)
+                units.append([sha])
+        return units
+
+    def restore_for(paths, before_seq, why):
+        hit = [s for s in cand if s not in restored and seq_of[s] < before_seq
+               and files.get(s, set()) & paths]
+        for s in hit:
+            restored[s] = why
+        return hit
+
+    gt = lambda *a, **k: run(["git", "-C", tree] + list(a), check=False, **k)
+    gt("cherry-pick", "--abort")
+    gt("checkout", "-q", "--detach", base)
+    unsquash = set()
+    after = {}                   # unit index -> new HEAD sha after applying it
+    prev_units, rounds, force = [], 0, None
+    while True:
+        rounds += 1
+        keep = keep_list()
+        group_of = plan_squash(con, tree, base, head, keep)
+        for s in unsquash:
+            group_of[s] = s
+        units = units_for(keep, group_of)
+        start = next((j for j, (a, b) in enumerate(zip(prev_units, units)) if a != b),
+                     min(len(prev_units), len(units)))
+        if force is not None:
+            start = min(start, force)
+        prev_units, force = units, None
+        gt("reset", "-q", "--hard", after[start - 1] if start else base)
+        print(f"round {rounds}: {len(keep)} kept, {len(units)} units "
+              f"({len(keep) - len(units)} squashed), replay from unit {start}", flush=True)
+        restart = False
+        empty = [units[j][0] for j in range(start) if after[j] == (after[j - 1] if j else base)]
+        for i in range(start, len(units)):
+            u = units[i]
+            for sha in u:
+                gt("cherry-pick", "-n", sha)
+                U = [l for l in gt("diff", "--name-only", "--diff-filter=U").stdout.split() if l]
+                if not U:
+                    continue
+                gt("cherry-pick", "--abort")
+                gt("reset", "-q", "--hard")
+                hit = restore_for(set(U), seq_of[sha], f"replay conflict at {sha[:12]} on {U[0]}")
+                if not hit and len(u) > 1 and not set(u) <= unsquash:
+                    unsquash.update(u)
+                    hit = ["(unsquash)"]
+                if not hit:
+                    sys.exit(f"unrecoverable conflict at {sha[:12]} on {U}")
+                print(f"  conflict at {sha[:12]} ({U[0]}): restored {len(hit)}", flush=True)
+                force, restart = i, True
+                break
+            if restart:
+                break
+            if gt("diff", "--cached", "--quiet").returncode == 0:
+                empty.append(u[0])
+                after[i] = git(tree, "rev-parse", "HEAD").strip()
+                continue
+            msg = git(tree, "log", "-1", "--format=%B", u[0]).rstrip("\n")
+            if len(u) > 1:
+                msg += "\n\n" + "\n".join(
+                    f"Squashed-in: {s[:12]} {git(tree, 'log', '-1', '--format=%s', s).strip()}"
+                    for s in u[1:])
+            msg += "\n\n" + "\n".join(f"Rederived-from: {s}" for s in u)
+            an, ae, ad = git(tree, "log", "-1", "--format=%an%x1f%ae%x1f%aI", u[0]).rstrip("\n").split("\x1f")
+            gt("commit", "-q", "--no-verify", f"--author={an} <{ae}>", f"--date={ad}", "-m", msg)
+            after[i] = git(tree, "rev-parse", "HEAD").strip()
+            if i % 500 == 0:
+                print(f"  ... unit {i}/{len(units)}", flush=True)
+        if restart:
+            continue
+        # tree proof against the original derivative
+        diff = [p for p in gt("diff", "--name-only", "HEAD", head).stdout.split() if p]
+        bad = []
+        for p in diff:
+            body = gt("diff", "HEAD", head, "--", p).stdout
+            chg = [l[1:] for l in body.splitlines() if l[:1] in "+-" and not l.startswith(("+++", "---"))]
+            if not args.strict and chg and all(COSMETIC_LINE.search(l) for l in chg):
+                continue
+            bad.append(p)
+        if not bad:
+            break
+        hit = restore_for(set(bad), 10 ** 9, f"tree mismatch on {bad[0]}")
+        if not hit:
+            sys.exit(f"tree differs from D on {bad[:5]} and no dropped commit explains it")
+        print(f"  tree mismatch on {len(bad)} file(s): restored {len(hit)}", flush=True)
+
+    new_head = git(tree, "rev-parse", "HEAD").strip()
+    gt("branch", "-f", args.branch, new_head)
+    con.execute("DELETE FROM build_map")
+    for i, u in enumerate(units):
+        for sha in u:
+            con.execute("INSERT INTO build_map VALUES(?,?,?,?,?,?)",
+                        (sha, seq_of[sha], "squashed" if sha != u[0] else
+                         ("empty" if u[0] in empty else "kept"),
+                         after.get(i), u[0], restored.get(sha)))
+    for s, why in cand.items():
+        if s not in restored:
+            con.execute("INSERT INTO build_map VALUES(?,?,?,?,?,?)",
+                        (s, seq_of[s], "dropped", None, None, why))
+    con.commit()
+
+    cosm = [p for p in gt("diff", "--name-only", "HEAD", head).stdout.split() if p]
+    drops = Counter(v.split(":")[0] for s, v in cand.items() if s not in restored)
+    print(f"\n=== build: rederived branch '{args.branch}' = {new_head[:12]} ===")
+    print(f"  original commits      : {len(rows)}")
+    print(f"  rederived commits     : {len(units) - len(empty)}")
+    print(f"  dropped (proven)      : {sum(drops.values())}  {dict(drops)}")
+    print(f"  drop candidates restored by proof: {len(restored)}")
+    print(f"  squashed into a predecessor      : {len(keep) - len(units)} "
+          f"(in {sum(1 for u in units if len(u) > 1)} groups)")
+    print(f"  emptied on replay     : {len(empty)}")
+    print(f"  tree vs D_old         : {'IDENTICAL' if not cosm else f'{len(cosm)} file(s) differ, cosmetic lines only'}")
+    print(f"  replay rounds         : {rounds}")
+
+
+# ---- rebase (the only command that may see G_new) ---------------------------
+RE_UPCITE = re.compile(r"(?:commit\s+([0-9a-f]{40})\s+upstream|cherry picked from commit\s+([0-9a-f]{40}))", re.I)
+RE_REVERTS_SHA = re.compile(r"This reverts commit\s+([0-9a-f]{7,40})", re.I)
+
+
+def cmd_rebase(args):
+    con = db_connect(args.db)
+    tree = os.path.expanduser(args.tree)
+    base = git(tree, "rev-parse", args.base).strip()
+    onto = git(tree, "rev-parse", args.onto).strip()
+    branch = git(tree, "rev-parse", args.branch).strip()
+    gt = lambda *a: run(["git", "-C", tree] + list(a), check=False)
+
+    units = git_records(tree, "%H%x1f%s%x1f%B", "--reverse", "--no-merges", f"{base}..{branch}")
+    rules = {}
+    if not args.plain:
+        # index the new generic delta: what graduated, what got reverted
+        delta = git_records(tree, "%H%x1f%s%x1f%B", "--no-merges", f"{base}..{onto}")
+        cited, dsubj, reverted_subj, reverted_sha = set(), set(), set(), set()
+        for h, s, b in delta:
+            for a, c in RE_UPCITE.findall(b):
+                cited.add(a or c)
+            if not s.startswith("UBUNTU"):     # packaging subjects repeat every release
+                dsubj.add(parse_prefixes(s)[1])
+            m = RE_REVERT.match(s)
+            if m:
+                reverted_subj.add(parse_prefixes(m.group(1))[1])
+                for x in RE_REVERTS_SHA.findall(b):
+                    reverted_sha.add(x)
+        dpid = set(stream_patch_ids(tree, f"{base}..{onto}").values())
+        upos = {}
+        for sha, v in con.execute("SELECT sha,value FROM anchors WHERE kind IN ('up','base')"):
+            upos.setdefault(sha, set()).add(v)
+        upos_subj = {}
+        for v in {x for vs in upos.values() for x in vs}:
+            sj = git(tree, "log", "-1", "--format=%s", v).strip()
+            if not sj and args.ref_tree:
+                sj = git(os.path.expanduser(args.ref_tree), "log", "-1", "--format=%s", v).strip()
+            if sj:
+                upos_subj[v] = parse_prefixes(sj)[1]
+        upid = stream_patch_ids(tree, f"{base}..{branch}")
+        for h, s, b in units:
+            origs = re.findall(r"^Rederived-from:\s*([0-9a-f]{40})", b, re.M) or [h]
+            anchors = set().union(*(upos.get(o, set()) for o in origs))
+            subjects = {parse_prefixes(s)[1]} | {upos_subj[a] for a in anchors if a in upos_subj}
+            if any(a[:12] in {x[:12] for x in reverted_sha} for a in anchors) \
+                    or subjects & reverted_subj:
+                rules[h] = "DROP:anchor-reverted-in-new-base"
+            elif upid.get(h) in dpid:
+                rules[h] = "SKIP:patch-id-in-new-base"
+            elif anchors & cited or subjects & dsubj:
+                rules[h] = "TRY:graduated"
+
+    gt("cherry-pick", "--abort")
+    gt("checkout", "-q", "--detach", onto)
+    # A TRY-skip (graduated commit that conflicts) is provisional: if a later
+    # commit then conflicts on a file the skipped one touched, the skip broke a
+    # series -- rewind to just before it, apply it instead, and replay on.
+    conflicts, skipped, flags = [], [], []          # entries carry the unit index
+    before, tried, forced, backtracks = {}, {}, set(), 0
+    files_of = lambda h: set(git(tree, "show", "--name-only", "--format=", h).split())
+    i = 0
+    while i < len(units):
+        h, s, b = units[i]
+        before[i] = git(tree, "rev-parse", "HEAD").strip()
+        rule = rules.get(h, "")
+        if h in forced:
+            rule = ""
+        if rule.startswith(("DROP", "SKIP")):
+            skipped.append((i, h, s, rule))
+            i += 1
+            continue
+        r = gt("cherry-pick", "-x", "--allow-empty", "--keep-redundant-commits", h)
+        if r.returncode == 0:
+            if rule:
+                flags.append((i, h, s, rule + ":applied-clean"))
+            i += 1
+            continue
+        U = [l for l in gt("diff", "--name-only", "--diff-filter=U").stdout.split() if l]
+        if not U:                      # empty after resolution or other benign stop
+            gt("cherry-pick", "--skip")
+            skipped.append((i, h, s, "empty"))
+            i += 1
+            continue
+        if rule.startswith("TRY"):
+            gt("cherry-pick", "--abort")
+            skipped.append((i, h, s, rule + ":conflicts->skipped"))
+            tried[h] = (i, files_of(h))
+            i += 1
+            continue
+        culprit = sorted((j, x) for x, (j, fs) in tried.items() if fs & set(U))
+        if culprit:
+            j, x = culprit[0]
+            gt("cherry-pick", "--abort")
+            gt("reset", "-q", "--hard", before[j])
+            forced.add(x)
+            for x2 in [x2 for x2, (j2, _) in tried.items() if j2 >= j]:
+                del tried[x2]
+            conflicts[:] = [e for e in conflicts if e[0] < j]
+            skipped[:] = [e for e in skipped if e[0] < j]
+            flags[:] = [e for e in flags if e[0] < j]
+            flags.append((j, x, units[j][1], "TRY:graduated:skip-broke-series->applied"))
+            backtracks += 1
+            print(f"  backtrack: skipping {x[:12]} made {h[:12]} conflict on {U[0]}", flush=True)
+            i = j
+            continue
+        conflicts.append((i, h, s, U))
+        gt("checkout", "--theirs", "--", *U)
+        gt("add", "-A", "--", *U)
+        if gt("-c", "core.editor=true", "cherry-pick", "--continue").returncode != 0:
+            gt("cherry-pick", "--skip")
+        i += 1
+        if i % 500 == 0:
+            print(f"  ... {i}/{len(units)} ({len(conflicts)} conflicts)", flush=True)
+    conflicts = [e[1:] for e in conflicts]
+    skipped = [e[1:] for e in skipped]
+    flags = [e[1:] for e in sorted(flags)]
+    head = git(tree, "rev-parse", "HEAD").strip()
+    if args.out_branch:
+        gt("branch", "-f", args.out_branch, head)
+    with open(args.log, "w") if args.log else open(os.devnull, "w") as f:
+        for h, s, U in conflicts:
+            f.write(f"CONFLICT|{h}|{s}|{' '.join(U)}\n")
+        for h, s, why in skipped:
+            f.write(f"SKIP|{h}|{s}|{why}\n")
+        for h, s, why in flags:
+            f.write(f"FLAG|{h}|{s}|{why}\n")
+    print(f"\n=== rebase ({'plain' if args.plain else 'assisted'}) onto {onto[:12]}: head {head[:12]} ===")
+    print(f"  commits replayed : {len(units)}")
+    print(f"  conflicts        : {len(conflicts)}")
+    print(f"  skipped          : {len(skipped)}  {dict(Counter(w.split(':')[0] + ':' + w.split(':')[1] if ':' in w else w for _, _, w in skipped))}")
+    print(f"  flagged (review) : {len(flags)}")
+    print(f"  backtracks       : {backtracks}")
+    for h, s, w in skipped + flags:
+        if w != "empty":
+            print(f"    {h[:12]} {w:45s} {s[:70]}")
+
+
 # ---- cluster (Phase 4: independently-mergeable feature sets) ----------------
 KEEP_SET_SQL = ("category NOT IN ('PACKAGING','UPSTREAMED') "
                 "AND (sem_action IS NULL OR sem_action != 'DROP') "
@@ -1330,7 +2013,62 @@ def main():
     rc.add_argument("--limit", type=int, default=0)
     rc.set_defaults(func=cmd_reconcile)
 
-    gr = sub.add_parser("graduate", help="Phase 2a: detect patches that landed in the NEW generic base")
+    an = sub.add_parser("anchor", help="blind: record upstream identity (sha/subject/patch-id) per OEM commit")
+    an.add_argument("--tree", required=True)
+    an.add_argument("--base", required=True, help="current generic base G_old")
+    an.add_argument("--head", default="HEAD")
+    an.add_argument("--ref-tree", required=True, help="upstream reference tree")
+    an.add_argument("--ref-rev", default="linux-next/master")
+    an.add_argument("--since", default="v6.8", help="upstream index lower bound")
+    an.set_defaults(func=cmd_anchor)
+
+    sm = sub.add_parser("similar", help="blind: content-match unanchored OEM commits to upstream")
+    sm.add_argument("--tree", required=True)
+    sm.add_argument("--ref-tree", required=True)
+    sm.add_argument("--ref-rev", default="linux-next/master")
+    sm.add_argument("--since", default="v6.8")
+    sm.add_argument("--hub-threshold", type=int, default=15)
+    sm.add_argument("--max-df", type=int, default=25, help="ignore lines shared by more upstream commits")
+    sm.add_argument("--auto", type=float, default=0.6, help="coverage to anchor without review")
+    sm.add_argument("--review", type=float, default=0.25, help="coverage to send to fan-out")
+    sm.add_argument("--out", default="similar_packets")
+    sm.add_argument("--max-chars", type=int, default=9000)
+    sm.set_defaults(func=cmd_similar)
+
+    si = sub.add_parser("ingest-similar", help="load fan-out verdicts for `similar` packets")
+    si.add_argument("verdicts", nargs="+")
+    si.set_defaults(func=cmd_ingest_similar)
+
+    bd = sub.add_parser("basedup", help="blind: OEM duplicates of commits already in G_old")
+    bd.add_argument("--tree", required=True)
+    bd.add_argument("--base", required=True, help="current generic base G_old")
+    bd.add_argument("--since", required=True, help="upstream release the base derives from, e.g. 'Linux 6.8'")
+    bd.set_defaults(func=cmd_basedup)
+
+    bu = sub.add_parser("build", help="blind: replay the keep-set onto G_old (drops + fix-on-fix "
+                        "squash), restoring any drop the replay or tree proof rejects")
+    bu.add_argument("--tree", required=True, help="scratch clone (HEAD is moved)")
+    bu.add_argument("--base", required=True, help="current generic base G_old")
+    bu.add_argument("--head", required=True, help="derivative tip D_old")
+    bu.add_argument("--branch", default="rederived", help="branch to write in --tree")
+    bu.add_argument("--no-squash", action="store_true")
+    bu.add_argument("--strict", action="store_true", help="require byte-identical tree (no cosmetic residue)")
+    bu.set_defaults(func=cmd_build)
+
+    rb = sub.add_parser("rebase", help="replay a rederived branch onto a NEW base (the only "
+                        "command allowed to see G_new)")
+    rb.add_argument("--tree", required=True, help="scratch clone (HEAD is moved)")
+    rb.add_argument("--base", required=True, help="base the branch sits on (G_old)")
+    rb.add_argument("--onto", required=True, help="new generic base G_new")
+    rb.add_argument("--branch", required=True, help="rederived branch tip")
+    rb.add_argument("--ref-tree", help="upstream tree (resolves anchor subjects)")
+    rb.add_argument("--plain", action="store_true", help="no rules: plain replay with the --theirs harness")
+    rb.add_argument("--out-branch")
+    rb.add_argument("--log", help="write CONFLICT/SKIP/FLAG lines here")
+    rb.set_defaults(func=cmd_rebase)
+
+    gr = sub.add_parser("graduate", help="AUDIT ONLY: compare against a known future base "
+                        "(uses lookahead; never feed its verdicts into a blind rederive)")
     gr.add_argument("--tree", required=True, help="tree containing both generic bases")
     gr.add_argument("--base", required=True, help="old generic base G_old")
     gr.add_argument("--onto", required=True, help="new generic base G_new (rebase target)")

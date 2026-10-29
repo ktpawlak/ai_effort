@@ -249,3 +249,38 @@ removing an inert pair can change whether a later commit merges cleanly — in
 either direction. Measured effect on the pilot cycle: 30 conflicts → 29.
 Dropping inert pairs is semantically safe but not conflict-monotonic.
 
+
+## Blind-mode addendum: what can and cannot reduce rebase conflicts
+
+**Fairness.** A rederive run may consume `G_old`, `D_old` and upstream only.
+Knowledge of `G_new` enters through one door, the `rebase` step, exactly as it
+would in a real release cycle. `graduate` (which scans `G_old..G_new`) is kept
+for after-the-fact audits only.
+
+**Commutation bound.** When a stack is rebased, each file's final state depends
+only on the *sequence of commits touching that file*. Swapping two commits with
+disjoint file sets leaves every per-file sequence unchanged, so every three-way
+merge — and therefore every conflict — is identical. Consequences:
+
+- Reordering into layers (upstream backports first, OEM features, vendor,
+  packaging) is cosmetic for a plain `git rebase`. It was not built.
+- Squashing B into an earlier A across file-disjoint neighbours is exact on the
+  original base (`build` re-proves it by replay) and cannot change conflict
+  sites; it only removes intermediate states. Measured: identical conflict sets
+  with and without 148 squashes.
+- What *can* change conflicts is changing the per-file sequences themselves:
+  removing commits (churn, base duplicates — each proven by replay + tree
+  equality) and, at rebase time, skipping commits that the new base already
+  carries in another form (anchors).
+
+**Anchors are the blind-mode output that matters.** Since the next base is
+unknown, the useful work at release time is to record, per commit, every
+identity under which a future base could carry it: cited upstream SHA,
+Change-Id, subject, content-matched upstream SHA (`similar` + lightweight
+agents), and the generic commit it duplicates (`basedup`). `Rederived-from`
+trailers carry these through the rewrite to the `rebase` step.
+
+**Skips must be falsifiable.** A conflicting graduated commit is skipped only
+provisionally; a later conflict on any file it touched is evidence the skip
+broke a series, and `rebase` rewinds and applies it instead. This turned a
+net-zero rule (−4 conflicts, +4 cascaded) into a net −2.
