@@ -284,3 +284,24 @@ trailers carry these through the rewrite to the `rebase` step.
 provisionally; a later conflict on any file it touched is evidence the skip
 broke a series, and `rebase` rewinds and applies it instead. This turned a
 net-zero rule (−4 conflicts, +4 cascaded) into a net −2.
+
+**Base-commit sandwich (tested, rejected).** Idea: hold back a base commit X
+that collides with k OEM commits (revert X in the new base, rebase, reapply X)
+so k conflicts become one. On 146→148 (baseline 27, assisted), blame
+attribution found only two X with k = 2 (`379ab30bfd13` scm tracepoints,
+`da758db05f00` PAS context); everything else was k = 1.
+
+| sandwich set | revert closure | stack | reapply | total |
+|---|---|---|---|---|
+| scm tracepoints | 2 | 25 | 2 | 27 |
+| PAS context | 2 | 26 | 1 | 27 |
+| both | 4 | 24 | 3 | 27 |
+| ina2xx group (k = 1) | 7 | 26 | 1 | 27 |
+| all 30 blamed | 47 | 5 | 24 | 29 |
+
+The conflicts are conserved, not removed. Each saved stack conflict
+reappears when X is reapplied over OEM-modified lines. The revert closure
+(later base commits on the same hunks) adds more reapply conflicts. The
+approach also leaves Revert/Reapply history debt in the next cycle. A
+per-file sequence change only pays when it *removes* a side, which a
+sandwich never does: drop (churn/basedup) or skip (graduated) can.
