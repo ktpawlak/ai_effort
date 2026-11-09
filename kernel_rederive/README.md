@@ -454,6 +454,9 @@ python3 rederive.py $DB build    --tree $T --base $G_OLD --head $D_OLD --branch 
 # later, when the next base exists
 python3 rederive.py $DB rebase --tree $T --base $G_OLD --onto $G_NEW --branch rederived \
         --ref-tree $REF --log rebase.log            # add --plain for a pure git replay
+# fix the conflicted files (audit), then fold the fix into the conflicting commits
+python3 rederive.py absorb --tree $T --base $G_NEW --branch <rebased> --target <fixed> \
+        --log rebase.log --out-branch rederived-new
 ```
 
 ### The blind phases
@@ -466,6 +469,7 @@ python3 rederive.py $DB rebase --tree $T --base $G_OLD --onto $G_NEW --branch re
 | `basedup` | OEM commits duplicating something **already in `G_old`** (by cited SHA, subject, patch-id) — the gap the Monza post-mortem exposed | candidate only |
 | `build` | replays the keep-set onto `G_old`; every drop is a candidate until the replay **proves** it (below) | yes, proven |
 | `rebase` | the only step that sees `G_new`; uses anchors to skip/flag | skip, with backtracking |
+| `absorb` | folds the audited resolution into the commits that conflicted (per hunk), instead of a fix commit on top | drops commits the resolution empties |
 
 **`build` = proof by replay.** Drop candidates are churn `DROP*`, `basedup`
 and `UPSTREAMED`. The keep-set is replayed onto `G_old` with `cherry-pick -n`.
@@ -498,7 +502,54 @@ resolves each rederived commit's anchors through its `Rederived-from` trailers:
   series: rewind to just before it, apply it (flagged for review), replay on.
 
 Remaining conflicts use the same `--theirs` harness as the control, so arms are
-directly comparable.
+directly comparable. The tables below were measured with the original
+whole-file harness (`--resolve file`); the default is now per-hunk (next
+section).
+
+### Resolving: `--resolve hunk` + `absorb` instead of a lump fix commit
+
+The harness only gets the replay through; the conflicted files then need the
+real resolution (audited, or taken from a 3-way merge the human checks). Two
+things made that fix commit huge (2,034+/588− lines in 30 files for 146→149):
+
+1. `git checkout --theirs -- <file>` takes the **whole** OEM file, dropping
+   every base hunk that had merged cleanly — the fix then has to restore them.
+   `rebase` now resolves per hunk (`git merge-file --theirs` on the index
+   stages): only the truly conflicting hunks take the OEM side.
+2. The fix sat on top of the stack. `absorb` folds it back:
+
+```bash
+python3 rederive.py absorb --tree $T --base $G_NEW --branch <raw rebased tip> \
+        --target <tree-ish with the correct result> --log rebase.log --out-branch <name>
+```
+
+For each file differing from the target, the diff is split into hunks; each
+hunk goes to the earliest commit — starting at the one that **conflicted** on
+that file (from `--log`) — such that every later commit touching the file
+still applies (3-way `merge(raw_after, base=raw_tip, other=raw_tip+hunks)` is
+clean). Overlapping hunks move only as far as the overlap forces them. The
+rewrite (`git fast-import`, no replay) changes only those file states, so
+every other commit keeps its exact patch; commits the resolution empties are
+dropped. Each touched commit gets a `Rederive-absorbed: <file> (k/n hunks,
+conflict | overlaps a later rewrite | conflict resolution corrected)` trailer.
+Files no commit touches go to one residual commit. Tip tree == target, always.
+
+146→149, same audited target (`rederived-149-fixed`):
+
+| | lump (`--resolve file`) | hunk + `absorb` |
+|---|---|---|
+| conflicts during replay | 28 | 36 |
+| fix to apply after replay | 30 files, +2,034/−588 | 28 files, +239/−238 |
+| where the fix lives | 1 commit on top | 34 commits (26 hunks at the conflicting commit, 11 past it by overlap, 2 at last-touch, 6 conflict commits corrected) + 1-line residual |
+| commits emptied by the resolution | kept | 2 dropped (bt-sco, extended SPI: already in 149) |
+| absorbing commits that compile (arm64) | 0 of 27 fixed | 15 of 27 fixed |
+
+The 8 more conflicts are real: whole-file `--theirs` hid them by replacing the
+file, so later commits applied cleanly on a file that had silently lost base
+code. Of the 12 absorbing commits that still do not compile, 4 (stmmac
+`lpi_irq`) already fail on `G_old`; 8 (gdsc, i2c-geni, the PAS/`qcom_scm`
+series) fail identically in the raw rebase — the final resolution does not
+determine every intermediate state; those need a per-commit human resolution.
 
 ### Result: 146 → 148, blind
 

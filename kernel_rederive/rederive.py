@@ -18,6 +18,7 @@ import re
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from collections import Counter
 
 DB_DEFAULT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "inventory.db")
@@ -1420,6 +1421,41 @@ RE_UPCITE = re.compile(r"(?:commit\s+([0-9a-f]{40})\s+upstream|cherry picked fro
 RE_REVERTS_SHA = re.compile(r"This reverts commit\s+([0-9a-f]{7,40})", re.I)
 
 
+def resolve_theirs_hunks(tree, paths):
+    """Resolve conflicted paths taking the picked commit's side ONLY in the
+    conflicting hunks; hunks of the new base that merged cleanly are kept.
+    (`checkout --theirs` would take the whole file and silently drop them.)"""
+    gt = lambda *a: run(["git", "-C", tree] + list(a), check=False)
+    for p in paths:
+        st = {}
+        for l in git(tree, "ls-files", "-u", "-z", "--", p).split("\0"):
+            if l:
+                meta, _, _ = l.partition("\t")
+                mode, sha, n = meta.split()
+                st[int(n)] = (mode, sha)
+        reg = all(st.get(n, ("",))[0] in ("100644", "100755") for n in (1, 2, 3))
+        if 3 not in st:                         # picked commit deletes it
+            gt("rm", "-q", "-f", "--", p)
+        elif not reg:                           # add/add, modify/delete, symlink: whole file
+            gt("checkout", "--theirs", "--", p)
+        else:
+            with tempfile.TemporaryDirectory() as td:
+                fs = []
+                for n in (2, 1, 3):             # current, base, other
+                    fn = os.path.join(td, str(n))
+                    with open(fn, "wb") as f:
+                        f.write(subprocess.run(["git", "-C", tree, "cat-file", "blob", st[n][1]],
+                                               capture_output=True).stdout)
+                    fs.append(fn)
+                r = subprocess.run(["git", "merge-file", "-p", "--theirs", *fs], capture_output=True)
+            if r.returncode < 0 or r.returncode > 127:
+                gt("checkout", "--theirs", "--", p)
+                continue
+            with open(os.path.join(tree, p), "wb") as f:
+                f.write(r.stdout)
+            os.chmod(os.path.join(tree, p), 0o755 if st[3][0] == "100755" else 0o644)
+
+
 def cmd_rebase(args):
     con = db_connect(args.db)
     tree = os.path.expanduser(args.tree)
@@ -1522,7 +1558,10 @@ def cmd_rebase(args):
             i = j
             continue
         conflicts.append((i, h, s, U))
-        gt("checkout", "--theirs", "--", *U)
+        if args.resolve == "file":
+            gt("checkout", "--theirs", "--", *U)
+        else:
+            resolve_theirs_hunks(tree, U)
         gt("add", "-A", "--", *U)
         if gt("-c", "core.editor=true", "cherry-pick", "--continue").returncode != 0:
             gt("cherry-pick", "--skip")
@@ -1551,6 +1590,278 @@ def cmd_rebase(args):
     for h, s, w in skipped + flags:
         if w != "empty":
             print(f"    {h[:12]} {w:45s} {s[:70]}")
+
+
+# ---- absorb: fold an audited resolution into the commits that conflicted ----
+def _git_b(tree, *args, inp=None):
+    return subprocess.run(["git", "-C", tree, *args], input=inp, capture_output=True)
+
+
+def _blob(tree, rev, path):
+    r = _git_b(tree, "cat-file", "-p", f"{rev}:{path}")
+    return r.stdout if r.returncode == 0 else None
+
+
+def _reverse_apply(tree, commit, path, content):
+    """State of `path` before `commit`, given its state after: `git apply -R`,
+    falling back to a clean 3-way merge that removes the commit's change from
+    `content`. (False, None) if neither works."""
+    patch = _git_b(tree, "diff-tree", "-p", "--binary", "--full-index", "--no-renames",
+                   f"{commit}^", commit, "--", path).stdout
+    with tempfile.TemporaryDirectory() as td:
+        fp = os.path.join(td, path)
+        if content is not None:
+            os.makedirs(os.path.dirname(fp), exist_ok=True)
+            with open(fp, "wb") as f:
+                f.write(content)
+        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+        r = subprocess.run(["git", "apply", "-R", "--whitespace=nowarn", "-"], cwd=td,
+                           input=patch, capture_output=True, env=env)
+        if r.returncode == 0:
+            if not os.path.exists(fp):
+                return True, None
+            with open(fp, "rb") as f:
+                return True, f.read()
+        after, before = _blob(tree, commit, path), _blob(tree, f"{commit}^", path)
+        if content is None or after is None or before is None:
+            return False, None
+        fs = []
+        for n, b in (("cur", content), ("after", after), ("before", before)):
+            fs.append(os.path.join(td, n))
+            with open(fs[-1], "wb") as f:
+                f.write(b)
+        r = subprocess.run(["git", "merge-file", "-p", *fs], capture_output=True)
+        return (True, r.stdout) if r.returncode == 0 else (False, None)
+
+
+def _absorb_hunks(tree, path, touch, k0, tipc, tgt):
+    """Per-hunk placement of diff(tipc -> tgt) on the commits `touch` (all
+    commits touching `path`, oldest first). Each hunk goes to the earliest
+    touch[k], k >= k0, such that for every later touching commit the file
+    state  merge(raw_after, base=tipc, other=tipc+assigned hunks)  is clean.
+    Returns ({touch idx: content after}, {touch idx: (hunks placed, total)})."""
+    import difflib
+    A, B = tipc.splitlines(keepends=True), tgt.splitlines(keepends=True)
+    ops = [o for o in difflib.SequenceMatcher(None, A, B, autojunk=False).get_opcodes()
+           if o[0] != "equal"]
+    groups = []
+    for o in ops:                         # changes within 3 lines stay together
+        if groups and o[1] - groups[-1][-1][2] <= 3:
+            groups[-1].append(o)
+        else:
+            groups.append([o])
+
+    def partial(sel):
+        out, i = [], 0
+        for g in sorted(sel):
+            for _, i1, i2, j1, j2 in groups[g]:
+                out += A[i:i1] + B[j1:j2]
+                i = i2
+        return b"".join(out + A[i:])
+
+    raw = {k: _blob(tree, touch[k], path) for k in range(k0, len(touch))}
+    cache = {}
+
+    def state(k, sel):
+        key = (k, frozenset(sel))
+        if key not in cache:
+            if raw[k] is None:
+                cache[key] = None
+            elif k == len(touch) - 1:
+                cache[key] = partial(sel)
+            else:
+                with tempfile.TemporaryDirectory() as td:
+                    fs = []
+                    for n, b in (("cur", raw[k]), ("base", tipc), ("other", partial(sel))):
+                        fs.append(os.path.join(td, n))
+                        with open(fs[-1], "wb") as f:
+                            f.write(b)
+                    r = subprocess.run(["git", "merge-file", "-p", *fs], capture_output=True)
+                cache[key] = r.stdout if r.returncode == 0 else None
+        return cache[key]
+
+    assign = {}
+    for g in range(len(groups)):
+        for k in range(k0, len(touch)):
+            trial = {**assign, g: k}
+            if all(state(kk, {x for x, a in trial.items() if a <= kk}) is not None
+                   for kk in range(k, len(touch))):
+                assign[g] = k
+                break
+    if len(assign) != len(groups):
+        return None
+    first = min(assign.values(), default=len(touch) - 1)
+    states = {k: state(k, {x for x, a in assign.items() if a <= k}) for k in range(first, len(touch))}
+    at = Counter(assign.values())
+    return states, {k: (n, len(groups)) for k, n in at.items()}
+
+
+def cmd_absorb(args):
+    """Distribute `target - branch` into the commits of `base..branch`.
+
+    For each differing file the fix goes into the commit that conflicted on it
+    during `rebase` (from --log, matched via `cherry picked from`), else into
+    the last commit touching it. The file's correct state after that commit is
+    obtained by reverse-applying, from the target content, the patches of every
+    later commit touching the file -- so those commits keep their exact patch.
+    If a reverse-apply fails, the next later touching commit is tried. Files no
+    commit touches stay in one residual commit on top. Tip tree == target."""
+    tree = os.path.expanduser(args.tree)
+    base = git(tree, "rev-parse", args.base).strip()
+    tip = git(tree, "rev-parse", args.branch).strip()
+    target = git(tree, "rev-parse", f"{args.target}^{{tree}}").strip()
+    stack = git(tree, "rev-list", "--reverse", "--topo-order", f"{base}..{tip}").split()
+    if git(tree, "rev-list", "--merges", f"{base}..{tip}").strip():
+        sys.exit("absorb: base..branch must be linear")
+    pos = {c: i for i, c in enumerate(stack)}
+    orig_of = {}
+    for line in git(tree, "log", "--format=%H%x00%b%x01", f"{base}..{tip}").split("\x01"):
+        h, _, b = line.strip().partition("\0")
+        for o in re.findall(r"cherry picked from commit ([0-9a-f]{40})", b):
+            orig_of.setdefault(o, h)
+    conflict_at, conflicted = {}, {}
+    if args.log:
+        for l in open(args.log):
+            p = l.rstrip("\n").split("|")
+            if p[0] == "CONFLICT" and p[1] in orig_of:
+                for f in p[3].split():
+                    c = orig_of[p[1]]
+                    conflicted.setdefault(f, set()).add(c)
+                    if f not in conflict_at or pos[c] < pos[conflict_at[f]]:
+                        conflict_at[f] = c
+    files = [f for f in _git_b(tree, "diff", "--name-only", "-z", "--no-renames", tip, target)
+             .stdout.decode(errors="surrogateescape").split("\0") if f]
+
+    plan, note, residual = {}, {}, []   # plan: path -> (first idx, {idx: content after})
+    for f in files:
+        touch = [c for c in git(tree, "rev-list", "--reverse", "--full-history",
+                                f"{base}..{tip}", "--", f).split()]
+        if not touch:
+            residual.append(f)
+            continue
+        start = conflict_at.get(f)
+        k0 = touch.index(start) if start in touch else len(touch) - 1
+        tipc, tgt = _blob(tree, tip, f), _blob(tree, target, f)
+        res = None
+        if tipc is not None and tgt is not None and b"\0" not in tipc + tgt:
+            res = _absorb_hunks(tree, f, touch, k0, tipc, tgt)
+            if res is not None:
+                res = ({pos[touch[k]]: v for k, v in res[0].items()}, res[1])
+        if res is None:                           # binary / add / delete: whole file
+            for k in range(k0, len(touch)):
+                states, cur, ok = {}, tgt, True
+                for L in reversed(touch[k + 1:]):
+                    states[pos[L]] = cur
+                    ok, cur = _reverse_apply(tree, L, f, cur)
+                    if not ok:
+                        break
+                if ok:
+                    states[pos[touch[k]]] = cur
+                    res = (states, {k: (1, 1)})
+                    break
+        states, at = res
+        plan[f] = (min(states), states)
+        cf = conflicted.get(f, set())
+        for k, (n, tot) in at.items():
+            why = "conflict" if touch[k] in cf else \
+                "overlaps a later rewrite" if k > k0 else "last commit touching it"
+            note.setdefault(pos[touch[k]], []).append(
+                f"{f} ({n}/{tot} hunk{'s' if tot > 1 else ''}, {why})")
+        for k, c in enumerate(touch):             # conflicted, no hunk, but resolution changed
+            if c in cf and k not in at and pos[c] in states and states[pos[c]] != _blob(tree, c, f):
+                note.setdefault(pos[c], []).append(f"{f} (conflict resolution corrected)")
+
+    # rewrite with fast-import, from the first absorbing commit on
+    first = min([p[0] for p in plan.values()], default=len(stack))
+    over_at = {}                                  # idx -> {path: content}
+    for f, (_, states) in plan.items():
+        for i, cnt in states.items():
+            over_at.setdefault(i, {})[f] = cnt
+    current = {}                                  # path -> content now in effect
+    emptied = []
+
+    def data(b):
+        return b"data %d\n" % len(b) + b + b"\n"
+
+    out = []
+    parent = stack[first - 1] if first > 0 else base
+    out.append(b"reset refs/heads/%s\nfrom %s\n\n" % (args.out_branch.encode(), parent.encode()))
+    for i in range(first, len(stack)):
+        c = stack[i]
+        meta = _git_b(tree, "log", "-1", "--date=raw",
+                      "--format=%an%x00%ae%x00%ad%x00%cn%x00%ce%x00%cd%x00%B", c).stdout
+        an, ae, ad, cn, ce, cd, msg = meta.split(b"\0", 6)
+        if i in note:
+            msg = msg.rstrip(b"\n") + b"\n" + b"".join(
+                b"Rederive-absorbed: %s\n" % x.encode() for x in sorted(note[i]))
+        ops = []
+        raw = _git_b(tree, "diff-tree", "-r", "-z", "--no-renames", "--no-commit-id",
+                     f"{c}^", c).stdout.split(b"\0")
+        for j in range(0, len(raw) - 1, 2):
+            m = raw[j].split()
+            p = raw[j + 1].decode(errors="surrogateescape")
+            if p in plan and plan[p][0] <= i:
+                continue
+            if m[4] == b"D":
+                ops.append(b"D %s\n" % raw[j + 1])
+            else:
+                ops.append(b"M %s %s %s\n" % (m[1], m[3], raw[j + 1]))
+        for p, cnt in over_at.get(i, {}).items():
+            if current.get(p, b"\0init") == cnt:
+                continue
+            prev = current[p] if p in current else _blob(tree, f"{c}^", p)
+            current[p] = cnt
+            if prev == cnt:
+                continue
+            if cnt is None:
+                ops.append(b"D %s\n" % p.encode(errors="surrogateescape"))
+            else:
+                mode = b"100755" if _git_b(tree, "ls-tree", target, "--", p).stdout.startswith(
+                    b"100755") else b"100644"
+                ops.append(b"M %s inline %s\n" % (mode, p.encode(errors="surrogateescape")) + data(cnt))
+        if not ops and len(raw) > 1:              # the resolution emptied it
+            emptied.append(c)
+            continue
+        out.append(b"commit refs/heads/%s\nauthor %s <%s> %s\ncommitter %s <%s> %s\n"
+                   % (args.out_branch.encode(), an, ae, ad, cn, ce, cd) + data(msg))
+        out.extend(ops)
+        out.append(b"\n")
+    if residual:
+        ident = _git_b(tree, "var", "GIT_COMMITTER_IDENT").stdout.strip()
+        name, _, rest = ident.partition(b" <")
+        email, _, when = rest.partition(b"> ")
+        msg = (b"UBUNTU: [rederive] resolution residue not attributable to a commit\n\n"
+               + b"".join(b"Rederive-absorbed: %s\n" % f.encode() for f in residual))
+        out.append(b"commit refs/heads/%s\nauthor %s <%s> %s\ncommitter %s <%s> %s\n"
+                   % (args.out_branch.encode(), name, email, when, name, email, when) + data(msg))
+        for f in residual:
+            cnt = _blob(tree, target, f)
+            if cnt is None:
+                out.append(b"D %s\n" % f.encode())
+            else:
+                out.append(b"M 100644 inline %s\n" % f.encode() + data(cnt))
+        out.append(b"\n")
+    r = _git_b(tree, "fast-import", "--quiet", "--force", inp=b"".join(out))
+    if r.returncode != 0:
+        sys.exit("fast-import failed: " + r.stderr.decode(errors="replace")[-2000:])
+
+    new = git(tree, "rev-parse", args.out_branch).strip()
+    same = git(tree, "rev-parse", f"{new}^{{tree}}").strip() == target
+    print(f"\n=== absorb: {args.out_branch} = {new[:12]} ===")
+    print(f"  files fixed          : {len(files)}")
+    kinds = Counter(x.rsplit(", ", 1)[-1].rstrip(")").split(" (")[-1]
+                    for v in note.values() for x in v)
+    print(f"  absorbed into commits: {len(plan)} files in {len(note)} commits  {dict(kinds)}")
+    for i in sorted(note):
+        subj = git(tree, "log", "-1", "--format=%s", stack[i]).strip()
+        print(f"    {stack[i][:12]} {subj[:60]}")
+        for x in sorted(note[i]):
+            print(f"        {x}")
+    print(f"  emptied, dropped     : {len(emptied)}")
+    for c in emptied:
+        print(f"    {c[:12]} {git(tree, 'log', '-1', '--format=%s', c).strip()[:70]}")
+    print(f"  residual commit      : {len(residual)} file(s) {' '.join(residual)}")
+    print(f"  tip tree == target   : {same}")
 
 
 # ---- cluster (Phase 4: independently-mergeable feature sets) ----------------
@@ -2063,9 +2374,22 @@ def main():
     rb.add_argument("--branch", required=True, help="rederived branch tip")
     rb.add_argument("--ref-tree", help="upstream tree (resolves anchor subjects)")
     rb.add_argument("--plain", action="store_true", help="no rules: plain replay with the --theirs harness")
+    rb.add_argument("--resolve", choices=("hunk", "file"), default="hunk",
+                    help="conflict harness: take the picked side per conflicting hunk (default) "
+                    "or for the whole file (old behaviour; drops clean base hunks too)")
     rb.add_argument("--out-branch")
     rb.add_argument("--log", help="write CONFLICT/SKIP/FLAG lines here")
     rb.set_defaults(func=cmd_rebase)
+
+    ab = sub.add_parser("absorb", help="fold an audited resolution tree into the commits that "
+                        "conflicted (no lump fix commit on top)")
+    ab.add_argument("--tree", required=True)
+    ab.add_argument("--base", required=True, help="new generic base the branch sits on")
+    ab.add_argument("--branch", required=True, help="raw rebased tip (output of `rebase`)")
+    ab.add_argument("--target", required=True, help="tree-ish with the audited correct result")
+    ab.add_argument("--log", help="rebase --log file: absorb each file into the commit that conflicted on it")
+    ab.add_argument("--out-branch", required=True)
+    ab.set_defaults(func=cmd_absorb)
 
     gr = sub.add_parser("graduate", help="AUDIT ONLY: compare against a known future base "
                         "(uses lookahead; never feed its verdicts into a blind rederive)")
