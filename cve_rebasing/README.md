@@ -233,6 +233,35 @@ Test Plan updated to "Build and boot tested." The three landed patches are in
 
 ---
 
+## CVE-2026-46330 — result (revert-style fix, one series affected)
+
+Fix `df31a6b0a305` = `Revert "net/smc: Introduce TCP ULP support"`
+(introducer `d7cd421da9da`, v5.18).
+
+- **Check which series are affected first**:
+  `git describe --contains <introducer>` and
+  `git grep -n -F -w <symbol> master-next -- <dir>` in each tree. Only Noble
+  had the ULP code; Jammy 5.15 / Focal 5.4 predate it, so no PR for them
+  (say so in the cover letter's `[ Other Info ]`).
+- **Reverts of old features conflict on code added later upstream.**
+  Upstream's revert context had `smc_inet_init()`, `bpf_smc_hs_ctrl_init()`
+  and a `sk_common_release()` error path that Noble lacks. Revert only the
+  feature's pieces; don't import those later additions.
+- **Mind labels/vars left orphaned.** Upstream kept `out_ib:` because
+  `smc_inet_init()` jumps to it. In Noble nothing else did, so it was
+  removed to avoid `-Wunused-label` (matches the pre-feature code).
+- Quick compile check without a full build:
+  ```bash
+  make O=/tmp/b defconfig
+  ./scripts/config --file /tmp/b/.config -e INFINIBAND -e SMC
+  make O=/tmp/b olddefconfig
+  make -j$(nproc) O=/tmp/b W=1 net/smc/af_smc.o
+  ```
+- PR: `ubuntu-kernel/linux--noble` #40, 1 commit, Test Plan listed as
+  compile-tested only, with build/boot pending.
+
+---
+
 ## Pitfalls checklist
 
 - [ ] The given "break commit" is often the **fix** — read its `Fixes:` tag.
