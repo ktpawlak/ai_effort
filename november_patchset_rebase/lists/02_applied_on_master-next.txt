@@ -1,0 +1,420 @@
+53e35299cb10 FROMLIST: dt-bindings: arm: qcom: Add Advantech SOM-DB5830
+810b3bb26935 FROMGIT: power: sequencing: pwrseq-pcie-m2: Support PCIe switch topologies
+4d90f823103f FROMLIST: misc: fastrpc: map ADSP remote heap into remoteproc IOMMU domain
+5c998f361dd4 FROMLIST: arm64: dts: qcom: Add Advantech SOM-DB5830
+39daaf199baa QCLINUX: firmware: qcom: memory_dump_v2: assign dump table region to non-secure world
+92cd392fbc87 UPSTREAM: ASoC: qcom: q6apm-lpass-dai: move graph start to trigger
+8be40aaa43c6 UPSTREAM: cpufreq: Add QCS8300 to cpufreq-dt-platdev blocklist
+379dfccf4664 FROMLIST: drm/msm/dsi: fix AHB clock staying enabled across suspend
+f2bb3970d3eb FROMLIST: phy: qcom: Add qref and refgen regulator support for QCS8300 and SA8775p PCIe PHYs
+ad84aa7d8d85 FROMLIST: drm/msm/dpu: split modes a single layer mixer cannot clock
+97de09d5ecb7 FROMLIST: drm/msm/dpu: do not assume a merged datapath when validating mode clock
+9e96dda7020f FROMLIST: drm/msm/dpu: check mode against PINGPONG or DSC max width
+a439d3f7eb1f FROMLIST: drm/msm/dpu: filter writeback modes using writeback maxlinewidth
+940368ebd56b BACKPORT: drm/msm/dpu: remove max_mixer_width from catalog
+151218255c96 FROMLIST: drm/msm/dpu: limit the mode width to a pipe if the LM has no source split
+830dd3655da4 FROMLIST: arm64: dts: qcom: kodiak: Add EL2 overlay
+fe4b10087280 Revert "UBUNTU: SAUCE: pinctrl: qcom: shikra: fix PINGROUP macro/table mismatch"
+9e7578b22006 Revert "pinctrl: qcom: shikra: align with upstream post-submission review"
+7e671fbdbce9 Revert "dt-bindings: firmware: qcom,scm: complete shikra clock constraints"
+caa5c46d9e19 Revert "arm64: dts: qcom: shikra: remove spurious crypto interconnect path from remoteprocs"
+58ecacc4b2c6 Revert "arm64: dts: qcom: shikra: fix sdhc_1 interconnect tags and power domain"
+2d9219db7bc2 Revert "arm64: dts: qcom: shikra: fix qfprom base address and child offsets"
+a40c3b056629 Revert "arm64: dts: qcom: shikra: fix LLCC interrupt number"
+6c88d38f288e Revert "arm64: dts: qcom: shikra: drop unused labels from OPP table entries"
+240042331f07 Revert "arm64: dts: qcom: shikra: fix memory node base address"
+494963306034 Revert "arm64: dts: qcom: shikra: add SCM clock and reset-cells to firmware node"
+2b785379ae0b Revert "arm64: dts: qcom: shikra: add cache sizes and fix cpu3 power coefficient"
+cf336e43990a Revert "arm64: dts: qcom: shikra: switch to interrupt-cells 4 to add PPI partitions"
+b3c9eca5a712 Revert "arm64: dts: qcom: shikra: Split PMU nodes for heterogeneous CPUs"
+0375a6db9dce Revert "PENDING: arm64: dts: qcom: shikra: add reboot-mode support"
+fc36ce97bf46 Revert "arm64: dts: qcom: shikra: migrate WiFi power control to pwrseq"
+49cf07678d4b Revert "soc: qcom: llcc: Add configuration data for Shikra SoC"
+c6e9e91836bd Revert "arm64: dts: qcom: shikra: Add lt9611uxd node to IQS EVK board"
+3bed08c6f6f6 Revert "Revert "arm64: dts: qcom: shikra-iqs-evk: Add DSI panel support""
+ade22d6ae369 Revert "Revert "arm64: dts: qcom: shikra-iqs-evk: Add pinctrl for DLC0697 DSI panel""
+d55d2f67d79f Revert "arm64: dts: qcom: shikra: Add GPU cooling"
+a016f5e9bd7d Revert "arm64: dts: qcom: shikra: Fix wcn3988-pmu node on EVK boards"
+de6c27baf91d Revert "arm64: dts: qcom: shikra: Add gpio-reserved-ranges to tlmm"
+4307d9a5d5bd Revert "arm64: dts: qcom: shikra: Add wcn3988-pmu node to EVK boards"
+9b9c7a982c52 Revert "arm64: dts: qcom: shikra-iqs-evk: Add pinctrl for DLC0697 DSI panel"
+2ed49660c77a Revert "arm64: dts: qcom: shikra-iqs-evk: Add DSI panel support"
+feab18b18a60 Revert "cpufreq: qcom-cpufreq-hw: Update qcom,shikra-epss compatible"
+2a8aff950fda Revert "dt-bindings: cpufreq: qcom-hw: Update Shikra CPUFREQ bindings"
+df96677b5566 Revert "dt-bindings: display/msm/gpu: Add support for A704 shikra GPU"
+304c7c5de87d Revert "arm64: defconfig: Enable Qualcomm BAM-DMUX WWAN driver"
+d46daec4dd6c Revert "dmaengine: qcom: bam_dma: Defer IRQ trigger type to device tree"
+2d0d663cdbb4 Revert "soc: qcom: smsm: Increase default num_hosts to 5 for Shikra"
+6126d6bfc1b5 Revert "media: qcom: camss: add support for QCM2390 camss"
+2fca0a254ef8 Revert "dt-bindings: i2c: qcom-cci: Document Shikra compatible"
+bc2d590ca09e Revert "dt-bindings: media: qcom: Add Shikra CAMSS compatible"
+10d7dc968610 Revert "interconnect: qcom: Add EPSS L3 scaling support for Shikra SoC"
+688803d70042 Revert "dt-bindings: interconnect: qcom,shikra-epss-l3: Add EPSS L3 DT binding"
+d6cd89295c69 Revert "dt-bindings: interconnect: qcom-bwmon: Add Shikra cpu-bwmon compatible"
+32ba4fc47204 Revert "soc: qcom: pd-mapper: Fix shikra compatible strings to use -som suffix"
+79386fc507d2 Revert "soc: qcom: pd-mapper: Add shikra PD support for CQM/CQS/IQS"
+00e5e65cac79 Revert "soc: qcom: rpmpd: Reuse sm6125 power domains for shikra"
+7e5a2fe62559 Revert "clk: qcom: Add Audio Core clock controller support on Qualcomm Shikra SoC"
+6e36087ec5bc Revert "dt-bindings: clock: qcom: Add Qualcomm Shikra Audio Core Clock Controller"
+cda91fc447ac Revert "clk: qcom: gcc-shikra: Mark GCC LPASS clocks as critical"
+915929d5044f Revert "dt-bindings: clock: qcom: Add GCC LPASS clocks support for Shikra"
+81efd72bc9a9 Revert "dt-bindings: crypto: qcom,inline-crypto-engine: Document Shikra ICE"
+c237577601d2 Revert "dt-bindings: bam-dma: Increase maxItems to seven for iommus"
+8c4d5ddd31aa Revert "FROMLIST: dt-bindings: crypto: qcom-qce: Document the Shikra crypto engine"
+9f82cfa2cd94 Revert "FROMLIST: dt-bindings: crypto: qcom,prng: Document Shikra TRNG"
+9cd2091769d4 Revert "ARM: dts: msm: Add support for shikra GPU"
+1e8e5022bc9d Revert "arm64: dts: qcom: Update cpufreq node for Shikra SoC"
+8cac7ea04f80 Revert "arm64: dts: qcom: shikra: Add CPU OPP tables to scale DDR/L3"
+de2fa5f28dde Revert "arm64: dts: qcom: shikra-iqs-evk-imx577-camera: Add DT overlay"
+b6e9ba806d90 Revert "arm64: dts: qcom: shikra-cqm-evk-imx577-camera: Add DT overlay"
+aa9f645b18ff Revert "arm64: dts: qcom: shikra: Add pin configuration for mclks"
+5fbe9fcf573a Revert "arm64: dts: qcom: shikra: Add CCI definitions"
+0491b0e8ffc3 Revert "arm64: dts: qcom: shikra: Add CAMSS node"
+0710edbcd826 Revert "arm64: dts: qcom: shikra: Add BAM-DMUX support"
+4c860a281892 Revert "arm64: dts: qcom: shikra: Add EPSS L3 interconnect provider node"
+b3fb5093bd63 Revert "arm64: dts: qcom: shikra: Add DDR BWMON support"
+e4a99873f57e Revert "arm64: dts: qcom: shikra: Enable MPSS remoteproc"
+93b1cae612d0 Revert "QCLINUX: memory-dump: add memory dump table for Shikra"
+fa28c960ec96 Revert "arm64: dts: qcom: Fix pm4125 vbus regulator compatible and constraints"
+9ed7c4957864 Revert "arm64: dts: qcom: Add AudioCoreCC node support on Shikra"
+5a920d6ee507 Revert "arm64: dts: qcom: shikra-cqs-evk: Enable display"
+dec20d8fe440 Revert "arm64: dts: qcom: shikra: Add pm4125 s1 regulator"
+c56c883e06a6 Revert "FROMLIST: arm64: dts: qcom: shikra: Enable ice support"
+e48b07ade089 Revert "FROMLIST: arm64: dts: qcom: shikra: Add TRNG support"
+fbf9f5d6c651 Revert "FROMLIST: arm64: dts: qcom: shikra: Add qcrypto node support"
+5d078c25cc31 Revert "QCLINUX: qcom-dcc: add shikra register list and move config to header"
+cc6c0e970b48 Revert "arm64: dts: qcom: shikra: Add missing clocks block (xo_board, sleep_clk)"
+e425a3061f63 Revert "arm64: defconfig: Enable WSA885X-I2C and PM4125 Shikra EVK boards"
+2aa64d99f544 Revert "soc: qcom: ubwc: Add Shikra UBWC config"
+26de4387df51 Revert "arm64: defconfig: Enable DLC0697 DSI panel driver"
+11de433ab08a Revert "drm/msm/mdss: Add Shikra support"
+2ba90d7c54c6 Revert "dt-bindings: display: msm: qcm2290: Add Shikra MDSS"
+88c09b6602a9 Revert "iommu/arm-smmu: Add ACTLR settings for missing MDSS devices for new Shikra platform"
+82314ddc613c Revert "arm64: dts: qcom: shikra-cqm-evk: Enable display and add DLC0697 panel"
+b1b4c6729fa3 Revert "arm64: dts: qcom: shikra: Add MDSS display subsystem"
+ea4a4bd2af1a Revert "arm64: dts: qcom: shikra: Enable BT support on EVK boards."
+a24173b26311 Revert "arm64: dts: qcom: shikra: Add coresight nodes"
+7e1594b876d4 Revert "dt-bindings: media: qcom,qcm2290-venus: document shikra Iris compatible"
+3981fe732936 Revert "arm64: dts: qcom: Modify compatible for Shikra APCS device"
+67254c3a2a3a Revert "arm64: dts: qcom: shikra: Add CX power domain to GCC"
+2dcfccc3f24b Revert "dt-bindings: mailbox: qcom: Modify Shikra APCS compatible"
+10041a45a6b9 Revert "dt-bindings: clock: qcom: shikra-gcc: Add power-domains property"
+9c9e030f3c5e Revert "clk: qcom: gpucc-shikra: Drop unused DT_BI_TCXO_AO index"
+59cf99c91ff6 Revert "clk: qcom: gcc-shikra: Update GCC driver for Shikra"
+ae4308eebd3f Revert "dt-bindings: clock: qcom: Add GCC_QUSB2PHY_SEC_BCR support for Shikra"
+2d120a8a05b8 Revert "dt-bindings: remoteproc: qcom: Add Shikra PAS binding"
+b1347d3c3822 Revert "remoteproc: qcom: pas: Add Shikra remoteproc support"
+5aa6dc3272d5 Revert "dt-bindings: cache: qcom,llcc: Document Qualcomm Shikra LLCC"
+81d668def285 Revert "interconnect: qcom: shikra: program QoS mode for ICC masters"
+f08a0d69af0d Revert "pinctrl: qcom: Add GPIO-MPM map for shikra"
+9e9197477e92 Revert "arm64: defconfig: Enable DISPCC and GPUCC on Shikra EVK boards"
+2477434f37f8 Revert "clk: qcom: Add support for GPU Clock Controller on Shikra"
+347dbb3a5d4b Revert "clk: qcom: Add support for Display Clock Controller on Shikra"
+f46c3f7f6e49 Revert "dt-bindings: clock: qcom: Add Shikra GPU clock controller"
+91177ba8a3c7 Revert "dt-bindings: clock: qcom: Add Shikra Display clock controller"
+5a394f9c453e Revert "arm64: dts: qcom: Update Min and max Voltages for Shikra Retail"
+b304bc6edad9 Revert "arm64: dts: qcom: Modify MPM pin count for shikra"
+8de208bf58f9 Revert "arm64: dts: qcom: shikra: fix compatible field for iommu nodes"
+288071512db0 Revert "arm64: dts: qcom: shikra: update reserved memory regions"
+d925bd19b17e Revert "dt-bindings: thermal: qcom-tsens: Document the Shikra Temperature Sensor"
+a4a667290d8f Revert "arm64: defconfig: Enable Pinctrl on Shikra EVK boards"
+01b257eeff6c Revert "cpufreq: qcom-cpufreq-hw: Add RIMPS based cpufreq support for Shikra SoC"
+db3d2e647613 Revert "dt-bindings: cpufreq: qcom-hw: Document Shikra CPUFREQ Hardware"
+2c6a4a9380ec Revert "dt-bindings: mmc: sdhci-msm: Add compatible for shikra"
+b0383d3f6e38 Revert "dt-bindings: mfd: qcom,tcsr: Add compatible for Shikra"
+776f3e8191a7 Revert "arm64: defconfig: Enable interconnect driver for Shikra"
+524935741a51 Revert "interconnect: qcom: add Shikra interconnect provider driver"
+d428033290a1 Revert "dt-bindings: interconnect: document the RPM Network-On-Chip interconnect in Shikra SoC"
+20cebd1a4af5 Revert "phy: qcom: qmp-usbc: Add qmp configuration for Shikra"
+6d21e9d67ce0 Revert "phy: qcom-qusb2: Add support for Shikra"
+98fcb014fea1 Revert "dt-bindings: usb: qcom,snps-dwc3: Add Shikra compatible"
+c6fe3f1377a3 Revert "dt-bindings: phy: qcom,qusb2: Add bindings for Shikra"
+78f52835cd73 Revert "dt-bindings: phy: qcom,msm8998-qmp-usb3-phy: Add support for Shikra"
+6ac8a0f57af4 Revert "dt-bindings: dma: qcom,gpi: Document GPI DMA engine for Shikra SoC"
+02c79dc3562b Revert "arm64: dts: qcom: shikra: Enable cpufreq cooling devices"
+deaedea2fc6d Revert "arm64: dts: qcom: shikra-iqs: Enable CDSP and LPAICP"
+a6e799f3e04d Revert "arm64: dts: qcom: shikra-cqs: Enable CDSP and LPAICP"
+4c39b14e1ea6 Revert "arm64: dts: qcom: shikra-cqm: Enable CDSP, LPAICP and MPSS"
+573bd232d2f5 Revert "arm64: dts: qcom: shikra: Add CDSP, LPAICP, MPSS remoteproc PAS nodes"
+96523f8d1f0f Revert "arm64: dts: qcom: shikra: Add LLCC node"
+981b5fe1d1a9 Revert "arm64: dts: qcom: shikra: correct RPM tags for iris interconnects"
+5fcfc2364b29 Revert "arm64: dts: qcom: shikra: enable USB-C port handling"
+baa2242ea752 Revert "arm64: dts: qcom: Add QUPv3 configuration for Shikra"
+ab018d2730d5 Revert "arm64: dts: qcom: shikra-evk: Enable Iris core"
+9f87d625ee16 Revert "arm64: dts: qcom: shikra: Add Iris video codec node"
+bf8f34fd8c13 Revert "arm64: dts: qcom: shikra: enable WiFi on EVK boards"
+5eb4992475dc Revert "arm64: dts: qcom: shikra: add WiFi node support"
+2baf9544d2ae Revert "arm64: dts: qcom: Add clock nodes for adreno smmu"
+5866d3e56167 Revert "arm64: dts: qcom: Add DISPCC and GPUCC nodes support"
+11a4aa88d9cd Revert "arm64: dts: qcom: shikra: Add PMIC thermal and ADC support"
+becb8d9b8602 Revert "arm64: dts: qcom: shikra: Add firmware-name to QUPv3 nodes"
+a642847192f0 Revert "arm64: dts: qcom: shikra: Enable TSENS and thermal zones"
+6c692fce03bf Revert "arm64: dts: qcom: shikra: Add SMP2P nodes"
+5d80a2837a7f Revert "arm64: dts: qcom: shikra: Add cpufreq scaling node"
+8987e89ff115 Revert "arm64: dts: qcom: Add USB changes for Shikra"
+71288629534d Revert "arm64: dts: qcom: Add SD Card support for shikra SoC"
+97b532921b5f Revert "arm64: dts: qcom: Enable eMMC for shikra EVK"
+ec147c3a9d9c Revert "arm64: dts: qcom: Add eMMC support for shikra SoC"
+a19eb514ddc1 Revert "arm64: dts: qcom: Add QUPv3 UART console node for shikra"
+80438ad46ee4 Revert "arm64: dts: qcom: shikra: Add download mode support"
+dd51dbce1f7c Revert "arm64: dts: msm: add interconnect devices for Shikra"
+1690cf38bd12 Revert "arm64: dts: qcom: shikra: Add TCSR mutex hwlock support"
+481d947a55c5 Revert "arm64: dts: qcom: shikra: Add watchdog node"
+acad4acbbadd Revert "dt-bindings: watchdog: qcom-wdt: Document Shikra watchdog"
+ac25ccb19c96 Revert "arm64: dts: qcom: Add regulator for Retail and Industrial SOM variants"
+6f340363a8f5 Revert "arm64: dts: qcom: Add RPM power domain controller for shikra"
+d323163db1ce Revert "arm64: dts: qcom: Add SPMI bus controller for Shikra"
+c1c94014f00f Revert "arm64: dts: qcom: Add GCC and RPMCC node support"
+c4ceb65b80fe Revert "arm64: defconfig: Enable GCC on Shikra EVK boards"
+cddb0f6cdbea Revert "clk: qcom: Add support for Global clock controller on Shikra"
+ea03a5eca10d Revert "clk: qcom: smd-rpm: Add clocks for Shikra"
+081624946ba9 Revert "dt-bindings: clock: qcom: Add GCC clocks for Shikra"
+4ffb3e247bce Revert "dt-bindings: clock: qcom,rpmcc: Add Shikra compatible"
+a18eed918de0 Revert "arm64: dts: qcom: Add RPM SMD, LPM stats and MPM devices for shikra"
+304f5ce654f5 Revert "dt-bindings: soc: qcom: qcom,smd-rpm: Add compatible for Shikra"
+ef89d184a2fd Revert "dt-bindings: mailbox: qcom: Add the Shikra APCS compatible"
+f0f825fdd6bd Revert "dt-bindings: nvmem: qfprom: Add Shikra compatible"
+57c28b7c70c1 Revert "arm64: dts: qcom: Shikra: Add qfprom node"
+44741c4edb65 Revert "arm64: dts: qcom: Add RPM GLINK transport nodes"
+637989ca6d09 Revert "dt-bindings: mailbox: qcom,apcs-kpss-global: Add Shikra compatible"
+ba75f2576fd9 Revert "arm64: dts: qcom: Shikra: add smmu nodes"
+bc4ec1c0f3a3 Revert "mailbox: qcom-apcs-ipc-mailbox: Add compatible string"
+7279ee0bfe7e Revert "dt-bindings: arm-smmu: Add adreno-smmu compatible for Shikra SoC"
+096346c429e3 Revert "arm64: dts: qcom: Shikra: Add reserved memory nodes"
+5cd5150dfce0 Revert "soc: qcom: rpmpd: Add Shikra RPM compatiable"
+56642674f225 Revert "regulator: qcom_smd: Add PM8150 regulators"
+a8c0677f6735 Revert "soc: qcom: rpmpd: Add Shikra RPM support"
+291c01f36790 Revert "dt-bindings: power: qcom,rpmpd: document the Shikra RPM Power Domains"
+df94422118a2 Revert "arm64: dts: qcom: Add Shikra EVK boards"
+94ec9f13bfc2 Revert "arm64: dts: qcom: Add Shikra IoT SoM platforms"
+9aa444f1c3f2 Revert "arm64: dts: qcom: Introduce Shikra Soc base dtsi"
+65209ce0bd92 Revert "pinctrl: qcom: Add Shikra pinctrl driver"
+e6556fd879c7 Revert "dt-bindings: pinctrl: Document the Shikra Top Level Mode Multiplexer"
+a9661f9e7027 Revert "dt-bindings: sram: qcom,imem: Add the Shikra compatible"
+49914d8b2314 Revert "dt-bindings: arm: qcom: Document Shikra and its evk boards"
+ac9b28dd7efc Revert "dt-bindings: firmware: qcom,scm: Document SCM on Shikra SoC"
+f16d2930cefe Revert "dt-bindings: arm-smmu: Add compatible for Shikra SoC"
+5b228944901c Revert "soc: qcom: socinfo: Add SoC ID for Shikra IoT variants"
+fd69647071bc Revert "dt-bindings: arm: qcom,ids: Add SoC ID for Shikra IoT variants"
+769f54681499 Revert "FROMLIST: dt-bindings: arm: qcom: Add monaco-ac-evk support"
+8b32c6d31aa2 UPSTREAM: regulator: qcom_smd: Add PM8150 regulators
+62aa7a1e6372 UPSTREAM: dt-bindings: cache: qcom,llcc: Document Shikra LLCC
+dd115bdeb82e UPSTREAM: dt-bindings: arm: qcom,ids: Add SoC ID for Shikra IoT variants
+e2c761be6152 UPSTREAM: soc: qcom: socinfo: Add SoC ID for Shikra IoT variants
+fe064fea8af4 UPSTREAM: dt-bindings: interconnect: document the RPM Network-On-Chip interconnect in Shikra SoC
+88accd824cf3 UPSTREAM: interconnect: qcom: add Shikra interconnect provider driver
+1057e012c687 UPSTREAM: dt-bindings: watchdog: qcom-wdt: Document Shikra watchdog
+38371fa94161 UPSTREAM: dt-bindings: mailbox: qcom: Add Shikra APCS compatible
+d1ac84842488 UPSTREAM: dt-bindings: arm-smmu: qcom: Add compatible for Qualcomm Shikra SoC
+ab0f6b5e8c54 UPSTREAM: dt-bindings: pinctrl: qcom: Document Shikra Top Level Mode Multiplexer
+74c4adbf89f7 UPSTREAM: pinctrl: qcom: Add Shikra pinctrl driver
+45155966911a UPSTREAM: dt-bindings: mmc: sdhci-msm: Document the Shikra compatible
+7e9f5fc24412 UPSTREAM: dt-bindings: arm-smmu: Correct and add constraints for Hawi, Shikra and Kaanapali
+30c0b3b818ba UPSTREAM: dt-bindings: thermal: qcom-tsens: Document the Shikra Temperature Sensor
+b28abca5a13e UPSTREAM: dt-bindings: power: qcom,rpmpd: document the Shikra RPM Power Domains
+d2db8acdb6b3 UPSTREAM: pmdomain: qcom: rpmpd: Add Shikra RPM Power Domains
+acbde6b48646 UPSTREAM: dt-bindings: cpufreq: Document Qualcomm Shikra SoC EPSS
+f49bcbc4aa01 UPSTREAM: cpufreq: qcom: Add cpufreq scaling support for Qualcomm Shikra SoC
+82aa793465b1 UPSTREAM: dt-bindings: remoteproc: Add Shikra RPM processor compatible
+020e71663abf UPSTREAM: dt-bindings: remoteproc: qcom,shikra-pas: Document Shikra PAS remoteprocs
+16bb306b6ac7 UPSTREAM: remoteproc: qcom: pas: Add Shikra remoteproc support
+697bb9d6229a UPSTREAM: dt-bindings: i2c: qcom-cci: Document Shikra compatible
+07635251a6f1 UPSTREAM: dt-bindings: dma: qcom,gpi: Document GPI DMA engine for Shikra SoC
+bcec61d56351 UPSTREAM: dt-bindings: soc: qcom: smd-rpm: Add Shikra rpm-smd compatible
+fd7ce621be4a UPSTREAM: dt-bindings: interconnect: qcom,osm-l3: Add EPSS L3 DT binding for Qualcomm Shikra SoC
+3d6a2fe50078 UPSTREAM: interconnect: qcom: Add EPSS L3 scaling support for Shikra SoC
+913f9b902cd4 UPSTREAM: soc: qcom: llcc: Add configuration data for Shikra SoC
+9679e77424b6 UPSTREAM: dt-bindings: clock: qcom,rpmcc: Add Qualcomm Shikra SoC RPMCC
+76e917b9db48 UPSTREAM: dt-bindings: clock: qcom: Add Qualcomm Shikra SoC Global Clock Controller
+23581e4765fa UPSTREAM: clk: qcom: smd-rpm: Add missing RF_CLK1/RF_CLK2 clocks support on Agatti
+29177d46d83e UPSTREAM: clk: qcom: Add Global clock controller support on Qualcomm Shikra SoC
+cff3425ed55c UPSTREAM: arm64: defconfig: Enable Qualcomm BAM-DMUX WWAN driver
+76793875d6a0 UPSTREAM: soc: qcom: ubwc: Add Shikra UBWC config
+fb186d422a7c UPSTREAM: dt-bindings: dma: qcom,bam-dma: Increase iommus maxItems to 7
+d01db44a1283 UPSTREAM: dt-bindings: firmware: qcom,scm: Document SCM on Shikra SoC
+5784a27e8235 UPSTREAM: dt-bindings: interconnect: qcom-bwmon: Add Shikra cpu-bwmon compatible
+7b8decaebce0 UPSTREAM: remoteproc: qcom_q6v5_pas: Create platform device for BAM-DMUX
+6725975bec16 UPSTREAM: dt-bindings: arm: qcom: Document Shikra and its EVK boards
+10b307e7ec87 UPSTREAM: arm64: dts: qcom: Introduce Shikra SoC base dtsi
+09b41335e530 UPSTREAM: arm64: dts: qcom: Add Shikra CQ2390M SoM platform
+4ff26a9f9543 UPSTREAM: arm64: dts: qcom: Add Shikra IQ2390S SoM platform
+23fa4c80bece UPSTREAM: arm64: dts: qcom: Add Shikra EVK boards
+9e6545c1dffb UPSTREAM: dt-bindings: sram: Document qcom,shikra-imem compatible
+718d109cac1b UPSTREAM: dt-bindings: usb: qcom,snps-dwc3: Add Shikra compatible
+cbbf3a5f17e8 UPSTREAM: dt-bindings: nvmem: qcom,qfprom: Add Shikra compatible
+8471507f78ec UPSTREAM: soc: qcom: llcc: Skip ECC interrupt setup on Shikra, pre-configured by DSF
+22822c3903d8 UPSTREAM: drm/msm/adreno: Add support for A704 GPU
+d74172049726 UPSTREAM: dt-bindings: display/msm/gpu: Add support for A704 GPU
+d0c6039cbb41 UPSTREAM: dt-bindings: arm-smmu: Document GPU SMMU for Shikra SoC
+b59cd4383dc5 UPSTREAM: dt-bindings: phy: qcom,qusb2: Document QUSB2 Phy for Shikra
+ad4baa88122f UPSTREAM: dt-bindings: phy: qcs615-qmp-usb3dp: Add support for Shikra SoC
+7fb5481f4904 UPSTREAM: phy: qcom: qmp-usbc: Simplify check for non-NULL pointer
+2f46ad9ab3e8 UPSTREAM: phy: qcom-qmp: Add missing QSERDES COM v2 registers
+058790e33afb UPSTREAM: phy: qcom-qmp: Use explicit QSERDES COM v2 register definitions
+18f94f03501f UPSTREAM: phy: qcom-qmp-usbc: Use register definitions in qserdes-txrx-v3
+fc2d210c40d7 UPSTREAM: phy: qcom-qmp-usbc: Rename QCS615 DP PHY variables and functions
+2c6c99d2df3b UPSTREAM: phy: qcom: qmp-usbc: Add qmp configuration for Shikra
+ff31e5570f00 UPSTREAM: phy: qcom-qusb2: Add support for Shikra
+5218910f7ef3 UPSTREAM: ASoC: dt-bindings: qcom,q6apm-lpass-dais: Document DAI subnode
+8494546de637 UPSTREAM: dt-bindings: crypto: qcom,inline-crypto-engine: Document Shikra ICE
+7c96933de597 UPSTREAM: dt-bindings: crypto: qcom,prng: Document Shikra TRNG
+bfbb9123c162 UPSTREAM: dt-bindings: crypto: qcom-qce: Document the Shikra crypto engine
+84a08d81e2a1 UPSTREAM: dt-bindings: arm: qcom-soc: Include Eliza, Kaanapali and others in SoC names
+2f0f8eff67bd UPSTREAM: dt-bindings: arm: qcom-soc: Document more of existing legacy style compatibles
+505d5cbeadbd UPSTREAM: dt-bindings: media: qcom: Add Shikra CAMSS compatible
+c50796c7f693 UPSTREAM: dt-bindings: mfd: qcom,tcsr: Add compatible for Shikra
+3909df723591 UPSTREAM: arm64: dts: qcom: Update spmi-pmic-arb interrupt trigger for shikra
+df80c87a191b UPSTREAM: clk: qcom: gcc-shikra: Add additional frequencies for EMAC RGMII clocks
+afafbbabe24e UPSTREAM: clk: qcom: Fix test_ctl_hi field for DEFAULT_EVO PLLs
+6accf39d4ced UPSTREAM: dt-bindings: clock: qcom: Add Qualcomm Shikra AudioCoreCC and AudioCoreCSR
+2cf147e5dddc UPSTREAM: clk: qcom: Add Audio Core clock controller support on Qualcomm Shikra SoC
+087aac7291a9 UPSTREAM: dt-bindings: clock: qcom,qcm2290-dispcc: Add missing power-domains property
+5b5ea217945a UPSTREAM: clk: qcom: gcc-qcm2290: Keep the critical clocks always-on from probe
+e587a517ce5a UPSTREAM: clk: qcom: dispcc-qcm2290: Move to the latest common qcom_cc_probe() model
+01dcecc86a63 UPSTREAM: clk: qcom: gpucc-qcm2290: Move to the latest common qcom_cc_probe() model
+8fb8cae400b5 UPSTREAM: dt-bindings: clock: qcom: Add Qualcomm Shikra Display clock controller
+fd6fcbbcfabe UPSTREAM: dt-bindings: clock: qcom: Add Qualcomm Shikra GPU clock controller
+1c4d214084f6 UPSTREAM: pinctrl: qcom: shikra: Fix intr_target_width for summary interrupt routing
+2586c2c05458 UPSTREAM: dt-bindings: display: msm: qcm2290: Add Shikra MDSS
+4052b6719cf4 UPSTREAM: arm64: dts: qcom: shikra: Add QUPv3 configuration
+0ebfee88e23c UPSTREAM: arm64: dts: qcom: shikra: Add DDR BWMON support
+d58451f4f8b2 UPSTREAM: arm64: dts: qcom: shikra: Add cpufreq-hw, EPSS L3 interconnect and OPP tables
+d84289f25452 UPSTREAM: arm64: dts: qcom: shikra: Add SMP2P nodes
+30a7395d7295 UPSTREAM: arm64: dts: qcom: shikra: Add CDSP, LPAICP, MPSS remoteproc PAS nodes
+464ce99b4136 UPSTREAM: arm64: dts: qcom: shikra: Enable CDSP, LPAICP and MPSS on EVK boards
+619adbda94ed UPSTREAM: arm64: dts: qcom: shikra: Enable TSENS and thermal zones
+b5f9b120276b UPSTREAM: arm64: dts: qcom: shikra: add WiFi node support
+4a2f9b94d7aa UPSTREAM: arm64: dts: qcom: shikra: Enable WiFi/BT on SoMs
+5f969973b964 UPSTREAM: arm64: dts: qcom: shikra: Add gpio-reserved-ranges to tlmm
+e49472d8f9cd UPSTREAM: clk: qcom: Add support for Qualcomm GPU Clock Controller on Shikra
+6da826bffc8e UPSTREAM: arm64: dts: qcom: shikra: Add support for DISPCC/GPUCC nodes
+117bb976f068 UPSTREAM: ASoC: qcom: qdsp6: add topology-driven Audio IF support
+4ad17487008f UPSTREAM: dt-bindings: arm: qcom: Add monaco-ac-evk support
+d35100e2add9 FROMLIST: interconnect: qcom: Enable Shikra interconnect driver by default for ARCH_QCOM
+bcf2b3dabac8 FROMLIST: arm64: dts: qcom: shikra: Add support for DISPCC/GPUCC nodes
+dd13c6263b17 FROMLIST: misc: fastrpc: Add cache maintenance for non-coherent platforms
+ec34b0be4eb1 FROMLIST: arm64: dts: qcom: shikra: Add support for AudioCoreCC and AudioCoreCSR nodes
+d609ab7a0a25 FROMLIST: arm64: dts: qcom: Add support for usb nodes on Shikra
+cd0dcbe9b5c2 FROMLIST: arm64: dts: qcom: Enable USB controllers on Shikra platforms
+54fd57daa4ae FROMLIST: arm64: dts: qcom: shikra: Add CAMSS node
+e5c0747082d0 FROMLIST: arm64: dts: qcom: shikra: Add CCI definitions
+479089744948 FROMLIST: arm64: dts: qcom: shikra: Add pin configuration for mclks
+e3a92807fa3a FROMLIST: arm64: dts: qcom: shikra-cqm-cqs-evk-imx577-camera: Add DT overlay
+99454dd91b75 FROMLIST: arm64: dts: qcom: shikra-iqs-evk-imx577-camera: Add DT overlay
+b1dbf319cd1f FROMLIST: arm64: dts: qcom: shikra: Add MDSS display subsystem
+f34763f1b101 FROMLIST: arm64: dts: qcom: shikra-cqs-evk: Enable display and add ili7807s panel
+b25fbd539212 FROMLIST: arm64: dts: qcom: shikra-cqm-evk: Enable display and add ili7807s panel
+ae1c59f23864 FROMLIST: arm64: defconfig: Enable ILI7807S DSI panel driver
+dbf86a21b878 FROMLIST: arm64: dts: qcom: shikra: Add Adreno SMMU node
+06e733065e01 FROMLIST: arm64: dts: qcom: shikra: Add A704 GPU support
+bc5d4dde4761 FROMLIST: arm64: dts: qcom: shikra: Add GPU cooling
+425891bcd348 FROMLIST: arm64: dts: qcom: shikra-evk: Enable A704 GPU
+f981887cc66c FROMLIST: dt-bindings: media: qcom,venus-common: Add IOMMU IOVA reservation region
+42a101374cf6 FROMLIST: dt-bindings: media: qcom,qcm2290-venus: document shikra venus compatible
+32177efa2ae7 FROMLIST: arm64: dts: qcom: shikra: Add Iris video codec node
+8f32d1eb6c5c FROMLIST: arm64: dts: qcom: shikra-evk: Enable Iris core
+73a18a2e5094 FROMLIST: dt-bindings: soc: qcom: stats: Add compatible for Shikra
+1ece6aa1af5d FROMLIST: soc: qcom: stats: Add stats compatible and config for Shikra
+42f237407ce7 FROMLIST: arm64: dts: qcom: shikra: Update rpm-stats compatible to SoC specific
+0a8d5241bd53 FROMLIST: soc: qcom: pd-mapper: Add support for the Qualcomm Shikra SoC
+0906adbf7a85 FROMLIST: arm64: dts: qcom: shikra: Add ICE, TRNG and QCE nodes
+39ec168db46a FROMLIST: dmaengine: qcom: bam_dma: Defer IRQ trigger type to device tree
+6c2cf8507c9c FROMLIST: dt-bindings: phy: sc8280xp-qmp-pcie: Document Shikra PCIe phy
+76126a94df29 FROMLIST: dt-bindings: PCI: qcom: Document the Shikra PCIe Controller
+1a158863ec67 FROMLIST: dt-bindings: PCI: Add bindings for endpoint gpios
+b00752f62e20 FROMLIST: PCI: qcom: Add support for Shikra
+bbdf39176000 FROMLIST: phy: qcom: qmp-pcie: Add QMP PCIe PHY support for Shikra
+80a2d7fcebf0 FROMLIST: arm64: dts: qcom: shikra: Add PCIe PHY and controller nodes
+bcabfc0f0b1b FROMLIST: arm64: dts: qcom: shikra-evk: Add TC9563 PCIe switch node for PCIe
+daa47dcf4d16 FROMLIST: arm64: dts: qcom: shikra-(cqm/cqs/iqs)-evk: Enable PCIe PHY node
+9ee83d009dc3 FROMLIST: dt-bindings: net: qcom,bam-dmux: Add qcom,shikra-bam-dmux compatible
+260cc2a7b526 FROMLIST: net: wwan: qcom_bam_dmux: Alloc RX buffers as a single coherent block
+9afacf47a813 FROMLIST: dt-bindings: dma: qcom,bam-dma: Add optional qcom,vmid property
+53f6f3bb7e8b FROMLIST: dmaengine: qcom: bam_dma: SCM-assign descriptor FIFOs to a remote VMID
+2b7d7f99dcbe FROMLIST: arm64: dts: qcom: Add SD Card support for Shikra SoC
+94191ffceca5 FROMLIST: arm64: dts: qcom: Enable SD card for Shikra EVK
+2701f92e5e45 FROMLIST: arm64: dts: qcom: pm4125: Add VADC and temp alarm nodes
+07c93d1e89b5 FROMLIST: arm64: dts: qcom: pm8005: Add temp alarm node
+f99473a3a5e3 FROMLIST: arm64: dts: qcom: Add PMIC thermal support for Shikra CQ2390M SoM platform
+f27701612b51 FROMLIST: arm64: dts: qcom: Add PMIC thermal support for Shikra IQ2390S SoM platform
+fd627a65eb7c FROMLIST: arm64: dts: qcom: shikra-cqs/cqm: Add Type-C support on primary controller
+d3042668361e FROMLIST: dt-bindings: arm: qcom,coresight-ctcu: Add Shikra
+89ad9816ee2c FROMLIST: arm64: dts: qcom: shikra: Add coresight nodes
+9d1b9bebc340 FROMLIST: dt-bindings: net: ti,dp83867: add supply properties
+ba76a274089c FROMLIST: net: phy: dp83867: add regulator supply management
+b6f874980eba FROMLIST: dt-bindings: net: qcom,ethqos: add qcom,shikra-ethqos compatible
+8013408c57e6 FROMLIST: net: stmmac: qcom-ethqos: convert ethqos_rgmii_macro_init() to void
+13cf54bc2d19 FROMLIST: net: stmmac: qcom-ethqos: fix RGMII_ID mode to use DLL bypass
+4283ca1840dd FROMLIST: net: stmmac: qcom-ethqos: warn about legacy RGMII PHY modes
+0dd76a05fb4a FROMLIST: net: stmmac: qcom-ethqos: set initial RGMII link clock to lowest speed
+baa4ad3a3b91 FROMLIST: net: stmmac: qcom-ethqos: add per-platform NOC clock voting
+b36436307d90 FROMLIST: net: stmmac: qcom-ethqos: add Shikra EMAC support
+9ad1d8f37d60 FROMLIST: arm64: dts: qcom: shikra-iqs-som: fix GPIO138 reservation
+f5dd0d5b76ad FROMLIST: arm64: dts: qcom: shikra: add ethernet nodes
+7fed28bed249 FROMLIST: arm64: dts: qcom: shikra-cqm-evk: enable the first Ethernet port
+d5ca2ef8eafd FROMLIST: arm64: dts: qcom: shikra-cqs-evk: enable the first Ethernet port
+f944eeafca63 FROMLIST: arm64: dts: qcom: shikra-iqs-evk: enable both Ethernet ports
+a9804caf490c FROMLIST: dt-bindings: crypto: Adjust Shikra compatible hierarchy
+287e3196061d FROMLIST: arm64: dts: qcom: shikra: Correct QCE node configuration
+0f3e2020ba2d FROMLIST: dt-bindings: soc: qcom: stats: Support fallback compatible for RPM targets
+dec173ce0a1c FROMLIST: clk: qcom: smd-rpm: Skip proxy votes on clocks for QCM2290
+791951e06b4a FROMLIST: dt-bindings: interrupt-controller: mpm: Document power-domains property
+fe26ba45f4fd FROMLIST: irqchip/irq-qcom-mpm: Register MPM under CPU cluster power domain
+9b77d0ba716e FROMLIST: irqchip/irq-qcom-mpm: Prepare common access path for timer and pin regs
+fbb8821c3985 FROMLIST: irqchip/irq-qcom-mpm: Program wakeup timer when CPU cluster goes to LPM
+512e3d9c7875 FROMLIST: arm64: dts: qcom: shikra: Add CPU idle states
+68d025a6c9b1 FROMLIST: drm/msm/dpu: keep SSPP priority order for split planes on DPU < 5.0
+a8e986fbbf0d FROMLIST: drm/msm/dpu: add SSPP op to program the source split order
+6cbbc1370c1d FROMLIST: drm/msm/dpu: program the source split order for split planes
+7f7f1ff31e14 FROMLIST: drm/msm/dpu: add source split order op for DPU 13.x
+9a7c3634deee FROMLIST: dt-bindings: usb: Add Cypress cypd6129/cypd6229 Type-C controller
+e11605cac30b FROMLIST: usb: typec: ucsi: ccg: Add support for cypd6129/cypd6229
+fe29d97f1d4f FROMLIST: phy: qcom: qmp-usbc: Add qmp configuration for Shikra
+a11e0c87f80a FROMLIST: arm64: dts: qcom: shikra: Wire up usb-role-switch for USB Type-C ports
+0eb5564090f1 FROMLIST: interconnect: qcom: Make important drivers default
+6d4f14c36ca9 FROMLIST: interconnect: qcom: Add missing depends to Hawi, Maili, Nord and Shikra
+4d8a44336e5f FROMLIST: soc: qcom: geni-se: Correct QUP Core ICC vote constants
+2a4602c97b31 FROMLIST: tty: serial: qcom_geni_serial: Keep console RX functional after deep idle
+d82b1b55e99a config: Compile shikra interconnect driver as built-in
+11da7b3f9388 WORKAROUND: iommu/arm-smmu: Work around Qualcomm SMMU-500 TLBIVAL granule issue
+86e1ff301ef3 WORKAROUND: iommu/arm-smmu: Extend TLBIVAL granule workaround to x1e80100
+53c0224597e5 PENDING: arm64: dts: qcom: Add EL2 support for Iris for kodiak Add support for IRIS on kodiak when Linux host running at EL2.
+45047f4e4b23 Revert "FROMLIST: arm64: dts: qcom: Add Advantech SOM-DB5830"
+167711494809 UPSTREAM: arm64: dts: qcom: hamoa: Add Advantech SOM-DB5830
+0784d4a82b37 UPSTREAM: wifi: ath12k: factor out peer assoc send-and-wait into a helper
+a4c1b8095540 UPSTREAM: wifi: ath12k: keep ATH12K_PEER_ML_ID_VALID set in ath12k_sta::ml_peer_id
+5106331d0ddc UPSTREAM: wifi: ath12k: add support for HTT_T2H_MSG_TYPE_MLO_RX_PEER_MAP
+b73c9379357d UPSTREAM: wifi: ath12k: introduce host_alloc_ml_id hardware parameter
+caab7d79f4e5 UPSTREAM: wifi: ath12k: do not advertise MLD peer ID for firmware-allocate devices
+b293001cec0a UPSTREAM: wifi: ath12k: defer dp_peer registration when firmware allocates MLD peer ID
+9d7d25b84c01 UPSTREAM: wifi: ath12k: resolve PENDING ML peer ID from MLO_PEER_MAP HTT event
+ae4751f3a29b FROMLIST: wifi: ath12k: fix MLO 4-way handshake timeout on QCC2072
+04a8d610c0d3 FROMLIST: wifi: ath12k: Fix missing station power save configuration
+626f0e800ca8 UPSTREAM: wifi: ath12k: Set DTIM policy to stick mode for station interface
+46646deb5baa UPSTREAM: wifi: ath10k: filter non-UTF testmode events
+cdcd8e5c1fef UPSTREAM: wifi: ath11k: fix sporadic WLAN initialization failures
+7dbd4236136d UPSTREAM: wifi: ath11k: fix NULL dereference in ahb remove when QMI init incomplete
+1f58bf7cc203 UPSTREAM: wifi: ath11k: unregister PM notifier on QMI init failure path
+337e0f458f5f FROMLIST: PCI: qcom: Disable halting feature
+7644df0fe0bb UPSTREAM: wifi: ath11k: implement CE interrupt enable/disable for AHB
+8f5206b505a7 UPSTREAM: wifi: ath11k: disable interrupts during firmware crash recovery
+8eedf2ef60de UPSTREAM: wifi: ath11k: fix unbalanced IRQ enable/disable during suspend/resume
+c472a9f9c074 FROMGIT: drm/msm/dpu: enable virtual planes by default
+3f63f9c876d7 debian: rules.d: 2-binary-arch: Remove qcom-wdt from blacklist
+a9d9c4104d18 clk: qcom: Restore Nord GCC Kconfig and Makefile entries
+4265d579d63d UBUNTU: [Config] update configs for the Shikra re-port
+e797bedb0c9a ci: add CODEOWNERS
+c0659bceee06 config: enable qcom memory_dump
+6423088ee394 UPSTREAM: wifi: ath12k: Use different RX release ring sizes as per memory profiles
+37c27f2ef7fe UPSTREAM: wifi: ath12k: move dp_profile_params to dp.h
+c0f44e1f1b1e UPSTREAM: wifi: ath12k: convert DP_TX_COMP_RING_SIZE to inline helper
+21f757c4dc68 UPSTREAM: wifi: ath12k: convert DP_RXDMA_MONITOR_BUF_RING_SIZE to inline helper
+0a44414220f5 UPSTREAM: wifi: ath12k: convert DP_RXDMA_MONITOR_DST_RING_SIZE to inline helper
+a4921506a57e UPSTREAM: wifi: ath12k: convert ATH12K_NUM_POOL_TX_DESC to inline helper
+6f7eccde27c0 UPSTREAM: wifi: ath12k: convert ATH12K_RX_DESC_COUNT to inline helper
+44dffaa7ce77 UPSTREAM: wifi: ath12k: convert DP_RX_RELEASE_RING_SIZE to inline helper
+00b45c4152a4 UPSTREAM: wifi: ath12k: Make RXDMA buffer ring size configurable per memory profile
+2525eb7092c7 UPSTREAM: wifi: ath12k: Increase RXDMA buffer ring size for default memory profile
+8a1470283647 FROMLIST: arm64: dts: qcom: kodiak: Make the ADSP remote heap no-map
+1be9c476a180 FROMLIST: arm64: dts: qcom: sm8750: Make the ADSP remote heap no-map
+848e9209e9e3 ci: stop passing suite to the pre-merge build

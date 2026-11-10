@@ -1,0 +1,8 @@
+# Residual reverts folded into other commits
+# 6 commits (SHAs on qcom-collapsed-full)
+e7477d371747 Revert "FROMLIST: media: qcom: venus: flip the venus/iris switch"
+ebbbee012e93 Revert "FROMLIST: media: qcom: iris: split platform data from firmware data"
+1180d071b9a1 Revert "Synchronize with Qualcomm config"
+42f6ed8cfc09 Revert "FROMLIST: PCI: qcom: Power down PHY via PARF_PHY_CTRL before disabling rails/clocks"
+5da6242d2711 Revert "FROMLIST: arm64: dts: qcom: monaco-evk: Enable SDHCI for SD Card via overlay"
+ea568187f450 Revert "PENDING: media: qcom: iris: move hwmode setup into power_on_hw sequence"

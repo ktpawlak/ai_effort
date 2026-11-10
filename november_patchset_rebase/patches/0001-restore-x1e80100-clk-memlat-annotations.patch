@@ -1,0 +1,54 @@
+From 17a22f11567112b3f77e88b98df9e4f43e02d7be Mon Sep 17 00:00:00 2001
+From: Kuba Pawlak <kuba.pawlak@canonical.com>
+Date: Tue, 10 Nov 2026 16:42:24 +0100
+Subject: [PATCH] UBUNTU: [Config] qcom: restore x1e80100 builtin clock
+ controllers and MEMLAT=m
+
+The 1010.13 port of "Synchronize with Qualcomm config" dropped Ubuntu
+annotations while resolving conflicts:
+
+- CLK_X1E80100_{CAMCC,DISPCC,GPUCC}=y from "UBUNTU: [Config] qcom: build
+  x1e80100 camcc/dispcc/gpucc/videocc in" (TLB-sync deadlock fix), which
+  fell back to the generic 'm';
+- SCMI_QCOM_MEMLAT_DEVFREQ=m from "UBUNTU: [Config] change
+  CONFIG_MEMLAT_DEVFREQ to m", which went back to 'y'.
+
+Restore them.
+
+Signed-off-by: Kuba Pawlak <kuba.pawlak@canonical.com>
+---
+ debian.qcom/config/annotations | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/debian.qcom/config/annotations b/debian.qcom/config/annotations
+index ee2005fe1277..cba2d8e93653 100644
+--- a/debian.qcom/config/annotations
++++ b/debian.qcom/config/annotations
+@@ -21,6 +21,15 @@ CONFIG_ARM_SMMU_DISABLE_BYPASS_BY_DEFAULT       note<'LP: #2102032'>
+ CONFIG_CHR_DEV_SG                               policy<{'arm64': 'y', 'arm64-qcom': 'm'}>
+ CONFIG_CHR_DEV_SG                               note<'TODO: update note'>
+ 
++CONFIG_CLK_X1E80100_CAMCC                       policy<{'arm64': 'y'}>
++CONFIG_CLK_X1E80100_CAMCC                       note<'builtin: apps_smmu camera TBU GDSC must register before built-in clients probe to avoid TLB-sync deadlock'>
++
++CONFIG_CLK_X1E80100_DISPCC                      policy<{'arm64': 'y'}>
++CONFIG_CLK_X1E80100_DISPCC                      note<'builtin: apps_smmu display TBU GDSC must register before built-in clients probe to avoid TLB-sync deadlock'>
++
++CONFIG_CLK_X1E80100_GPUCC                       policy<{'arm64': 'y'}>
++CONFIG_CLK_X1E80100_GPUCC                       note<'builtin: GPU TBU GDSC must register before built-in clients probe to avoid TLB-sync deadlock'>
++
+ CONFIG_DRM_AMDGPU_CIK                           policy<{'arm64': '-'}>
+ CONFIG_DRM_AMDGPU_CIK                           note<'for zesty'>
+ 
+@@ -2047,7 +2056,7 @@ CONFIG_SAMPLE_CORESIGHT_SYSCFG                  policy<{'arm64': 'n'}>
+ CONFIG_SATA_AHCI_SEATTLE                        policy<{'arm64': '-'}>
+ CONFIG_SATA_RCAR                                policy<{'arm64': '-'}>
+ CONFIG_SC27XX_ADC                               policy<{'arm64': '-'}>
+-CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ                 policy<{'arm64': 'y'}>
++CONFIG_SCMI_QCOM_MEMLAT_DEVFREQ                 policy<{'arm64': 'm'}>
+ CONFIG_SCSI_UFS_AMD_VERSAL2                     policy<{'arm64': '-'}>
+ CONFIG_SCSI_UFS_HISI                            policy<{'arm64': '-'}>
+ CONFIG_SCSI_UFS_MEDIATEK                        policy<{'arm64': '-'}>
+-- 
+2.43.0
+

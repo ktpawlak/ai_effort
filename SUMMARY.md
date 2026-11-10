@@ -13,6 +13,7 @@ directory (and its `analysis.md` / `README.md`) for full detail.
 | [2146501](2146501_dmesg_inspect_cpu_opp_fixes/) | CPU OPP / frequency fixes from dmesg inspection | QCS8300 | Patches drafted |
 | [2153998](2153998_june_patchset_rebase/) | June Qualcomm patchset rebase (7.0-rc6 → 7.1-rc2) | Ubuntu qcom tree | Completed + guide |
 | [2158071](2158071_july_patchset_rebase/) | July Qualcomm patchset rebase (7.1-rc2 → 7.1-rc6) | Ubuntu qcom tree | Completed |
+| [—](november_patchset_rebase/) | November Qualcomm patchset rebase (`resolute-qcom-20261030` onto 44.44) + revert collapsing | Resolute qcom 7.0 | Ported; collapsed branches pending decision |
 | [2163331](2163331_pcie_refgen/) | PCIe5 needs L7A (refgen) vote | Monza / RB4 | Draft reply + patch |
 | [2165440](2165440/) | Rebase conflict-resolution audit (6.8.0-1084.89) | Noble / cranky-qcom | 4 defects fixed |
 
@@ -72,6 +73,18 @@ investigations.
 Delta rebase of only the new Qualcomm work since the June effort; Ubuntu tree
 stays on the 7.0 base. Followed the June guide's methodology on a dedicated test
 branch.
+
+### november_patchset_rebase — November Qualcomm patchset (resolute-qcom-20261030)
+Ported Qualcomm's delivery (`Ubuntu-qcom-7.0.0-1016.19..resolute-qcom-20261030`,
+434 commits, 420 applied) onto Resolute qcom `master-next` (rebased on
+`Ubuntu-7.0.0-44.44`). Built three revert-collapsed history alternatives, all
+with a tree identical to `master-next`. The last, `qcom-collapsed-folded`, goes
+from 262 to 4 reverts by folding the residual reverts into the commits they fix.
+Residual analysis found bad conflict resolutions in earlier ports. They
+**dropped the x1e80100 CAMCC/DISPCC/GPUCC=y and MEMLAT=m annotations**, which
+shipped wrongly in 1016.20 and 1018.22 (an annotations patch is proposed). They
+also lost the venus SAUCE `sc8280xp`/`sm8350` entries. Scripts and commit lists
+are included.
 
 ### 2165440 — Rebase conflict-resolution audit (Ubuntu-qcom-6.8.0-1084.89)
 Audit of a Noble `cranky/qcom` rebase onto `Ubuntu-6.8.0-145.145`. Found and

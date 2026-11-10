@@ -1,0 +1,147 @@
+# Commits removed when collapsing all add/revert pairs back to 44.44 (residual reverts kept under their original subject are not listed)
+# 145 commits (SHAs on qcom-collapsed)
+9a87bf233707 arm64: dts: qcom: agatti: enable FastRPC on the ADSP
+9bef9737173b FROMLIST: media: iris: Add platform data for kaanapali
+20c8ac511cff FROMLIST: media: iris: Enable Secure PAS support with IOMMU managed by Linux
+c04796d78f91 QCLINUX: defconfig: enable Crypto and ICE related configs
+310458e33dc4 QCLINUX: Revert "QCLINUX: defconfig: enable Crypto and ICE related configs"
+812aa9533f50 QCLINUX: qcom.config: Enable 39-bit VA space for 4K-page builds
+6d25687196c5 Revert "QCLINUX: qcom.config: Enable 39-bit VA space for 4K-page builds"
+6d8f001d9ecf FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Adjust tsens thermal zone configuration
+82b67b79eb56 WORKAROUND: phy: qcom: qmp-pcie: Add vdda-refgen and vdda-qref supplies for Glymur
+8c538f4d5c9e FROMLIST: dt-bindings: soc: qcom: eud: Restructure to model multi-path hardware
+29c2b152d954 FROMLIST: usb: misc: qcom_eud: add per-path High-Speed PHY control
+941833e03860 FROMLIST: usb: misc: qcom_eud: add per-path role switch support
+2459b0f1e011 FROMLIST: arm64: dts: qcom: kodiak: Align EUD node with binding
+81d7ca1abe5a FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Enable EUD debug functionality
+9ea8265b5a42 Revert "FROMLIST: arm64: dts: qcom: qcs6490-rb3gen2: Enable EUD debug functionality"
+b856a785f3df Revert "FROMLIST: arm64: dts: qcom: kodiak: Align EUD node with binding"
+0530b0c67e57 Revert "FROMLIST: usb: misc: qcom_eud: fix virtual attach/detach event handling"
+3c9682d58e81 Revert "FROMLIST: usb: misc: qcom_eud: add host mode coordination"
+7e932ee9567e Revert "FROMLIST: usb: misc: qcom_eud: improve enable_store API"
+314ef7a7f784 Revert "FROMLIST: usb: misc: qcom_eud: add per-path role switch support"
+8b370d9fc558 Revert "FROMLIST: usb: misc: qcom_eud: add per-path High-Speed PHY control"
+d0aadd1efe90 Revert "FROMLIST: usb: misc: qcom_eud: add sysfs attribute for port selection"
+e726f2fa949a Revert "FROMLIST: dt-bindings: soc: qcom: eud: Restructure to model multi-path hardware"
+300bacc90ee4 FROMLIST: usb: misc: qcom_eud: add sysfs attribute for port selection
+962d2e9e9475 FROMLIST: usb: misc: qcom_eud: improve enable_store API
+eedd2c20577a FROMLIST: usb: misc: qcom_eud: fix virtual attach/detach event handling
+13ac6551d0ab FROMLIST: usb: misc: qcom_eud: add host mode coordination
+264f667fb2cf FROMLIST: usb: dwc3: qcom: notify EUD driver of role changes
+cb8a9bf9e1c0 Revert "arm64: dts: qcom: qcs6490-rb3gen2: Adjust tsens thermal zone"
+3c4787fe37c4 FROMLIST: arm64: dts: qcom: talos: Flatten usb controller nodes
+a7456f637abb FROMLIST: arm64: dts: qcom: talos: Mark usb controllers are wakeup capable devices
+35d5d0a1ae09 Revert "FROMLIST: arm64: dts: qcom: talos: Mark usb controllers are wakeup capable devices"
+e1ea9772f3f5 Revert "FROMLIST: arm64: dts: qcom: talos: Flatten usb controller nodes"
+98752250ed27 FROMLIST: dt-bindings: hwmon: Add qcom,bcl-hwmon yaml bindings
+3157e1a375ac FROMLIST: hwmon: Add Qualcomm PMIC BCL hardware monitor driver
+26f6b192f4d0 WORKAROUND: arm64: dts: qcom: hamoa-iot-evk: support Bluetooth over both USB and UART
+d374470a5e5f WORKAROUND: power: sequencing: qcom-wcn: skip BT devices without bt-enable GPIO
+a8217e316d71 PENDING: media: iris: update MDT PAS load call for new API
+3c9832edff16 QCLINUX: arm64: dts: qcom: workaround for TPM pins
+8a85727bc446 FROMLIST: media: qcom: venus: flip the venus/iris switch
+abd773c7235f FROMLIST: media: iris: add FPS calculation and VPP FW overhead in frequency formula
+b769d5b8e250 PENDING: media: iris: enable sm8550 context banks via init_cb_devs
+6640cb5dcf91 PENDING: media: iris: add context bank devices using iommu-map
+66b00a6e3105 PENDING: media: iris: add helper to select context bank device
+b333fd61f340 FROMLIST: media: qcom: iris: drop pas_id from the iris_platform_data struct
+bd6937e9c8e2 FROMLIST: media: qcom: iris: use common set_preset_registers function
+bf858006c54d FROMLIST: media: qcom: iris: don't use function indirection in gen2-specific code
+a5495a7d4b5a FROMLIST: media: qcom: iris: split HFI session ops from core ops
+37f2cb649170 FROMLIST: media: qcom: iris: merge hfi_response_ops and hfi_command_ops
+6ac14a985475 FROMLIST: media: qcom: iris: move get_instance to iris_hfi_sys_ops
+1bc892977239 FROMLIST: media: qcom: iris: drop hw_response_timeout_val from platform data
+e340dad24e1e FROMLIST: media: qcom: iris: split firmware_data from raw platform data
+644e456c0dbc FROMLIST: media: qcom: iris: split platform data from firmware data
+aed0126b77ef FROMLIST: media: qcom: iris: use new firmware name for SM8250
+8e6b1f6e2fc3 FROMLIST: media: qcom: iris: extract firmware description data
+06550d1c6818 FROMLIST: media: iris: Add hardware power on/off ops for X1P42100
+71d4b011be1c FROMLIST: media: iris: Add platform data for X1P42100
+64fc90edbdf3 FROMLIST: pinctrl: qcom: lpass-lpi: Switch to PM clock framework for runtime PM
+bf3018fcefd3 FROMLIST: pinctrl: qcom: lpass-lpi: Fix GPIO register access helper return types
+205263429314 FROMLIST: pinctrl: qcom: lpass-lpi: Resume clocks for GPIO access
+f1d3a364ee1c FROMLIST: ASoC: codecs: lpass-wsa-macro: Switch to PM clock framework for runtime PM
+a4b84af542bd FROMLIST: ASoC: codecs: lpass-va-macro: Switch to PM clock framework for runtime PM
+ebee7eaa745e FROMLIST: ASoC: codecs: lpass-wsa-macro: Guard optional NPL clock rate programming
+5c6ac730dc06 FROMLIST: pinctrl: qcom: lpass-lpi: Enable runtime PM hooks on remaining SoCs
+b74aa1fff5a9 FROMLIST: arm64: dts: qcom: pm8350c: Enable Qualcomm BCL device
+f4e1487919fa FROMLIST: arm64: dts: qcom: pm7250b: Enable Qualcomm BCL device
+d38b2c42bbd6 FROMLIST: cpuidle: Deny idle entry when CPU already have IPI interrupt pending
+1e52e3f529ec FROMLIST: coresight: tmc: introduce tmc_sysfs_ops to wrap sysfs read operations
+108b8d3ae244 FROMLIST: coresight: cti: encode trigger register index in register offsets
+aa6622a6eaf7 FROMLIST: coresight: cti: add Qualcomm extended CTI identification and quirks
+55f1a4d58969 FROMLIST: coresight: cti: expose banked sysfs registers for Qualcomm extended CTI
+56b587e41ed5 FROMLIST: media: iris: Fix VM count passed to firmware
+57eaa313028b FROMLIST: media: iris: Rename clock and power domain macros to use vcodec prefix
+63b44a59fe7d FROMLIST: media: iris: Use power domain type to look up pd_devs index
+c0db287bcd37 FROMLIST: media: iris: Add power sequence for Glymur
+82efdfbe4e4b FROMLIST: media: iris: Add support to select core for dual core platforms
+a9c03aea670a FROMLIST: media: iris: Add platform data for glymur
+24d7b7b71cf3 WORKAROUND: arm64: dts: qcom: purwa-iot-evk: support Bluetooth over both USB and UART
+4a8164c424a1 PENDING: media: qcom: iris: move hwmode setup into power_on_hw sequence
+c8de71955379 WORKAROUND: phy: qcom: qmp-pcie: add x1e80100 qref supplies
+7dd995bdb68a arm64: dts: qcom: hamoa: Disable spi18 and fix qupv3_2 firmware-name
+19fdee54a963 WORKAROUND: arm64: dts: qcom: Add qref supply for PCIe PHYs
+dc80a77e77a2 Revert "arm64: dts: qcom: hamoa: Disable spi18 and fix qupv3_2 firmware-name"
+76a946268e8e UBUNTU: SAUCE: arm64: dts: qcom: purwa-iot-evk: adapt TSENS override to inline thermal model
+36688d041d16 UBUNTU: SAUCE: PCI: dwc: update D3cold eligibility helper call after rename
+bb8ea127a3d4 Revert "FROMLIST: arm64: dts: qcom: purwa-iot-evk: Update TSENS thermal zone"
+548d7c7ab6e7 Revert "FROMLIST: media: iris: Add platform data for glymur"
+1e9051bc9c5a Revert "FROMLIST: media: iris: Add support to select core for dual core platforms"
+963ec3a4d680 Revert "FROMLIST: media: iris: Add power sequence for Glymur"
+4504edad81ea Revert "FROMLIST: media: iris: Use power domain type to look up pd_devs index"
+ef2d34b04b37 Revert "FROMLIST: media: iris: Rename clock and power domain macros to use vcodec prefix"
+cff197423117 Revert "FROMLIST: media: iris: Fix VM count passed to firmware"
+5f32f99b4c91 Revert "FROMLIST: media: iris: Add platform data for X1P42100"
+21930080eff0 Revert "FROMLIST: media: iris: Add hardware power on/off ops for X1P42100"
+d0c80a9d40e0 Revert "FROMLIST: media: qcom: iris: extract firmware description data"
+31f920a4dc10 Revert "FROMLIST: media: qcom: iris: use new firmware name for SM8250"
+8261a8610a90 Revert "FROMLIST: media: qcom: iris: split firmware_data from raw platform data"
+1976aae86291 Revert "FROMLIST: media: qcom: iris: drop hw_response_timeout_val from platform data"
+47db9784dde7 Revert "FROMLIST: media: qcom: iris: move get_instance to iris_hfi_sys_ops"
+f79c0ceb5e98 Revert "FROMLIST: media: qcom: iris: merge hfi_response_ops and hfi_command_ops"
+9596d1343534 Revert "FROMLIST: media: qcom: iris: split HFI session ops from core ops"
+8f23271df2f9 Revert "FROMLIST: media: qcom: iris: don't use function indirection in gen2-specific code"
+ce544a6998d1 Revert "FROMLIST: media: qcom: iris: use common set_preset_registers function"
+a66208dc0359 Revert "FROMLIST: media: qcom: iris: drop pas_id from the iris_platform_data struct"
+a492d655b57f Revert "PENDING: media: iris: add helper to select context bank device"
+058ba0127f7f Revert "PENDING: media: iris: add context bank devices using iommu-map"
+7fbfc764ece0 Revert "PENDING: media: iris: enable sm8550 context banks via init_cb_devs"
+4b96f092ef56 Revert "FROMLIST: media: iris: add FPS calculation and VPP FW overhead in frequency formula"
+3aa014255e0e Revert "PENDING: media: iris: update MDT PAS load call for new API"
+d12decde7872 Revert "FROMLIST: media: iris: Enable Secure PAS support with IOMMU managed by Linux"
+bbde202e895a Revert "FROMLIST: media: iris: Add platform data for kaanapali"
+06dfbbed828e Revert "FROMLIST: usb: dwc3: qcom: notify EUD driver of role changes"
+005740a87280 Revert "FROMLIST: coresight: cti: expose banked sysfs registers for Qualcomm extended CTI"
+dfd4a29f838b Revert "FROMLIST: coresight: cti: add Qualcomm extended CTI identification and quirks"
+3caa859331b6 Revert "FROMLIST: coresight: cti: encode trigger register index in register offsets"
+cbf98d12209b Revert "FROMLIST: coresight: tmc: introduce tmc_sysfs_ops to wrap sysfs read operations"
+d5515a863994 Synchronize with Qualcomm config
+cac48fed7a54 Revert "FROMLIST: PCI: qcom: Set max OPP before DBI access during resume"
+982282cd7d27 FROMLIST: PCI: qcom: Power down PHY via PARF_PHY_CTRL before disabling rails/clocks
+751bb4d50336 FROMLIST: PCI: qcom: Set max OPP before DBI access during resume
+5986a6637027 Revert "UBUNTU: SAUCE: PCI: dwc: update D3cold eligibility helper call after rename"
+ed3ae2028aca FROMLIST: arm64: dts: qcom: purwa-iot-evk: Update TSENS thermal zone
+192bc647d2ea FROMLIST: arm64: dts: qcom: monaco-evk: Enable SDHCI for SD Card via overlay
+975ec25a22ae Revert "FROMLIST: arm64: dts: qcom: monaco: Move eMMC CQE support from SoC to board DT"
+744ead25f443 FROMLIST: arm64: dts: qcom: monaco: Move eMMC CQE support from SoC to board DT
+2e83ad891223 Revert "WORKAROUND: phy: qcom: qmp-pcie: add x1e80100 qref supplies"
+55f6f68ca0bd Revert "WORKAROUND: phy: qcom: qmp-pcie: Add vdda-refgen and vdda-qref supplies for Glymur"
+2260fab39ffb Revert "WORKAROUND: arm64: dts: qcom: Add qref supply for PCIe PHYs"
+debe91385b85 UBUNTU: [Config] enable QCOM memdump
+bf78f48750a2 Revert "QCLINUX: defconfig: Enable Qualcomm BCL driver"
+3d01272f52ff Revert "FROMLIST: arm64: dts: qcom: pm8350c: Enable Qualcomm BCL device"
+85b864959f5f Revert "FROMLIST: arm64: dts: qcom: pm7250b: Enable Qualcomm BCL device"
+ec79fe1bf3f8 Revert "FROMLIST: hwmon: Add Qualcomm PMIC BCL hardware monitor driver"
+0ce8e43359b8 Revert "FROMLIST: dt-bindings: hwmon: Add qcom,bcl-hwmon yaml bindings"
+d10c8eeedb30 QCLINUX: defconfig: Enable Qualcomm BCL driver
+3aafaebcd828 Revert "FROMLIST: pinctrl: qcom: lpass-lpi: PM clock framework changes"
+0c4ecdf040b0 Revert "ASoC: codecs: lpass-wsa/va-macro: PM clock framework changes"
+47118eda2ca5 Revert "UBUNTU: [Config] enable QCOM memdump"
+ed1d96aa299c Revert "WORKAROUND: arm64: dts: qcom: hamoa-iot-evk: support Bluetooth over both USB and UART"
+e8510a472757 Revert "WORKAROUND: arm64: dts: qcom: purwa-iot-evk: support Bluetooth over both USB and UART"
+81f40484ce8a Revert "WORKAROUND: power: sequencing: qcom-wcn: skip BT devices without bt-enable GPIO"
+e647ae5d0bb5 Revert "QCLINUX: arm64: dts: qcom: workaround for TPM pins"
+a230832142b3 Revert "FROMLIST: cpuidle: Deny idle entry when CPU already have IPI interrupt pending"
+f445baf18fcc i2c: qcom-geni: Fix hardcoded clock index in SE_GENI_CLK_SEL
+1009753f9f88 Revert "i2c: qcom-geni: Fix hardcoded clock index in SE_GENI_CLK_SEL"

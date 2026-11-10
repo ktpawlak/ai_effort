@@ -1,0 +1,11 @@
+{
+ "venus": "[ Collapsed history: the earlier FROMLIST version of this patch and its\n  revert were squashed out. Their conflict resolutions also dropped the\n  Ubuntu SAUCE sc8280xp/sm8350 venus_dt_match entries and the\n  sc8280xp_res struct and restored trailing commas; that leftover is now\n  carried by this commit. ]",
+ "fixbuild": "[ Collapsed history: venus/core.c hunk dropped; it only adapted the\n  squashed-out FROMLIST venus/iris switch. ]",
+ "irissauce": "[ Collapsed history: Makefile hunk dropped; the split platform objects\n  only exist after the FROMGIT platform split re-application. ]",
+ "irissplit": "[ Collapsed history: the earlier FROMLIST version of this patch and its\n  revert were squashed out. That revert's conflict resolution left\n  iris_platform_sm8550.h, iris_platform_vpu3x.c and iris_platform_vpu4x.c\n  behind as unbuilt orphans; they are now created by this commit. ]",
+ "config": "[ Collapsed history: the earlier copy of this commit and its revert were\n  squashed out. That copy's conflict resolution also removed Ubuntu\n  annotations (CLK_X1E80100_{CAMCC,DISPCC,GPUCC}=y,\n  SCMI_QCOM_MEMLAT_DEVFREQ=m, ...); that leftover is now carried by this\n  commit. ]",
+ "pcie": "[ Collapsed history: upstream 9ac0948c4508 (an older version of this\n  patch) is already in the base. The earlier FROMLIST copy and its revert\n  were squashed out; that revert also undid the upstream commit. This\n  commit now carries only the delta from the upstream version. ]",
+ "emmc": "[ Collapsed history: Makefile hunk placed before\n  monaco-evk-ifp-mezzanine.dtbo to match the tree without the squashed-out\n  SD card overlay add/revert pair (its resolution had dropped this\n  commit's Makefile entries). ]",
+ "hwmode": "[ Collapsed history: PENDING \"media: qcom: iris: move hwmode setup into\n  power_on_hw sequence\" and its revert were squashed out, so its hwmode\n  hunks are not synced here. ]",
+ "agatti": "[ Collapsed history: this derivative's copy of the reverted commit was\n  empty (851d5ae6003b is already in the base); this reverts the base\n  commit directly. ]"
+}
